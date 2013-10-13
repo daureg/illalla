@@ -3,33 +3,41 @@
 import datetime
 import calendar
 import flickr_api
-# from flickr_api.api import flickr
 from operator import itemgetter
 import re
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]+)\s*(?P<tags>(?:#\w+\s*)*)$')
 
 
-def read_title(t):
+def parse_title(t):
     """ Separate title from terminal hashtags
-    >>> read_title('Carnitas Crispy Taco with guac #foodporn #tacosrule')
-    'Carnitas Crispy Taco with guac', ['foodporn', 'tacosrule']
+    >>> parse_title('Carnitas Crispy Taco with guac #foodporn #tacosrule')
+    ('Carnitas Crispy Taco with guac', ['foodporn', 'tacosrule'])
+    >>> parse_title('Carnitas Crispy Taco with guac')
+    ('Carnitas Crispy Taco with guac', [])
     """
+    m = TITLE_AND_TAGS.match(t)
+    if m is not None:
+        title = m.group('title').strip()
+        tags = m.group('tags').replace('#', '').split()
+        return title, tags
+
     return t
 
 
 def simplifyPhoto(p):
     s = {}
     s['id'] = int(p.id)
-    s['uid'] = p.owner
+    s['uid'] = p.owner.id
     s['taken'] = datetime.datetime.strptime(p.taken, '%Y-%m-%d %H:%M:%S')
     # The 'posted' date represents the time at which the photo was uploaded to
     # Flickr. It's always passed around as a unix timestamp (seconds since Jan
     # 1st 1970 GMT). It's up to the application provider to format them using
     # the relevant viewer's timezone.
     s['upload'] = datetime.datetime.fromtimestamp(p.posted)
-    s['title'] = p.title
+    title, tags = parse_title(p.title)
+    s['title'] = title
     s['tags'] = map(itemgetter('text'),
-                    filter(lambda x: x.machine_tag == 0, p.tags))
+                    filter(lambda x: x.machine_tag == 0, p.tags)) + tags
     s['accuracy'] = p.location['accuracy']
     s['longitude'] = p.location['longitude']
     s['latitude'] = p.location['latitude']

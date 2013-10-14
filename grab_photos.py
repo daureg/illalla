@@ -38,14 +38,14 @@ def simplifyPhoto(p):
     s['title'] = title
     s['tags'] = map(itemgetter('text'),
                     filter(lambda x: x.machine_tag == 0, p.tags)) + tags
-    s['accuracy'] = p.location['accuracy']
+    s['accuracy'] = int(p.location['accuracy'])
     s['longitude'] = p.location['longitude']
     s['latitude'] = p.location['latitude']
     return s
 
 
 def make_request():
-    d = datetime.datetime(2013, 9, 21)
+    d = datetime.datetime(2013, 8, 1)
     tm = calendar.timegm(d.utctimetuple())
     SF_BL = (37.7123, -122.531)
     SF_TR = (37.7981, -122.364)
@@ -56,13 +56,25 @@ def make_request():
     pg = 1
     ex = 'date_upload,date_taken,geo,tags'
     f = flickr_api.Photo.search(min_upload_date=tm, bbox=bbox,
-                                accuracy='1-16', content_type=ct, media=m,
+                                accuracy='12-16', content_type=ct, media=m,
                                 per_page=ppg, page=pg, extra=ex)
     return f
 
-
 if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
-    f = make_request()
-    print(f.info.total)
+    # import doctest
+    # doctest.testmod()
+    # f = make_request()
+    # print(f.info.total)
+    # p = simplifyPhoto(f[0])
+    import cPickle
+    # with open('test_photo', 'wb') as f:
+    #     pkl = cPickle.Pickler(f, 2)
+    #     pkl.dump(p)
+    with open('test_photo', 'rb') as f:
+        pkl = cPickle.Unpickler(f)
+        p = pkl.load()
+    print(p)
+    import json
+    import codecs
+    with codecs.open('tmp', 'w', 'utf-8') as w:
+        json.dump(moreJSON(p), w, ensure_ascii=False, encoding='utf-8')

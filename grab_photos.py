@@ -26,7 +26,7 @@ def parse_title(t):
 
 def simplifyPhoto(p):
     s = {}
-    s['id'] = int(p.id)
+    s['_id'] = int(p.id)
     s['uid'] = p.owner.id
     s['taken'] = datetime.datetime.strptime(p.taken, '%Y-%m-%d %H:%M:%S')
     # The 'posted' date represents the time at which the photo was uploaded to
@@ -41,10 +41,12 @@ def simplifyPhoto(p):
     s['accuracy'] = int(p.location['accuracy'])
     s['longitude'] = p.location['longitude']
     s['latitude'] = p.location['latitude']
+    coord = [s['longitude'], s['latitude']]
+    s['loc'] = {"type": "Point", "coordinates": coord}
     return s
 
 
-def make_request():
+def make_request(start_time, bottom_left, upper_right):
     d = datetime.datetime(2013, 8, 1)
     tm = calendar.timegm(d.utctimetuple())
     SF_BL = (37.7123, -122.531)
@@ -74,7 +76,12 @@ if __name__ == '__main__':
         pkl = cPickle.Unpickler(f)
         p = pkl.load()
     print(p)
-    import json
-    import codecs
-    with codecs.open('tmp', 'w', 'utf-8') as w:
-        json.dump(moreJSON(p), w, ensure_ascii=False, encoding='utf-8')
+    import pymongo
+    client = pymongo.MongoClient('localhost', 27017)
+    db = client['flickr']
+    photos = db['photos']
+    photos.create_index('loc', pymongo.GEOSPHERE)
+    # import json
+    # import codecs
+    # with codecs.open('tmp', 'w', 'utf-8') as w:
+    #     json.dump(moreJSON(p), w, ensure_ascii=False, encoding='utf-8')

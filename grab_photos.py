@@ -6,6 +6,16 @@ import flickr_api
 from operator import itemgetter
 import re
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]+)\s*(?P<tags>(?:#\w+\s*)*)$')
+SF_BL = (37.7123, -122.531)
+SF_TR = (37.7981, -122.364)
+NY_BL = (40.583, -74.040)
+NY_TR = (40.883, -73.767)
+LD_BL = (51.475, -0.245)
+LD_TR = (51.597, 0.034)
+VG_BL = (36.80, -78.52)
+VG_TR = (38.62, -76.27)
+CA_BL = (37.05, -122.21)
+CA_TR = (39.59, -119.72)
 
 
 def parse_title(t):
@@ -21,7 +31,7 @@ def parse_title(t):
         tags = m.group('tags').replace('#', '').split()
         return title, tags
 
-    return t
+    return t, []
 
 
 def simplifyPhoto(p):
@@ -38,35 +48,36 @@ def simplifyPhoto(p):
     s['title'] = title
     s['tags'] = map(itemgetter('text'),
                     filter(lambda x: x.machine_tag == 0, p.tags)) + tags
-    s['accuracy'] = int(p.location['accuracy'])
-    s['longitude'] = p.location['longitude']
-    s['latitude'] = p.location['latitude']
-    coord = [s['longitude'], s['latitude']]
+    # TODO if s['tags'] == []:
+    # return None
+    coord = [p.location['longitude'], p.location['latitude']]
     s['loc'] = {"type": "Point", "coordinates": coord}
     return s
 
 
+def save_to_mongo(request_result, collection):
+    collection.insert(map(simplifyPhoto, request_result))
+
+
 def make_request(start_time, bottom_left, upper_right):
-    d = datetime.datetime(2013, 8, 1)
-    tm = calendar.timegm(d.utctimetuple())
-    SF_BL = (37.7123, -122.531)
-    SF_TR = (37.7981, -122.364)
-    bbox = '{},{},{},{}'.format(SF_BL[1], SF_BL[0], SF_TR[1], SF_TR[0])
+    tm = calendar.timegm(start_time.utctimetuple())
+    bbox = '{},{},{},{}'.format(bottom_left[1], bottom_left[0],
+                                upper_right[1], upper_right[0])
     ct = 1  # photos only
     m = "photos"  # not video
-    ppg = 10
-    pg = 1
+    ppg = 250
+    pg = 16
     ex = 'date_upload,date_taken,geo,tags'
     f = flickr_api.Photo.search(min_upload_date=tm, bbox=bbox,
-                                accuracy='12-16', content_type=ct, media=m,
+                                accuracy='16', content_type=ct, media=m,
                                 per_page=ppg, page=pg, extra=ex)
     return f
 
 if __name__ == '__main__':
     # import doctest
     # doctest.testmod()
-    # f = make_request()
-    # print(f.info.total)
+    f = make_request(datetime.datetime(2008, 8, 1), SF_BL, SF_TR)
+    print(f.info.total)
     # p = simplifyPhoto(f[0])
     import cPickle
     # with open('test_photo', 'wb') as f:
@@ -80,8 +91,6 @@ if __name__ == '__main__':
     client = pymongo.MongoClient('localhost', 27017)
     db = client['flickr']
     photos = db['photos']
-    photos.create_index('loc', pymongo.GEOSPHERE)
-    # import json
-    # import codecs
-    # with codecs.open('tmp', 'w', 'utf-8') as w:
-    #     json.dump(moreJSON(p), w, ensure_ascii=False, encoding='utf-8')
+    photos.ensure_index([('loc', pymongo.GEOSPHERE),
+                         ('tags', pymongo.ASCENDING),
+                         ('uid', pymongo.ASCENDING)])

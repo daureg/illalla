@@ -5,6 +5,10 @@ import calendar
 import flickr_api
 from operator import itemgetter
 import re
+from time import clock
+import logging
+logging.basicConfig(filename='example.log', level=logging.DEBUG)
+
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]+)\s*(?P<tags>(?:#\w+\s*)*)$')
 SF_BL = (37.7123, -122.531)
 SF_TR = (37.7981, -122.364)
@@ -34,7 +38,8 @@ def parse_title(t):
     return t, []
 
 
-def simplifyPhoto(p):
+def photo_to_dict(p):
+    start = clock()
     s = {}
     s['_id'] = int(p.id)
     s['uid'] = p.owner.id
@@ -48,15 +53,17 @@ def simplifyPhoto(p):
     s['title'] = title
     s['tags'] = map(itemgetter('text'),
                     filter(lambda x: x.machine_tag == 0, p.tags)) + tags
-    # TODO if s['tags'] == []:
-    # return None
+    if len(s['tags']) < 1:
+        logging.info('map {} in {:.3f}s'.format(s['_id'], clock() - start))
+        return None
     coord = [p.location['longitude'], p.location['latitude']]
     s['loc'] = {"type": "Point", "coordinates": coord}
+    logging.info('map {} in {:.3f}s'.format(s['_id'], clock() - start))
     return s
 
 
-def save_to_mongo(request_result, collection):
-    collection.insert(map(simplifyPhoto, request_result))
+def save_to_mongo(photos, collection):
+    collection.insert([photo_to_dict(p) for p in photos if p is not None])
 
 
 def make_request(start_time, bottom_left, upper_right):
@@ -65,7 +72,7 @@ def make_request(start_time, bottom_left, upper_right):
                                 upper_right[1], upper_right[0])
     ct = 1  # photos only
     m = "photos"  # not video
-    ppg = 250
+    ppg = 10
     pg = 16
     ex = 'date_upload,date_taken,geo,tags'
     f = flickr_api.Photo.search(min_upload_date=tm, bbox=bbox,
@@ -78,15 +85,15 @@ if __name__ == '__main__':
     # doctest.testmod()
     f = make_request(datetime.datetime(2008, 8, 1), SF_BL, SF_TR)
     print(f.info.total)
-    # p = simplifyPhoto(f[0])
-    import cPickle
+    # p = photo_to_dict(f[0])
+    # import cPickle
     # with open('test_photo', 'wb') as f:
     #     pkl = cPickle.Pickler(f, 2)
     #     pkl.dump(p)
-    with open('test_photo', 'rb') as f:
-        pkl = cPickle.Unpickler(f)
-        p = pkl.load()
-    print(p)
+    # with open('test_photo', 'rb') as f:
+    #     pkl = cPickle.Unpickler(f)
+    #     p = pkl.load()
+    # print(p)
     import pymongo
     client = pymongo.MongoClient('localhost', 27017)
     db = client['flickr']
@@ -94,3 +101,4 @@ if __name__ == '__main__':
     photos.ensure_index([('loc', pymongo.GEOSPHERE),
                          ('tags', pymongo.ASCENDING),
                          ('uid', pymongo.ASCENDING)])
+    save_to_mongo(f, photos)

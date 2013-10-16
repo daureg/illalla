@@ -116,6 +116,9 @@ def photo_to_dict(p):
             'dateupload' in p and
             'tags' in p and
             'title' in p and
+            'farm' in p and
+            'secret' in p and
+            'server' in p and
             'longitude' in p and
             'latitude' in p):
         took = 1000*(clock() - start)
@@ -150,6 +153,9 @@ def photo_to_dict(p):
         return None
     coord = [p['longitude'], p['latitude']]
     s['loc'] = {"type": "Point", "coordinates": coord}
+    s['farm'] = p['farm']
+    s['server'] = p['server']
+    s['secret'] = p['secret']
     took = 1000*(clock() - start)
     logging.debug('map {} in {:.3f}ms'.format(s['_id'], took))
     return s

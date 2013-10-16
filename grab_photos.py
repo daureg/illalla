@@ -9,7 +9,7 @@ import urllib2
 import flickr_api as flickr_api
 from flickr_keys import API_KEY
 import re
-from time import sleep
+from time import sleep, time
 from timeit import default_timer as clock
 import logging
 logging.basicConfig(filename='grab_photos.log',
@@ -20,7 +20,14 @@ TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]*)\s*(?P<tags>(?:#\w+\s*)*)$')
 MACHINE_TAGS = re.compile(r'^\w+:\w+')
 unique_id = set([])
 BASE_URL = "http://api.flickr.com/services/rest/"
+# According to https://secure.flickr.com/services/developer/api/, one api key
+# can only make 3600 request per hour so we need to keep track of our usage to
+# stay under the limit
 NB_REQ = 0
+START_OF_REQUESTS = 0
+REQUEST_INTERVAL = 15  # in second
+MAX_REQUEST = 5
+
 SF_BL = (37.7123, -122.531)
 SF_TR = (37.7981, -122.364)
 NY_BL = (40.583, -74.040)
@@ -35,6 +42,17 @@ CA_TR = (39.59, -119.72)
 
 def send_request(**args):
     global NB_REQ
+    if NB_REQ > MAX_REQUEST:
+        now = time()
+        next_time = START_OF_REQUESTS + REQUEST_INTERVAL
+        if now < next_time:
+            pause = next_time - now + 2
+            logging.info("made {} request in {}s: sleeping for {}s{}".format(
+                NB_REQ, START_OF_REQUESTS - now, pause,
+                " (but then I come back well rested, raring to go!)"))
+            sleep(pause)
+            NB_REQ = 0
+
     args['method'] = 'flickr.photos.search'
     args['format'] = 'json'
     args['api_key'] = API_KEY
@@ -185,6 +203,7 @@ if __name__ == '__main__':
     import sys
     first_page = 1 if len(sys.argv) < 2 else int(sys.argv[1])
 
+    START_OF_REQUESTS = time()
     logging.info('initial request')
     start_time = datetime.datetime(2008, 1, 1)
     # f, t = make_request(start_time, SF_BL, SF_TR, 1, need_answer=True)
@@ -233,5 +252,5 @@ if __name__ == '__main__':
             sleep(5)
 
     logging.info('Saved a total of {} photos.'.format(total))
-    logging.info('or {} photos.'.format(len(unique_id)))
+    logging.info('or {} photos ({}% duplicate).'.format(len(unique_id), 100*len(unique_id)/total))
     logging.info('made {} requests.'.format(NB_REQ))

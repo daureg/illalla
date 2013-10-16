@@ -178,14 +178,31 @@ def save_to_mongo(photos, collection):
     return total
 
 
+def split_bbox(bottom_left, upper_right):
+    """
+    >>> split_bbox((0, 0), (20, 22))
+    [((0, 0), (10, 11)), ((0, 11), (10, 22)), ((10, 0), (20, 11)), ((10, 11), (20, 22))]
+    """
+    bl_increment = (upper_right[1] - bottom_left[1])/2
+    ur_increment = (upper_right[0] - bottom_left[0])/2
+    p1 = bottom_left
+    p2 = (bottom_left[0], bottom_left[1]+bl_increment)
+    p3 = (bottom_left[0]+1*ur_increment, bottom_left[1]+0*bl_increment)
+    p4 = (bottom_left[0]+1*ur_increment, bottom_left[1]+1*bl_increment)
+    p5 = (bottom_left[0]+1*ur_increment, bottom_left[1]+2*bl_increment)
+    p6 = (bottom_left[0]+2*ur_increment, bottom_left[1]+1*bl_increment)
+    p7 = (bottom_left[0]+2*ur_increment, bottom_left[1]+2*bl_increment)
+    return [(p1, p4), (p2, p5), (p3, p6), (p4, p7)]
+
+
 def make_request(start_time, bottom_left, upper_right, page, need_answer=False,
                  max_tries=3):
     """ Queries photos uploaded after 'start_time' in the region defined by
     'bottom_left' and 'upper_right'. If successfull, return all of them in page
     'page' along with some info. Otherwise, return None by default.  If
     'need_answer' is true, try again at most 'max_tries' times. """
-    bbox = '{},{},{},{}'.format(bottom_left[1], bottom_left[0],
-                                upper_right[1], upper_right[0])
+    bbox = '{:.9f},{:.9f},{:.9f},{:.9f}'.format(bottom_left[1], bottom_left[0],
+                                                upper_right[1], upper_right[0])
     min_upload = calendar.timegm(start_time.utctimetuple())
     while max_tries > 0:
         error = False

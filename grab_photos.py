@@ -18,9 +18,9 @@ logging.basicConfig(filename='grab_photos.log',
 
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]*)\s*(?P<tags>(?:#\w+\s*)*)$')
 MACHINE_TAGS = re.compile(r'^\w+:\w+')
-unique_id = set([])
+# unique_id = set([])
 BASE_URL = "http://api.flickr.com/services/rest/"
-PER_PAGE = 100
+PER_PAGE = 200
 # According to https://secure.flickr.com/services/developer/api/, one api key
 # can only make 3600 request per hour so we need to keep track of our usage to
 # stay under the limit.
@@ -161,13 +161,74 @@ def photo_to_dict(p):
     return s
 
 
+def higher_request(start_time, bbox, db, level=0):
+    """ Try to insert all photos in this region into db by potentially making
+    recursing call, eventually to lower_request when the region accounts for
+    less than 4000 photos. """
+    if level > 10:
+        logging.warn("Going to deep with {}.", bbox)
+        return 0
+
+    _, total = make_request(start_time, bbox, 1, need_answer=True,
+                            max_tries=10)
+    if total > 4000:
+        photos = 0
+        start = clock()
+        quads = split_bbox(bbox)
+        for q in quads:
+            photos += higher_request(start_time, q, db, level+1)
+        logging.info('Finish {}: {} photos in {}s'.format(bbox, photos,
+                                                          clock()-start))
+        return photos
+    if total > 5:
+        return lower_request(start_time, bbox, db, total/PER_PAGE + 1)
+    logging.warn('Cannot get any photos in {}.'.format(bbox))
+    return 0
+
+
+def lower_request(start_time, bbox, db, num_pages):
+    failed_page = []
+    total = 0
+    hstart = clock()
+    for page in range(1, num_pages+1):
+        start = clock()
+        res, _ = make_request(start_time, bbox, page)
+        if res is None:
+            failed_page.append(page)
+        else:
+            took = ' ({:.4f}s)'.format(clock() - start)
+            logging.info('Get result for page {}{}'.format(page, took))
+            saved = save_to_mongo(res, db)
+            took = ' ({:.4f}s)'.format(clock() - start)
+            page_desc = 'page {}, {} photos {}'.format(page, saved, took)
+            logging.info('successfully insert ' + page_desc)
+            total += saved
+            sleep(1)
+    for page in failed_page:
+        start = clock()
+        res, _ = make_request(start_time, bbox, page, need_answer=True)
+        if res is None:
+            took = ' ({:.4f}s)'.format(clock() - start)
+            logging.warn('Failed to get page {}{}'.format(page, took))
+        else:
+            saved = save_to_mongo(res, photos)
+            took = ' ({:.4f}s)'.format(clock() - start)
+            page_desc = 'page {}, {} photos {}'.format(page, saved, took)
+            logging.info('Finally get ' + page_desc)
+            total += saved
+            sleep(1)
+    logging.info('Finish {}: {} photos in {}s'.format(bbox, total,
+                                                      clock()-hstart))
+    return total
+
+
 def save_to_mongo(photos, collection):
     global unique_id
     converted = [photo_to_dict(p) for p in photos]
     tagged = [p for p in converted if p is not None]
     total = len(tagged)
-    ids = [p['_id'] for p in tagged]
-    unique_id |= set(ids)
+    # ids = [p['_id'] for p in tagged]
+    # unique_id |= set(ids)
     if total > 0:
         try:
             collection.insert(tagged, continue_on_error=True)
@@ -178,11 +239,13 @@ def save_to_mongo(photos, collection):
     return total
 
 
-def split_bbox(bottom_left, upper_right):
+def split_bbox(bbox):
     """
-    >>> split_bbox((0, 0), (20, 22))
+    >>> split_bbox(((0, 0), (20, 22)))
     [((0, 0), (10, 11)), ((0, 11), (10, 22)), ((10, 0), (20, 11)), ((10, 11), (20, 22))]
     """
+    bottom_left = bbox[0]
+    upper_right = bbox[1]
     bl_increment = (upper_right[1] - bottom_left[1])/2
     ur_increment = (upper_right[0] - bottom_left[0])/2
     p1 = bottom_left
@@ -195,14 +258,13 @@ def split_bbox(bottom_left, upper_right):
     return [(p1, p4), (p2, p5), (p3, p6), (p4, p7)]
 
 
-def make_request(start_time, bottom_left, upper_right, page, need_answer=False,
-                 max_tries=3):
+def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
     """ Queries photos uploaded after 'start_time' in the region defined by
-    'bottom_left' and 'upper_right'. If successfull, return all of them in page
-    'page' along with some info. Otherwise, return None by default.  If
-    'need_answer' is true, try again at most 'max_tries' times. """
-    bbox = '{:.9f},{:.9f},{:.9f},{:.9f}'.format(bottom_left[1], bottom_left[0],
-                                                upper_right[1], upper_right[0])
+    'bbox'. If successfull, return all of them in page 'page' along with some
+    info. Otherwise, return None by default.  If 'need_answer' is true, try
+    again at most 'max_tries' times. """
+    bbox = '{:.9f},{:.9f},{:.9f},{:.9f}'.format(bbox[0][1], bbox[0][0],
+                                                bbox[1][1], bbox[1][0])
     min_upload = calendar.timegm(start_time.utctimetuple())
     while max_tries > 0:
         error = False
@@ -212,79 +274,43 @@ def make_request(start_time, bottom_left, upper_right, page, need_answer=False,
                                   bbox=bbox, accuracy='16',
                                   content_type=1,  # photos only
                                   media="photos",  # not video
-                                  per_page=50, page=page,
+                                  per_page=PER_PAGE, page=page,
                                   extras='date_upload,date_taken,geo,tags')
         except flickr_api.FlickrError as e:
             logging.warn('Error getting page {}: {}'.format(page, e))
             error = True
 
         if not error and len(res) > 0:
-            return res, t
+            return res, int(t)
         if need_answer:
             max_tries -= 1
-            logging.info('sleeping on page {}'.format(page))
-            sleep(8)
+            logging.info('insisting on page {}'.format(page))
+            sleep(5)
         else:
             return None, 0
-    return None
+
+    logging.warn('Error getting page {}: too much tries'.format(page))
+    return None, 0
 
 
 if __name__ == '__main__':
-    # import doctest
-    # doctest.testmod()
-    import sys
-    first_page = 1 if len(sys.argv) < 2 else int(sys.argv[1])
-
+    import doctest
+    doctest.testmod()
     START_OF_REQUESTS = time()
     logging.info('initial request')
     start_time = datetime.datetime(2008, 1, 1)
-    # f, t = make_request(start_time, SF_BL, SF_TR, 1, need_answer=True)
-    # if f is None:
-    #     logging.critical('cannot pass the first request')
-    #     print('cannot pass the first request')
-    #     sys.exit()
 
-    # num_pages = t
-    # print(num_pages)
-    num_pages = 50
     client = pymongo.MongoClient('localhost', 27017)
     db = client['flickr']
     photos = db['photos']
     photos.ensure_index([('loc', pymongo.GEOSPHERE),
                          ('tags', pymongo.ASCENDING),
                          ('uid', pymongo.ASCENDING)])
-    failed_page = []
-    total = 0
-    for page in range(first_page, num_pages+1):
-        start = clock()
-        res, _ = make_request(start_time, SF_BL, SF_TR, page)
-        if res is None:
-            failed_page.append(page)
-        else:
-            took = ' ({:.4f}s)'.format(clock() - start)
-            logging.info('Get result for page {}{}'.format(page, took))
-            saved = save_to_mongo(res, photos)
-            took = ' ({:.4f}s)'.format(clock() - start)
-            page_desc = 'page {}, {} photos {}'.format(page, saved, took)
-            logging.info('successfully insert ' + page_desc)
-            total += saved
-            sleep(1)
-    for page in failed_page:
-        start = clock()
-        res, _ = make_request(start_time, SF_BL, SF_TR, page, need_answer=True)
-        if res is None:
-            took = ' ({:.4f}s)'.format(clock() - start)
-            logging.warn('Failed to get page {}{}'.format(page, took))
-        else:
-            saved = save_to_mongo(res, photos)
-            took = ' ({:.4f}s)'.format(clock() - start)
-            page_desc = 'page {}, {} photos {}'.format(page, saved, took)
-            logging.info('Finally get ' + page_desc)
-            total += saved
-            sleep(5)
+    bbox = ((37.768, -122.40), (37.778, -122.38))
+    total = higher_request(start_time, bbox, photos)
 
     logging.info('Saved a total of {} photos.'.format(total))
-    uniq = len(unique_id)
-    logging.info('or {} photos ({}% duplicate).'.format(uniq,
-                                                        100*(1-uniq)/total))
+    # uniq = len(unique_id)
+    # dup = 100-100*uniq/total
+    # logging.info('Insert {} photos ({}% duplicate).'.format(uniq, dup))
     logging.info('made {} requests.'.format(TOTAL_REQ))

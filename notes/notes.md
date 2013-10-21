@@ -73,3 +73,22 @@ San Fransisco:
 	641142
 	2.72% duplicate
 	42414 per hour
+
+California:
+
+	2013-10-18 12:39:56,312 [INFO]: Finish ((37.05, -122.21), (39.59, -119.72)):
+	612050 photos in 48558.9884s
+	2013-10-18 12:39:56,313 [INFO]: Saved a total of 612050 photos.
+	2013-10-18 12:39:56,313 [INFO]: made 2250 requests.
+	> db.photos.count() - 641142
+	594176
+	2.92% duplicate
+	44050 per hour
+
+Usefull site:
+
+-  [http://geojsonlint.com/](http://geojsonlint.com/)
+
+-  [http://jsonlint.com/](http://jsonlint.com/)
+
+-  to get cartographic shapefiles [http://mapserver.flightgear.org/shpdl/](http://mapserver.flightgear.org/shpdl/)

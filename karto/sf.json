@@ -1,0 +1,35 @@
+{
+    "layers": {
+        "coastline": {
+            "src": "v1_landmass.shp"
+        },
+        "urban": {
+            "src": "v1_urban.shp"
+        },
+        "park": {
+            "src": "v1_park.shp"
+        },
+        "road": {
+            "src": "v1_road.shp"
+        },
+        "photos": {
+            "src": "baseball_3.shp"
+        },
+        "lakes": {
+            "src": "v1_lake.shp",
+            "substract-from": "coastline"
+        }
+    },
+    "bounds": {
+        "mode": "bbox",
+        "data": [-122.4, 37.768, -122.38, 37.778]
+    },
+    "proj": {
+        "id": "laea",
+        "lon0": -122.4,
+        "lat0": 37.78
+    },
+    "background": {
+	    "special": "sea"
+    }
+}

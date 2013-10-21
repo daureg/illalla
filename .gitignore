@@ -3,6 +3,8 @@ flickr_keys*
 *.csv
 *.dbf
 *.cpg
+*.prj
+kato/*.svg
 ipython_log.py
 
 # Created by http://gitignore.io

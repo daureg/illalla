@@ -1,4 +1,8 @@
 flickr_keys*
+*.sh[px]
+*.csv
+*.dbf
+*.cpg
 ipython_log.py
 
 # Created by http://gitignore.io

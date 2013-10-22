@@ -77,6 +77,11 @@ def tag_over_time(collection, tag, bbox, start, interval):
         #     writer.writerows(places)
 
 
+# TODO k_split_bbox
+# TODO call tag_location, go over the list, accumulate by region, divide to get
+# frequency, group region of similar frequency into a collection of Polygon,
+# make config.json a python dictionnary, inline style each frequency with a
+# different shade of red
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

@@ -1,7 +1,7 @@
 {
     "layers": {
         "coastline": {
-            "src": "v1_landmass.shp"
+            "src": "bayarea_county2000.shp"
         },
         "urban": {
             "src": "v1_urban.shp"

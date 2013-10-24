@@ -11,16 +11,17 @@ from flickr_keys import API_KEY
 import re
 from time import sleep, time
 from timeit import default_timer as clock
+from httplib import BadStatusLine
 import logging
 logging.basicConfig(filename='grab_photos.log',
-                    level=logging.DEBUG,
+                    level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]*)\s*(?P<tags>(?:#\w+\s*)*)$')
 MACHINE_TAGS = re.compile(r'^\w+:\w+')
 # unique_id = set([])
 BASE_URL = "http://api.flickr.com/services/rest/"
-PER_PAGE = 200
+PER_PAGE = 220
 # According to https://secure.flickr.com/services/developer/api/, one api key
 # can only make 3600 request per hour so we need to keep track of our usage to
 # stay under the limit.
@@ -34,7 +35,7 @@ REQUEST_INTERVAL = 3600  # in second
 MAX_REQUEST = 3600
 
 SF_BL = (37.7123, -122.531)
-SF_TR = (37.7981, -122.364)
+SF_TR = (37.84, -122.35)
 NY_BL = (40.583, -74.040)
 NY_TR = (40.883, -73.767)
 LD_BL = (51.475, -0.245)
@@ -43,6 +44,9 @@ VG_BL = (36.80, -78.52)
 VG_TR = (38.62, -76.27)
 CA_BL = (37.05, -122.21)
 CA_TR = (39.59, -119.72)
+US_BL = (26, -124.1)
+US_TR = (48.6, -66.6)
+HINT = "ny"
 
 
 def send_request(**args):
@@ -73,6 +77,10 @@ def send_request(**args):
         return r['photos']['photo'], r['photos']['total']
     except urllib2.HTTPError as e:
         raise flickr_api.FlickrError(e.read().split('&')[0])
+    except BadStatusLine:
+        raise flickr_api.FlickrError('BadStatusLine')
+    except:
+        raise
 
 
 def parse_title(t):
@@ -108,6 +116,7 @@ def get_human_tags(s):
 
 
 def photo_to_dict(p):
+    global HINT
     start = clock()
     s = {}
     if not ('id' in p and
@@ -156,6 +165,7 @@ def photo_to_dict(p):
     s['farm'] = p['farm']
     s['server'] = p['server']
     s['secret'] = p['secret']
+    s['hint'] = HINT
     took = 1000*(clock() - start)
     logging.debug('map {} in {:.3f}ms'.format(s['_id'], took))
     return s
@@ -165,8 +175,8 @@ def higher_request(start_time, bbox, db, level=0):
     """ Try to insert all photos in this region into db by potentially making
     recursing call, eventually to lower_request when the region accounts for
     less than 4000 photos. """
-    if level > 10:
-        logging.warn("Going to deep with {}.", bbox)
+    if level > 15:
+        logging.warn("Going too deep with {}.", bbox)
         return 0
 
     _, total = make_request(start_time, bbox, 1, need_answer=True,
@@ -279,6 +289,8 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
         except flickr_api.FlickrError as e:
             logging.warn('Error getting page {}: {}'.format(page, e))
             error = True
+        except:
+            error = True
 
         if not error and len(res) > 0:
             return res, int(t)
@@ -298,7 +310,6 @@ if __name__ == '__main__':
     doctest.testmod()
     START_OF_REQUESTS = time()
     logging.info('initial request')
-    start_time = datetime.datetime(2008, 1, 1)
 
     client = pymongo.MongoClient('localhost', 27017)
     db = client['flickr']
@@ -306,11 +317,9 @@ if __name__ == '__main__':
     photos.ensure_index([('loc', pymongo.GEOSPHERE),
                          ('tags', pymongo.ASCENDING),
                          ('uid', pymongo.ASCENDING)])
-    bbox = ((37.768, -122.40), (37.778, -122.38))
+    bbox = (NY_BL, NY_TR)
+    start_time = datetime.datetime(2008, 1, 1)
     total = higher_request(start_time, bbox, photos)
 
     logging.info('Saved a total of {} photos.'.format(total))
-    # uniq = len(unique_id)
-    # dup = 100-100*uniq/total
-    # logging.info('Insert {} photos ({}% duplicate).'.format(uniq, dup))
     logging.info('made {} requests.'.format(TOTAL_REQ))

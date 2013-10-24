@@ -27,13 +27,11 @@ recursive call
 -  at level 4 ((37.765925, -122.40575) -- (37.7712875, -122.3953125)): 4035
 
 
-
-
-    2013-10-16 21:02:45,725 [INFO]: Finish ((37.768, -122.4), (37.778, -122.38)):
-    11333 photos in 1369.99082398s
-    flickr reports 14177 total
-    2013-10-16 21:02:45,726 [INFO]: Insert 10588 photos (7% duplicate).
-    2013-10-16 21:02:45,726 [INFO]: made 188 requests.
+        2013-10-16 21:02:45,725 [INFO]: Finish ((37.768, -122.4), (37.778, -122.38)):
+        11333 photos in 1369.99082398s
+        flickr reports 14177 total
+        2013-10-16 21:02:45,726 [INFO]: Insert 10588 photos (7% duplicate).
+        2013-10-16 21:02:45,726 [INFO]: made 188 requests.
 
 27620 per hour
 662900 per day
@@ -92,3 +90,74 @@ Usefull site:
 -  [http://jsonlint.com/](http://jsonlint.com/)
 
 -  to get cartographic shapefiles [http://mapserver.flightgear.org/shpdl/](http://mapserver.flightgear.org/shpdl/)
+
+In San Fransisco, there are 5916822 tags for 787660 photos (145608 unique),
+44354 appearing at least 5 times.
+
+-----------   --------    ------   --------  --------  --------  --------  --------
+rank            1            5        10         50      100        1000    44354
+proportion     7.3645     15.582    21.734    32.207    37.655    63.044    97.345
+-----------   --------    ------   --------  --------  --------  --------  --------
+
+![Tags distribution](tags_sf.pdf)
+
+
+--------------------
+sanfrancisco
+california
+iphoneography
+square
+squareformat
+instagramapp
+unitedstates
+sf
+usa
+ca
+san
+francisco
+goldengatepark
+2010
+iphone
+--------------------
+
+: First 15 tags
+
+----------------------------------------
+2013
+pacific
+february
+foundinsf
+dolorespark
+japaneseteagarden
+boat
+5k
+national
+σανφρανσίσκο
+cruise
+above
+july2009
+effortlesslyuploadedbymyeyeficard
+dayofdecision
+----------------------------------------
+
+: 15 random tags between 100 and 1000
+
+----------------------------------------
+sfgiantsfan
+rolexbigboatseries
+proshowgold
+neutraface
+natur€
+lusty
+lightousetender
+jennyholzer
+img0562jpg
+djguyruben
+cutebaby
+cardamine
+californiaproduce
+aroundwithb1
+aquateenhungerforcemooninite
+----------------------------------------
+
+: 15 random tags between 90000 and 140000

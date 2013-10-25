@@ -19,7 +19,6 @@ logging.basicConfig(filename='grab_photos.log',
 
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]*)\s*(?P<tags>(?:#\w+\s*)*)$')
 MACHINE_TAGS = re.compile(r'^\w+:\w+')
-# unique_id = set([])
 BASE_URL = "http://api.flickr.com/services/rest/"
 PER_PAGE = 220
 # According to https://secure.flickr.com/services/developer/api/, one api key
@@ -46,6 +45,8 @@ CA_BL = (37.05, -122.21)
 CA_TR = (39.59, -119.72)
 US_BL = (26, -124.1)
 US_TR = (48.6, -66.6)
+NANTES_BL = [47.195, -1.61]
+NANTES_UR = [47.27, -1.5]
 HINT = "ny"
 
 
@@ -237,8 +238,6 @@ def save_to_mongo(photos, collection):
     converted = [photo_to_dict(p) for p in photos]
     tagged = [p for p in converted if p is not None]
     total = len(tagged)
-    # ids = [p['_id'] for p in tagged]
-    # unique_id |= set(ids)
     if total > 0:
         try:
             collection.insert(tagged, continue_on_error=True)
@@ -312,12 +311,12 @@ if __name__ == '__main__':
     logging.info('initial request')
 
     client = pymongo.MongoClient('localhost', 27017)
-    db = client['flickr']
+    db = client['nantes']
     photos = db['photos']
     photos.ensure_index([('loc', pymongo.GEOSPHERE),
                          ('tags', pymongo.ASCENDING),
                          ('uid', pymongo.ASCENDING)])
-    bbox = (NY_BL, NY_TR)
+    bbox = (NANTES_BL, NANTES_UR)
     start_time = datetime.datetime(2008, 1, 1)
     total = higher_request(start_time, bbox, photos)
 

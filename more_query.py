@@ -1,8 +1,26 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+from timeit import default_timer as clock
 import datetime
+import pymongo
 from shapely.geometry import Point, mapping
+from math import floor
+# from sys import float_info
+# EPSILON = 1000*float_info.epsilon
 import fiona
+import numpy as np
+
+KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
+                           'mode': 'bbox'},
+                'export': {"round": 1},
+                'layers': {'photos': {'src': 'baseball_3.shp'},
+                           'coastline': {'src': 'bayarea_county2000.shp'},
+                           'lakes': {'src': 'v1_lake.shp',
+                                     'substract-from': 'coastline'},
+                           'park': {'src': 'v1_park.shp'},
+                           'road': {'src': 'v1_road.shp'},
+                           'urban': {'src': 'v1_urban.shp'}},
+                'proj': {'id': 'laea', 'lat0': 37.78, 'lon0': -122.4}}
 
 
 def total_seconds(td):
@@ -44,29 +62,47 @@ def get_photo_url(p, size='z', webpage=False):
     return url
 
 
-def tag_location(collection, tag, bbox, start, end, uploaded=False):
+def tag_location(collection, tag, bbox, start, end, uploaded=False,
+                 user_is_tourist=None):
     """Return a list of [long, lat] for each photo taken between start and end
-    (or uploaded) in bbox which has tag."""
+    (or uploaded) in bbox which has tag. If a dictionnary of users is provided,
+    it adds tourist status as [long, lat, is_tourist]"""
     query = {}
     field = {'loc': 1, '_id': 0}
-    query['loc'] = inside_bbox(bbox)
-    query['tags'] = {'$in': [tag]}
+    if user_is_tourist is not None:
+        field['uid'] = 1
+    # query['loc'] = inside_bbox(bbox)
+    # query['tags'] = {'$in': [tag]}
     time_field = 'upload' if uploaded else 'taken'
     query[time_field] = {'$gt': start, '$lt': end}
     cursor = collection.find(query, field)
-    return map(lambda p: p['loc']['coordinates'], list(cursor))
+    if user_is_tourist is None:
+        return map(lambda p: p['loc']['coordinates'], list(cursor))
+    return map(lambda p: p['loc']['coordinates'] + [user_is_tourist[p['uid']]],
+               list(cursor))
+    # tourist = [p['loc']['coordinates'] for p in list(cursor)
+    #            if user_is_tourist[p['uid']]]
+    # local = [p['loc']['coordinates'] for p in list(cursor)
+    #          if not user_is_tourist[p['uid']]]
+    # return tourist, local
 
 
-def tag_over_time(collection, tag, bbox, start, interval):
+def tag_over_time(collection, tag, bbox, start, interval, user_status=None):
+    # TODO if interval is None, set to max until today
     now = datetime.datetime.now()
     num_period = total_seconds(now - start)
     num_period = int(num_period/total_seconds(interval))
-    schema = {'geometry': 'Point', 'properties': {}}
+    # schema = {'geometry': 'Point', 'properties': {}}
+    schema = {'geometry': 'Point', 'properties': {'tourist': 'int'}}
     for i in range(num_period):
         places = map(lambda p: {'geometry': mapping(Point(p[0], p[1])),
-                                'properties': {}},
-                     tag_location(collection, tag, bbox, start + i * interval,
-                                  start + (i+1) * interval))
+                                # 'properties': {}},
+                                'properties': {'tourist': int(p[2])}},
+                     tag_location(collection, tag, bbox,
+                                  start + i * interval,
+                                  start + (i+1) * interval,
+                                  False,
+                                  user_status))
         print('{} - {}: {}'.format(start + i * interval,
                                    start + (i+1) * interval, len(places)))
         name = '{}_{}.shp'.format(tag, i+1)
@@ -82,8 +118,56 @@ def tag_over_time(collection, tag, bbox, start, interval):
 # frequency, group region of similar frequency into a collection of Polygon,
 # make config.json a python dictionnary, inline style each frequency with a
 # different shade of red
+# TODO compute stats with
+# np.array(zip(map(itemgetter(1), POINTS), map(itemgetter(0), POINTS)))
+
+def get_user_status(collection):
+    users = list(collection.find(fields={'tourist': 1}))
+    return dict([(u['_id'], u['tourist']) for u in users])
+
+
+def classify_users(db):
+    users_collection = db['users']
+    users_from_photos = db['photos'].aggregate([
+        {'$project': {'_id': 0, 'upload': 1, 'user': '$uid'}},
+        {'$group': {'_id': '$user',
+                    'first': {'$min': '$upload'},
+                    'last': {'$max': '$upload'},
+                    "count": {"$sum": 1}}}
+    ])['result']
+    month = total_seconds(datetime.timedelta(days=365.24/12))
+    users = []
+    autochthons = 0
+    for u in users_from_photos:
+        timespan = total_seconds(u['last'] - u['first'])
+        u['tourist'] = timespan < month
+        if not u['tourist']:
+            autochthons += 1
+        users.append(u)
+    print(autochthons)
+    try:
+        users_collection.insert(users, continue_on_error=True)
+    except pymongo.errors.DuplicateKeyError:
+        print('duplicate')
+        pass
+
+
 if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
-    tag_over_time(None, 'baseball', [37.768, -122.4, 37.778, -122.38],
-                  datetime.datetime(2008, 1, 1), datetime.timedelta(days=91.3))
+    client = pymongo.MongoClient('localhost', 27017)
+    db = client['nantes']
+    photos = db['photos']
+    SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
+    # import doctest
+    # doctest.testmod()
+    # r, f = compute_frequency(photos, 'baseball',
+    #                          [37.768, -122.4, 37.778, -122.38],
+    #                          datetime.datetime(2008, 1, 1),
+    #                          datetime.datetime(2014, 1, 1))
+    start = clock()
+    # classify_users(db, photos)
+    u = get_user_status(db['users'])
+    tag_over_time(photos, 'local', None,
+                  datetime.datetime(2005, 1, 1),
+                  datetime.timedelta(days=3218), u)
+    t = 1000*(clock() - start)
+    print('aggregate in {:.3f}ms'.format(t))

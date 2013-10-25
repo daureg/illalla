@@ -113,7 +113,55 @@ def tag_over_time(collection, tag, bbox, start, interval, user_status=None):
         #     writer.writerows(places)
 
 
-# TODO k_split_bbox
+def k_split_bbox(bbox, k=2, offset=0):
+    long_step = (bbox[2] - bbox[0])/k
+    lat_step = (bbox[3] - bbox[1])/k
+    assert(offset <= min(long_step, lat_step))
+    hoffset = offset
+    voffset = 0
+    x = bbox[0]
+    y = bbox[1]
+    region = []
+    while y + voffset < bbox[3] - 0.5*lat_step:
+        while x + hoffset < bbox[2] - 0.5*long_step:
+            region.append([x + hoffset, y + voffset,
+                           x + hoffset + long_step, y + voffset + lat_step])
+            x += long_step
+
+        y += lat_step
+        x = bbox[0]
+
+    def coord2region(coords):
+        longitude, latitude = coords
+        # TODO handle correctly edge case
+        x = longitude - hoffset - bbox[0] - 1e-8
+        y = latitude - voffset - bbox[1] - 1e-8
+        if x < 0 or y < 0:
+            return -1
+        print(x, y, x/long_step, y/lat_step)
+        r = k*int(floor(y/lat_step)) + int(floor(x/long_step))
+        if r > k*k - 1:
+            return - 1
+        return r
+
+    return region, coord2region
+
+
+def compute_frequency(collection, tag, bbox, start, end, k=3, uploaded=False):
+    coords = tag_location(collection, tag, bbox, start, end, uploaded)
+    print(bbox)
+    r, f = k_split_bbox(bbox, k)
+    print(r)
+    print(coords[:10])
+    print(f(coords[0]))
+    count = (len(r)+1)*[0, ]
+    for loc in coords:
+        count[f(loc)+1] += 1
+
+    N = len(coords)
+    print(N, count[0])
+    freq = np.array(count[1:])
+    return r, freq/(1.0*N)
 # TODO call tag_location, go over the list, accumulate by region, divide to get
 # frequency, group region of similar frequency into a collection of Polygon,
 # make config.json a python dictionnary, inline style each frequency with a

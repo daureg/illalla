@@ -1,4 +1,6 @@
+#coastline {stroke-color: black; stroke-width: 0.2px;}
 #roads {stroke-color: gray; opacity: 0.5; stroke-width: 0.5px;}
 /* #coastline {fill: #E9D3D3; opacity: 0.3; stroke-color: black;} */
 #lakes {fill: #439bea; opacity: 0.3; stroke-width: 0;}
 #parks {fill: #22bf12; opacity: 0.3; stroke-width: 0;}
+#photos {fill: red; stroke-width: 0;}

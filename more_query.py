@@ -1,5 +1,6 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+from outplot import outplot
 from timeit import default_timer as clock
 import datetime
 import pymongo
@@ -9,6 +10,8 @@ from math import floor
 # EPSILON = 1000*float_info.epsilon
 import fiona
 import numpy as np
+from scipy.spatial.distance import pdist, squareform
+from operator import itemgetter
 
 KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
                            'mode': 'bbox'},
@@ -71,8 +74,8 @@ def tag_location(collection, tag, bbox, start, end, uploaded=False,
     field = {'loc': 1, '_id': 0}
     if user_is_tourist is not None:
         field['uid'] = 1
-    # query['loc'] = inside_bbox(bbox)
-    # query['tags'] = {'$in': [tag]}
+    query['loc'] = inside_bbox(bbox)
+    query['tags'] = {'$in': [tag]}
     time_field = 'upload' if uploaded else 'taken'
     query[time_field] = {'$gt': start, '$lt': end}
     cursor = collection.find(query, field)
@@ -80,11 +83,6 @@ def tag_location(collection, tag, bbox, start, end, uploaded=False,
         return map(lambda p: p['loc']['coordinates'], list(cursor))
     return map(lambda p: p['loc']['coordinates'] + [user_is_tourist[p['uid']]],
                list(cursor))
-    # tourist = [p['loc']['coordinates'] for p in list(cursor)
-    #            if user_is_tourist[p['uid']]]
-    # local = [p['loc']['coordinates'] for p in list(cursor)
-    #          if not user_is_tourist[p['uid']]]
-    # return tourist, local
 
 
 def tag_over_time(collection, tag, bbox, start, interval, user_status=None):
@@ -166,8 +164,24 @@ def compute_frequency(collection, tag, bbox, start, end, k=3, uploaded=False):
 # frequency, group region of similar frequency into a collection of Polygon,
 # make config.json a python dictionnary, inline style each frequency with a
 # different shade of red
-# TODO compute stats with
-# np.array(zip(map(itemgetter(1), POINTS), map(itemgetter(0), POINTS)))
+
+
+def simple_metrics(collection, tag, bbox, start, end):
+    places = tag_location(collection, tag, bbox, start, end)
+    p = np.array(zip(map(itemgetter(1), places), map(itemgetter(0), places)))
+    grav = np.mean(p, 0)
+    tmp = p - grav
+    dst = np.sum(tmp**2, 1)
+    outplot(tag + '_grav.dat', [''], dst)
+
+    dst = pdist(p)
+    outplot(tag + '_pairwise.dat', [''], dst)
+
+    pd = squareform(dst)
+    np.fill_diagonal(pd, 1e6)
+    dst = np.min(pd, 1)
+    outplot(tag + '_neighbor.dat', [''], dst)
+
 
 def get_user_status(collection):
     users = list(collection.find(fields={'tourist': 1}))
@@ -202,7 +216,7 @@ def classify_users(db):
 
 if __name__ == '__main__':
     client = pymongo.MongoClient('localhost', 27017)
-    db = client['nantes']
+    db = client['flickr']
     photos = db['photos']
     SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
     # import doctest
@@ -213,9 +227,13 @@ if __name__ == '__main__':
     #                          datetime.datetime(2014, 1, 1))
     start = clock()
     # classify_users(db, photos)
-    u = get_user_status(db['users'])
-    tag_over_time(photos, 'local', None,
-                  datetime.datetime(2005, 1, 1),
-                  datetime.timedelta(days=3218), u)
+    # u = get_user_status(db['users'])
+    # tag_over_time(photos, 'local', None,
+    #               datetime.datetime(2005, 1, 1),
+    #               datetime.timedelta(days=3218), u)
+    simple_metrics(photos, 'baseball',
+                   [37.768, -122.4, 37.778, -122.38],
+                   datetime.datetime(2008, 1, 1),
+                   datetime.datetime(2014, 1, 1))
     t = 1000*(clock() - start)
     print('aggregate in {:.3f}ms'.format(t))

@@ -1,0 +1,16 @@
+{
+    "layers": {
+        "photos": {
+            "src": "museum_1.shp"
+        }
+    },
+    "bounds": {
+        "mode": "bbox",
+        "data": [-122.54, 37.71, -122.35, 37.84]
+    },
+    "proj": {
+        "id": "laea",
+        "lon0": -122.4,
+        "lat0": 37.78
+    }
+}

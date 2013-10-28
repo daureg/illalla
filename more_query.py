@@ -73,8 +73,12 @@ def tag_location(collection, tag, bbox, start, end, uploaded=False,
     field = {'loc': 1, '_id': 0}
     if user_is_tourist is not None:
         field['uid'] = 1
-    query['loc'] = inside_bbox(bbox)
-    query['tags'] = {'$in': [tag]}
+    if bbox is None:
+        query['hint'] = 'sf'
+    else:
+        query['loc'] = inside_bbox(bbox)
+    if tag is not None:
+        query['tags'] = {'$in': [tag]}
     time_field = 'upload' if uploaded else 'taken'
     query[time_field] = {'$gt': start, '$lt': end}
     cursor = collection.find(query, field)
@@ -85,16 +89,19 @@ def tag_location(collection, tag, bbox, start, end, uploaded=False,
 
 
 def tag_over_time(collection, tag, bbox, start, interval, user_status=None):
-    # TODO if interval is None, set to max until today
     now = datetime.datetime.now()
-    num_period = total_seconds(now - start)
-    num_period = int(num_period/total_seconds(interval))
-    # schema = {'geometry': 'Point', 'properties': {}}
-    schema = {'geometry': 'Point', 'properties': {'tourist': 'int'}}
+    if interval is None:
+        interval = now - start
+        num_period = 1
+    else:
+        num_period = total_seconds(now - start)
+        num_period = int(num_period/total_seconds(interval))
+    schema = {'geometry': 'Point', 'properties': {}}
+    # schema = {'geometry': 'Point', 'properties': {'tourist': 'int'}}
     for i in range(num_period):
         places = map(lambda p: {'geometry': mapping(Point(p[0], p[1])),
-                                # 'properties': {}},
-                                'properties': {'tourist': int(p[2])}},
+                                'properties': {}},
+                     # 'properties': {'tourist': int(p[2])}},
                      tag_location(collection, tag, bbox,
                                   start + i * interval,
                                   start + (i+1) * interval,
@@ -105,9 +112,6 @@ def tag_over_time(collection, tag, bbox, start, interval, user_status=None):
         name = '{}_{}.shp'.format(tag, i+1)
         with fiona.collection(name, "w", "ESRI Shapefile", schema) as f:
             f.writerecords(places)
-        # with open(name, 'w') as f:
-        #     writer = csv.writer(f, delimiter=';')
-        #     writer.writerows(places)
 
 
 def k_split_bbox(bbox, k=2, offset=0):
@@ -144,11 +148,10 @@ def k_split_bbox(bbox, k=2, offset=0):
 
 
 def compute_frequency(collection, tag, bbox, start, end, k=3,
-                      exclude_zero=True, uploaded=False):
+                      nb_inter=3, exclude_zero=True, uploaded=False):
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
     them. Return a list of list of Polygon, grouped by similar frequency
-    (potentialy omiting the zero one for clarity)."""
-    # global KARTO_CONFIG
+    into nb_inter bucket (potentialy omiting the zero one for clarity)."""
     coords = tag_location(collection, tag, bbox, start, end, uploaded)
     r, f = k_split_bbox(bbox, k)
     # count[0] is for potential points that do not fall in any region (it must
@@ -159,7 +162,6 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
 
     N = len(coords)
     freq = np.array(count[1:])/(1.0*N)
-    nb_inter = 3
     interval_size = (np.max(freq) - np.min(freq))/nb_inter
     bucket = []
     for i in range(nb_inter):
@@ -248,11 +250,8 @@ if __name__ == '__main__':
     db = client['flickr']
     photos = db['photos']
     SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
-    # r, f = k_split_bbox(SF_BBOX, 3)
     # import doctest
     # doctest.testmod()
-    t = 1000*(clock() - start)
-    print('connect in {:.3f}ms'.format(t))
     b = compute_frequency(photos, 'baseball',
                           [37.768, -122.4, 37.778, -122.38],
                           datetime.datetime(2008, 1, 1),

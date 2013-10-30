@@ -1,5 +1,5 @@
-#coastline {stroke-color: black; stroke-width: 2px;}
-#roads {stroke-color: gray; opacity: 0.5; stroke-width: 0.5px;}
+#coastline {stroke-color: black; stroke-width: 1.3px;}
+#roads {stroke-color: darkgray; opacity: 0.8; stroke-width: 0.5px;}
 /* #coastline {fill: #E9D3D3; opacity: 0.3; stroke-color: black;} */
-#lakes {fill: #439bea; opacity: 0.3; stroke-width: 0;}
-#parks {fill: #22bf12; opacity: 0.3; stroke-width: 0;}
+#lakes {fill: white; opacity: 0.3; stroke-width: 0;}
+#parks {fill: white; opacity: 0.3; stroke-width: 0;}

@@ -6,9 +6,6 @@
         "roads": {
             "src": "sf_roads.shp"
         },
-        "parks": {
-            "src": "v1_park.shp"
-        },
         "lakes": {
             "src": "v1_lake.shp",
             "substract-from": "coastline"
@@ -16,11 +13,11 @@
     },
     "bounds": {
         "mode": "bbox",
-        "data": [-122.54, 37.71, -122.35, 37.84]
+        "data": [-122.531, 37.7123, -122.35, 37.84]
     },
     "proj": {
         "id": "laea",
-        "lon0": -122.4,
+        "lon0": -122.45,
         "lat0": 37.78
     }
 }

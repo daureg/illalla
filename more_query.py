@@ -1,5 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+import matplotlib.cm
+import scipy.io as sio
 from outplot import outplot
 from timeit import default_timer as clock
 import json
@@ -15,11 +17,11 @@ import numpy as np
 from scipy.spatial.distance import pdist, squareform
 from operator import itemgetter
 
-CSS = '#{} {{fill: {}; opacity: 0.5; stroke-width: .3px;}}'
+CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.25px;}}'
 KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
                            'mode': 'bbox'},
                 'layers': {},
-                'proj': {'id': 'laea', 'lat0': 37.78, 'lon0': -122.4}}
+                'proj': {'id': 'laea', 'lat0': 37.78, 'lon0': -122.45}}
 
 
 def total_seconds(td):
@@ -28,6 +30,17 @@ def total_seconds(td):
         return td.total_seconds()
     # I don't care about microsecond
     return td.seconds + td.days * 24 * 3600
+
+
+def to_css_hex(color):
+    r = '#'
+    for i in color[:-1]:
+        c = hex(int(255*i))[2:]
+        if len(c) == 2:
+            r += c
+        else:
+            r += '0' + c
+    return r
 
 
 def bbox_to_polygon(bbox, latitude_first=True):
@@ -73,10 +86,11 @@ def tag_location(collection, tag, bbox, start, end, uploaded=False,
     field = {'loc': 1, '_id': 0}
     if user_is_tourist is not None:
         field['uid'] = 1
-    if bbox is None:
-        query['hint'] = 'sf'
-    else:
-        query['loc'] = inside_bbox(bbox)
+#    if bbox is None:
+#        query['hint'] = 'sf'
+#    else:
+#        query['loc'] = inside_bbox(bbox)
+    query['hint'] = 'sf'
     if tag is not None:
         query['tags'] = {'$in': [tag]}
     time_field = 'upload' if uploaded else 'taken'
@@ -147,6 +161,12 @@ def k_split_bbox(bbox, k=2, offset=0):
     return region, coord2region
 
 
+def compute_entropy(count):
+    c = np.array([i for i in count if i > 0])
+    N = np.sum(c)
+    return np.log(N) - np.sum(c*np.log(c))/N
+
+
 def compute_frequency(collection, tag, bbox, start, end, k=3,
                       nb_inter=3, exclude_zero=True, uploaded=False):
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
@@ -161,31 +181,36 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
         count[f(loc)+1] += 1
 
     N = len(coords)
+    sio.savemat('distrib', {'c': np.array(count[1:])})
+    entropy = compute_entropy(count[1:])
+    print("Entropy of {}: {:.4f}".format(tag, entropy))
     freq = np.array(count[1:])/(1.0*N)
-    interval_size = (np.max(freq) - np.min(freq))/nb_inter
+    log_freq = np.maximum(0, np.log(count[1:]))
+    maxv = np.max(log_freq)
+    minv = np.min(log_freq)
+    interval_size = (maxv - minv)/nb_inter
     bucket = []
     for i in range(nb_inter):
         bucket.append([])
-    for i, v in enumerate(freq):
+    for i, v in enumerate(log_freq):
         if not (exclude_zero and v < 1e-8):
             poly = {'geometry': mapping(shape(bbox_to_polygon(r[i], False))),
                     'properties': {}}
             index = (min(nb_inter - 1, int(floor(v / interval_size))))
             bucket[index].append(poly)
-    return bucket
+    return bucket, minv, maxv
 
 
-def plot_polygons(bucket, tag, nb_inter=3):
+def plot_polygons(bucket, tag, nb_inter, minv, maxv):
     schema = {'geometry': 'Polygon', 'properties': {}}
-    low_color = colour.Color(rgb=(255/255.0, 255/255.0, 204/255.0))
-    high_color = colour.Color(rgb=(177/255.0, 0, 38/255.0))
-    colormap = list(low_color.range_to(high_color, nb_inter))
+    colormap_ = matplotlib.cm.ScalarMappable(cmap='YlOrBr')
+    colormap = [to_css_hex(c) for c in colormap_.to_rgba(np.linspace(minv, maxv, nb_inter))]
     style = []
     for i in range(nb_inter):
         if len(bucket[i]) > 0:
             name = '{}_freq_{}'.format(tag, i+1)
             KARTO_CONFIG['layers'][name] = {'src': name+'.shp'}
-            style.append(CSS.format(name, colormap[i].hex))
+            style.append(CSS.format(name, colormap[i], colormap[i]))
             with fiona.collection(name+'.shp', "w",
                                   "ESRI Shapefile", schema) as f:
                 f.writerecords(bucket[i])
@@ -205,7 +230,8 @@ def simple_metrics(collection, tag, bbox, start, end):
     outplot(tag + '_grav.dat', [''], dst)
 
     dst = pdist(p)
-    outplot(tag + '_pairwise.dat', [''], dst)
+    h, b = np.histogram(dst, 200)
+    outplot(tag + '_pairwise.dat', ['', ''], h, b)
 
     pd = squareform(dst)
     np.fill_diagonal(pd, 1e6)
@@ -236,7 +262,7 @@ def classify_users(db):
         if not u['tourist']:
             autochthons += 1
         users.append(u)
-    print(autochthons)
+    print(100*autochthons/len(users))
     try:
         users_collection.insert(users, continue_on_error=True)
     except pymongo.errors.DuplicateKeyError:
@@ -250,20 +276,26 @@ if __name__ == '__main__':
     db = client['flickr']
     photos = db['photos']
     SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
+    KARTO_CONFIG['bounds']['data'] = [SF_BBOX[1], SF_BBOX[0],
+                                      SF_BBOX[3], SF_BBOX[2]]
     # import doctest
     # doctest.testmod()
-    b = compute_frequency(photos, 'baseball',
-                          [37.768, -122.4, 37.778, -122.38],
+    nb_inter = 20
+    b, minv, maxv = compute_frequency(photos, None, SF_BBOX,
                           datetime.datetime(2008, 1, 1),
-                          datetime.datetime(2014, 1, 1))
-    plot_polygons(b, 'baseball')
+                          datetime.datetime(2014, 1, 1), 160, nb_inter)
+    plot_polygons(b, '_distrib', nb_inter, minv, maxv)
     # classify_users(db, photos)
     # u = get_user_status(db['users'])
     # tag_over_time(photos, 'local', None,
     #               datetime.datetime(2005, 1, 1),
     #               datetime.timedelta(days=3218), u)
-    # simple_metrics(photos, 'baseball',
-    #                [37.768, -122.4, 37.778, -122.38],
+    # simple_metrics(photos, 'street',
+    #         SF_BBOX,
+    #         datetime.datetime(2008, 1, 1),
+    #         datetime.datetime(2014, 1, 1))
+    # simple_metrics(photos, 'museum',
+    #                SF_BBOX,
     #                datetime.datetime(2008, 1, 1),
     #                datetime.datetime(2014, 1, 1))
     t = 1000*(clock() - start)

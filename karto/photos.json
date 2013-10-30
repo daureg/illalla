@@ -1,16 +1,1 @@
-{
-    "layers": {
-        "photos": {
-            "src": "museum_1.shp"
-        }
-    },
-    "bounds": {
-        "mode": "bbox",
-        "data": [-122.54, 37.71, -122.35, 37.84]
-    },
-    "proj": {
-        "id": "laea",
-        "lon0": -122.4,
-        "lat0": 37.78
-    }
-}
+{"layers": {"_distrib_freq_9": {"src": "_distrib_freq_9.shp"}, "_distrib_freq_8": {"src": "_distrib_freq_8.shp"}, "_distrib_freq_20": {"src": "_distrib_freq_20.shp"}, "_distrib_freq_3": {"src": "_distrib_freq_3.shp"}, "_distrib_freq_2": {"src": "_distrib_freq_2.shp"}, "_distrib_freq_5": {"src": "_distrib_freq_5.shp"}, "_distrib_freq_4": {"src": "_distrib_freq_4.shp"}, "_distrib_freq_7": {"src": "_distrib_freq_7.shp"}, "_distrib_freq_6": {"src": "_distrib_freq_6.shp"}, "_distrib_freq_15": {"src": "_distrib_freq_15.shp"}, "_distrib_freq_14": {"src": "_distrib_freq_14.shp"}, "_distrib_freq_17": {"src": "_distrib_freq_17.shp"}, "_distrib_freq_16": {"src": "_distrib_freq_16.shp"}, "_distrib_freq_11": {"src": "_distrib_freq_11.shp"}, "_distrib_freq_10": {"src": "_distrib_freq_10.shp"}, "_distrib_freq_13": {"src": "_distrib_freq_13.shp"}, "_distrib_freq_12": {"src": "_distrib_freq_12.shp"}, "_distrib_freq_19": {"src": "_distrib_freq_19.shp"}, "_distrib_freq_18": {"src": "_distrib_freq_18.shp"}}, "bounds": {"data": [-122.531, 37.7123, -122.35, 37.84], "mode": "bbox"}, "proj": {"lon0": -122.45, "id": "laea", "lat0": 37.78}}

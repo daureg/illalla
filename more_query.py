@@ -1,17 +1,16 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+from persistent import save_var
+from bson.son import SON
 import matplotlib.cm
 import scipy.io as sio
 from outplot import outplot
 from timeit import default_timer as clock
 import json
-import colour
 import datetime
 import pymongo
 from shapely.geometry import Point, shape, mapping
 from math import floor
-# from sys import float_info
-# EPSILON = 1000*float_info.epsilon
 import fiona
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
@@ -22,6 +21,7 @@ KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
                            'mode': 'bbox'},
                 'layers': {},
                 'proj': {'id': 'laea', 'lat0': 37.78, 'lon0': -122.45}}
+DB = 0
 
 
 def total_seconds(td):
@@ -68,6 +68,22 @@ def inside_bbox(bbox):
     return {'$geoWithin': {'$geometry': bbox_to_polygon(bbox)}}
 
 
+def season_query(start_year, end_year, season):
+    """Return a query operator that selects all date between start_year and
+    end_year and in the months corresponding to season"""
+    first_month = {'winter': 12, 'spring': 3, 'summer': 6, 'fall': 9}[season]
+    last_month = (first_month + 3) % 12
+    req = {'$or': []}
+    for year in range(start_year, end_year+1):
+        start = datetime.datetime(year, first_month, 15)
+        if season == 'winter':
+            end = datetime.datetime(year+1, last_month, 15)
+        else:
+            end = datetime.datetime(year, last_month, 15)
+        req['$or'].append({'taken': {'$gte': start, '$lte': end}})
+    return req
+
+
 def get_photo_url(p, size='z', webpage=False):
     web_url = u"http://www.flickr.com/photos/{}/{}".format(p['uid'], p['_id'])
     BASE = u"http://farm{}.staticflickr.com/{}/{}_{}_{}.jpg"
@@ -94,7 +110,8 @@ def tag_location(collection, tag, bbox, start, end, uploaded=False,
     if tag is not None:
         query['tags'] = {'$in': [tag]}
     time_field = 'upload' if uploaded else 'taken'
-    query[time_field] = {'$gt': start, '$lt': end}
+    query[time_field] = {'$gte': start, '$lte': end}
+    # query.update(season_query(2008, 2013, 'winter'))
     cursor = collection.find(query, field)
     if user_is_tourist is None:
         return map(lambda p: p['loc']['coordinates'], list(cursor))
@@ -172,20 +189,31 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
     them. Return a list of list of Polygon, grouped by similar frequency
     into nb_inter bucket (potentialy omiting the zero one for clarity)."""
+    # coords = tag_location(collection, tag, bbox, start, end, uploaded,
+    #                       get_user_status(DB['users']))
     coords = tag_location(collection, tag, bbox, start, end, uploaded)
     r, f = k_split_bbox(bbox, k)
     # count[0] is for potential points that do not fall in any region (it must
     # only happens because of rounding inprecision)
     count = (len(r)+1)*[0, ]
+    # count = (len(r)+1)*[(0, 0), ]
     for loc in coords:
+        # rloc = loc[0:2]
+        # prev = count[f(rloc)+1
         count[f(loc)+1] += 1
+        # count[f(rloc)+1] = (prev[0] + int(loc[2]), prev[1]+1)
 
-    N = len(coords)
-    sio.savemat('distrib', {'c': np.array(count[1:])})
+    # N = len(coords)
+    sio.savemat('freq_{}'.format(tag), {'c': np.array(count[1:])})
     entropy = compute_entropy(count[1:])
     print("Entropy of {}: {:.4f}".format(tag, entropy))
-    freq = np.array(count[1:])/(1.0*N)
+    # freq = np.array(count[1:])/(1.0*N)
     log_freq = np.maximum(0, np.log(count[1:]))
+
+    # log_freq = [0 if p[1] == 0 else (1.0*p[0]/p[1] - 0.5) for p in count[1:]]
+    # entropy = 0
+    # sio.savemat('tourist_ratio', {'c': np.array(log_freq)})
+
     maxv = np.max(log_freq)
     minv = np.min(log_freq)
     interval_size = (maxv - minv)/nb_inter
@@ -198,13 +226,14 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
                     'properties': {}}
             index = (min(nb_inter - 1, int(floor(v / interval_size))))
             bucket[index].append(poly)
-    return bucket, minv, maxv
+    return bucket, minv, maxv, entropy
 
 
 def plot_polygons(bucket, tag, nb_inter, minv, maxv):
     schema = {'geometry': 'Polygon', 'properties': {}}
-    colormap_ = matplotlib.cm.ScalarMappable(cmap='YlOrBr')
-    colormap = [to_css_hex(c) for c in colormap_.to_rgba(np.linspace(minv, maxv, nb_inter))]
+    colormap_ = matplotlib.cm.ScalarMappable(cmap='bwr')
+    vrange = np.linspace(minv, maxv, nb_inter)
+    colormap = [to_css_hex(c) for c in colormap_.to_rgba(vrange)]
     style = []
     for i in range(nb_inter):
         if len(bucket[i]) > 0:
@@ -231,7 +260,7 @@ def simple_metrics(collection, tag, bbox, start, end):
 
     dst = pdist(p)
     h, b = np.histogram(dst, 200)
-    outplot(tag + '_pairwise.dat', ['', ''], h, b)
+    outplot(tag + '_pairwise.dat', ['', ''], h, b[1:])
 
     pd = squareform(dst)
     np.fill_diagonal(pd, 1e6)
@@ -270,23 +299,52 @@ def classify_users(db):
         pass
 
 
+def get_top_tags(n=100, filename='sftags.dat'):
+    with open(filename) as f:
+        tags = [i.strip().split()[0] for i in f.readlines()[1:n+1]]
+    return tags
+
+
+def users_and_tag(tag):
+    r = DB.photos.aggregate([
+        {"$match": {"hint": "sf", "tags": {"$in": [tag]}}},
+        {"$project": {"uid": 1}},
+        {"$group": {"_id": "$uid", "count": {"$sum": 1}}},
+        {"$sort": SON([("count", -1), ("_id", -1)])}
+    ])
+    save_var('u14', r['result'])
+
+
 if __name__ == '__main__':
     start = clock()
     client = pymongo.MongoClient('localhost', 27017)
-    db = client['flickr']
-    photos = db['photos']
+    DB = client['flickr']
+    users_and_tag('14thstreet')
+    import sys
+    sys.exit()
+    photos = DB['photos']
     SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
     KARTO_CONFIG['bounds']['data'] = [SF_BBOX[1], SF_BBOX[0],
                                       SF_BBOX[3], SF_BBOX[2]]
     # import doctest
     # doctest.testmod()
     nb_inter = 20
-    b, minv, maxv = compute_frequency(photos, None, SF_BBOX,
-                          datetime.datetime(2008, 1, 1),
-                          datetime.datetime(2014, 1, 1), 160, nb_inter)
-    plot_polygons(b, '_distrib', nb_inter, minv, maxv)
-    # classify_users(db, photos)
-    # u = get_user_status(db['users'])
+    # b, minv, maxv, e = compute_frequency(photos, None, SF_BBOX,
+    #                       datetime.datetime(2008, 1, 1),
+    #                       datetime.datetime(2014, 1, 1), 200, nb_inter)
+    # plot_polygons(b, '_tourist', nb_inter, minv, maxv)
+    entropies = []
+    # tags = get_top_tags(200)
+    # for t in tags:
+    #     b, minv, maxv, e = compute_frequency(photos, t, SF_BBOX,
+    #                           datetime.datetime(2008, 1, 1),
+    #                           datetime.datetime(2014, 1, 1), 200, nb_inter)
+    #     entropies.append(e)
+    # outplot('entropies.dat', ['tag', 'H'], tags, entropies)
+    # print(minv, maxv)
+    # plot_polygons(b, '_winter', nb_inter, minv, maxv)
+    # classify_users(DB, photos)
+    # u = get_user_status(DB['users'])
     # tag_over_time(photos, 'local', None,
     #               datetime.datetime(2005, 1, 1),
     #               datetime.timedelta(days=3218), u)

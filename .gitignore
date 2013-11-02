@@ -1,3 +1,7 @@
+*.mat
+*.png
+*.dat
+*.svg
 notes/*.pdf
 notes/*.tex
 flickr_keys*

@@ -17,3 +17,6 @@ def outplot(filename, colnames, *args):
 if __name__ == '__main__':
     outplot('__test', ['x', 'y'], list(range(5)), list(map(lambda x: x*x,
                                                            range(5))))
+    tags = [u'center', u'サンフランシスコ', u'buildings']
+    val = [1, 2, 3]
+    outplot('__unicode', ['tags', 'count'], tags, val)

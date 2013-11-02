@@ -1,6 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
-from persistent import save_var
+import codecs
+from persistent import save_var, load_var
 from bson.son import SON
 import matplotlib.cm
 import scipy.io as sio
@@ -190,7 +191,7 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
     them. Return a list of list of Polygon, grouped by similar frequency
     into nb_inter bucket (potentialy omiting the zero one for clarity)."""
     # coords = tag_location(collection, tag, bbox, start, end, uploaded,
-    #                       get_user_status(DB['users']))
+    #                        get_user_status())
     coords = tag_location(collection, tag, bbox, start, end, uploaded)
     r, f = k_split_bbox(bbox, k)
     # count[0] is for potential points that do not fall in any region (it must
@@ -199,13 +200,16 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
     # count = (len(r)+1)*[(0, 0), ]
     for loc in coords:
         # rloc = loc[0:2]
-        # prev = count[f(rloc)+1
-        count[f(loc)+1] += 1
+        # prev = count[f(rloc)+1]
         # count[f(rloc)+1] = (prev[0] + int(loc[2]), prev[1]+1)
+        count[f(loc)+1] += 1
 
+    # save_var('alltourist', count)
+    # count = load_var('alltourist')
     # N = len(coords)
-    sio.savemat('freq_{}'.format(tag), {'c': np.array(count[1:])})
+    # sio.savemat('freq_{}'.format(tag), {'c': np.array(count[1:])})
     entropy = compute_entropy(count[1:])
+    return 0, 0, 0, entropy
     print("Entropy of {}: {:.4f}".format(tag, entropy))
     # freq = np.array(count[1:])/(1.0*N)
     log_freq = np.maximum(0, np.log(count[1:]))
@@ -237,7 +241,7 @@ def plot_polygons(bucket, tag, nb_inter, minv, maxv):
     style = []
     for i in range(nb_inter):
         if len(bucket[i]) > 0:
-            name = '{}_freq_{}'.format(tag, i+1)
+            name = '{}_freq_{:03}'.format(tag, i+1)
             KARTO_CONFIG['layers'][name] = {'src': name+'.shp'}
             style.append(CSS.format(name, colormap[i], colormap[i]))
             with fiona.collection(name+'.shp', "w",
@@ -268,14 +272,20 @@ def simple_metrics(collection, tag, bbox, start, end):
     outplot(tag + '_neighbor.dat', [''], dst)
 
 
-def get_user_status(collection):
-    users = list(collection.find(fields={'tourist': 1}))
-    return dict([(u['_id'], u['tourist']) for u in users])
+def get_user_status():
+    try:
+        d = load_var('user_status')
+    except IOError:
+        users = list(DB.users.find(fields={'tourist': 1}))
+        d = dict([(u['_id'], u['tourist']) for u in users])
+        save_var('user_status', d)
+    return d
 
 
 def classify_users(db):
     users_collection = db['users']
     users_from_photos = db['photos'].aggregate([
+        {"$match": {"hint": "sf"}},
         {'$project': {'_id': 0, 'upload': 1, 'user': '$uid'}},
         {'$group': {'_id': '$user',
                     'first': {'$min': '$upload'},
@@ -300,8 +310,8 @@ def classify_users(db):
 
 
 def get_top_tags(n=100, filename='sftags.dat'):
-    with open(filename) as f:
-        tags = [i.strip().split()[0] for i in f.readlines()[1:n+1]]
+    with codecs.open(filename, 'r', 'utf8') as f:
+        tags = [unicode(i.strip().split()[0]) for i in f.readlines()[1:n+1]]
     return tags
 
 
@@ -319,31 +329,28 @@ if __name__ == '__main__':
     start = clock()
     client = pymongo.MongoClient('localhost', 27017)
     DB = client['flickr']
-    users_and_tag('14thstreet')
-    import sys
-    sys.exit()
     photos = DB['photos']
     SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
     KARTO_CONFIG['bounds']['data'] = [SF_BBOX[1], SF_BBOX[0],
                                       SF_BBOX[3], SF_BBOX[2]]
     # import doctest
     # doctest.testmod()
-    nb_inter = 20
+    nb_inter = 19
     # b, minv, maxv, e = compute_frequency(photos, None, SF_BBOX,
     #                       datetime.datetime(2008, 1, 1),
-    #                       datetime.datetime(2014, 1, 1), 200, nb_inter)
+    #                       datetime.datetime(2014, 1, 1), 200, nb_inter, False)
     # plot_polygons(b, '_tourist', nb_inter, minv, maxv)
     entropies = []
-    # tags = get_top_tags(200)
-    # for t in tags:
-    #     b, minv, maxv, e = compute_frequency(photos, t, SF_BBOX,
-    #                           datetime.datetime(2008, 1, 1),
-    #                           datetime.datetime(2014, 1, 1), 200, nb_inter)
-    #     entropies.append(e)
-    # outplot('entropies.dat', ['tag', 'H'], tags, entropies)
+    tags = get_top_tags(200)
+    for t in tags:
+        b, minv, maxv, e = compute_frequency(photos, t, SF_BBOX,
+                              datetime.datetime(2008, 1, 1),
+                              datetime.datetime(2014, 1, 1), 30, nb_inter)
+        entropies.append(e)
+    outplot('entropies30.dat', ['tag', 'H'], tags, entropies)
     # print(minv, maxv)
     # plot_polygons(b, '_winter', nb_inter, minv, maxv)
-    # classify_users(DB, photos)
+    # classify_users(DB)
     # u = get_user_status(DB['users'])
     # tag_over_time(photos, 'local', None,
     #               datetime.datetime(2005, 1, 1),

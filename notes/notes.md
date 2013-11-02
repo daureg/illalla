@@ -82,6 +82,8 @@ California:
 	594176
 	2.92% duplicate
 	44050 per hour
+    USA: 462718 in 64636.151047s
+    2013-10-23 11:39:47,532 [INFO]: Saved a total of 632673 photos.
 
 Usefull site:
 
@@ -161,3 +163,38 @@ aquateenhungerforcemooninite
 ----------------------------------------
 
 : 15 random tags between 90000 and 140000
+
+
+pairwise distance for museum vs street
+
+entropy.dat (some filtering, suspicous value)
+sfmoma
+14thstreet: 
+[('22647597@N03', 3550),
+ ('57453294@N00', 18),
+ ('28198184@N04', 18),
+ ('17607628@N00', 16),
+ ('29309361@N00', 11),
+ ('27219489@N07', 3),
+ ('79781814@N00', 2),
+ ('88077630@N00', 1),
+ ('68202512@N00', 1),
+ ('45750259@N05', 1),
+ ('13563767@N03', 1),
+ ('13319346@N05', 1)]
+
+heatmap.png (log of count)
+season.png (hard to see ≠)
+
+tourist:
+tourists proportion: 65%
+tourists' photos proportion: 19%
+tourist 90 percentile: 21.0
+local 90 percentile: 148.0
+filter "anomalous" locals?
+
+map:
+tourist/total - 0.5 ∈
+[-0.5 (only local, blue), … 0 (neutral, white), … 0.5 (only tourist, red)]
+
+top tag intersection

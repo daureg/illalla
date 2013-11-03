@@ -198,3 +198,27 @@ tourist/total - 0.5 ∈
 [-0.5 (only local, blue), … 0 (neutral, white), … 0.5 (only tourist, red)]
 
 top tag intersection
+
+
+Pre processing used to remove spurious photos:
+We want to get rid of burst of photos (say more than a threshold T) taken by
+the same user, in the same place around the same time.
+```
+First make a loop to duplicates "tags" of every photo.
+for each user u
+	get a list L of the tags she has used more than T times
+		for each tag t of L
+			get its distribution in quantized space (200x200) and time (2
+weeks) (need photo id and original tag array, add addition_info argument to
+tag_location)
+			get index of the corresponding count matrix > T
+			update those photos id by setting ntags = tags - t (actually,
+batch update to allow user parallelism)
+			keep a count of how many photos were cleaned
+```
+
+function duplicateTags(){
+    db.photos.find({hint: "sf"}).forEach(function(doc){
+         db.photos.update({_id:doc._id}, {$set:{"ntags":doc.tags}});
+    });
+}

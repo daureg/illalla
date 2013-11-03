@@ -23,6 +23,7 @@ KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
                 'layers': {},
                 'proj': {'id': 'laea', 'lat0': 37.78, 'lon0': -122.45}}
 DB = 0
+SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
 
 
 def total_seconds(td):
@@ -94,14 +95,20 @@ def get_photo_url(p, size='z', webpage=False):
     return url
 
 
-def tag_location(collection, tag, bbox, start, end, uploaded=False,
-                 user_is_tourist=None):
+def tag_location(collection, tag, bbox, start, end, extra_info=None,
+                 tourist_status=False, uploaded=False):
     """Return a list of [long, lat] for each photo taken between start and end
-    (or uploaded) in bbox which has tag. If a dictionnary of users is provided,
-    it adds tourist status as [long, lat, is_tourist]"""
+    (or uploaded) in bbox which has tag. extra_info is a list of other fields
+    to include after. It can also adds tourist status as [long, lat,
+    is_tourist]"""
     query = {}
     field = {'loc': 1, '_id': 0}
-    if user_is_tourist is not None:
+    if extra_info is not None:
+        field.update(zip(extra_info, len(extra_info)*[1, ]))
+    else:
+        extra_info = []
+    if tourist_status:
+        user_stat = get_user_status()
         field['uid'] = 1
 #    if bbox is None:
 #        query['hint'] = 'sf'
@@ -109,15 +116,19 @@ def tag_location(collection, tag, bbox, start, end, uploaded=False,
 #        query['loc'] = inside_bbox(bbox)
     query['hint'] = 'sf'
     if tag is not None:
-        query['tags'] = {'$in': [tag]}
+        query['tags'] = tag
     time_field = 'upload' if uploaded else 'taken'
     query[time_field] = {'$gte': start, '$lte': end}
     # query.update(season_query(2008, 2013, 'winter'))
     cursor = collection.find(query, field)
-    if user_is_tourist is None:
-        return map(lambda p: p['loc']['coordinates'], list(cursor))
-    return map(lambda p: p['loc']['coordinates'] + [user_is_tourist[p['uid']]],
-               list(cursor))
+
+    def format_photo(p):
+        loc = p['loc']['coordinates']
+        tourist = [user_stat[p['uid']]] if tourist_status else []
+        extra = [p[attr] for attr in extra_info]
+        return loc + tourist + extra
+
+    return [format_photo(p) for p in cursor]
 
 
 def tag_over_time(collection, tag, bbox, start, interval, user_status=None):
@@ -137,8 +148,7 @@ def tag_over_time(collection, tag, bbox, start, interval, user_status=None):
                      tag_location(collection, tag, bbox,
                                   start + i * interval,
                                   start + (i+1) * interval,
-                                  False,
-                                  user_status))
+                                  tourist_status=True))
         print('{} - {}: {}'.format(start + i * interval,
                                    start + (i+1) * interval, len(places)))
         name = '{}_{}.shp'.format(tag, i+1)
@@ -190,9 +200,9 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
     them. Return a list of list of Polygon, grouped by similar frequency
     into nb_inter bucket (potentialy omiting the zero one for clarity)."""
-    # coords = tag_location(collection, tag, bbox, start, end, uploaded,
-    #                        get_user_status())
-    coords = tag_location(collection, tag, bbox, start, end, uploaded)
+    # coords = tag_location(collection, tag, bbox, start, end,
+    #                       tourist_status=True, uploaded=uploaded)
+    coords = tag_location(collection, tag, bbox, start, end, uploaded=uploaded)
     r, f = k_split_bbox(bbox, k)
     # count[0] is for potential points that do not fall in any region (it must
     # only happens because of rounding inprecision)
@@ -272,13 +282,20 @@ def simple_metrics(collection, tag, bbox, start, end):
     outplot(tag + '_neighbor.dat', [''], dst)
 
 
-def get_user_status():
+def get_user_status(with_count=False):
+    name = 'user_status' + ('_full' if with_count else '')
+    fields = {'tourist': 1}
+    if with_count:
+        fields.update({'count': 1})
     try:
-        d = load_var('user_status')
+        d = load_var(name)
     except IOError:
-        users = list(DB.users.find(fields={'tourist': 1}))
-        d = dict([(u['_id'], u['tourist']) for u in users])
-        save_var('user_status', d)
+        users = list(DB.users.find(fields=fields))
+        if with_count:
+            d = dict([(u['_id'], (u['count'], u['tourist'])) for u in users])
+        else:
+            d = dict([(u['_id'], u['tourist']) for u in users])
+        save_var(name, d)
     return d
 
 
@@ -317,7 +334,7 @@ def get_top_tags(n=100, filename='sftags.dat'):
 
 def users_and_tag(tag):
     r = DB.photos.aggregate([
-        {"$match": {"hint": "sf", "tags": {"$in": [tag]}}},
+        {"$match": {"hint": "sf", "tags": tag}},
         {"$project": {"uid": 1}},
         {"$group": {"_id": "$uid", "count": {"$sum": 1}}},
         {"$sort": SON([("count", -1), ("_id", -1)])}
@@ -330,7 +347,6 @@ if __name__ == '__main__':
     client = pymongo.MongoClient('localhost', 27017)
     DB = client['flickr']
     photos = DB['photos']
-    SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
     KARTO_CONFIG['bounds']['data'] = [SF_BBOX[1], SF_BBOX[0],
                                       SF_BBOX[3], SF_BBOX[2]]
     # import doctest
@@ -344,8 +360,9 @@ if __name__ == '__main__':
     tags = get_top_tags(200)
     for t in tags:
         b, minv, maxv, e = compute_frequency(photos, t, SF_BBOX,
-                              datetime.datetime(2008, 1, 1),
-                              datetime.datetime(2014, 1, 1), 30, nb_inter)
+                                             datetime.datetime(2008, 1, 1),
+                                             datetime.datetime(2014, 1, 1), 30,
+                                             nb_inter)
         entropies.append(e)
     outplot('entropies30.dat', ['tag', 'H'], tags, entropies)
     # print(minv, maxv)

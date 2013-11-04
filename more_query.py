@@ -1,5 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+from multiprocessing import Pool, cpu_count
+from wordplot import tag_cloud
 import codecs
 from persistent import save_var, load_var
 from bson.son import SON
@@ -14,7 +16,7 @@ from shapely.geometry import Point, shape, mapping
 from math import floor
 import fiona
 import numpy as np
-from scipy.spatial.distance import pdist, squareform
+from scipy.spatial.distance import pdist
 from operator import itemgetter
 
 CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.25px;}}'
@@ -272,16 +274,37 @@ def simple_metrics(collection, tag, bbox, start, end):
     grav = np.mean(p, 0)
     tmp = p - grav
     dst = np.sum(tmp**2, 1)
-    outplot(tag + '_grav.dat', [''], dst)
+    sio.savemat(tag + '_grav', {'grav': dst})
+    mu_grav = np.mean(dst)
+    sigma_grav = np.std(dst)
+    H_grav = compute_entropy(dst)
 
     dst = pdist(p)
     h, b = np.histogram(dst, 200)
+    start = clock()
+    H_pair = compute_entropy(dst)
+    print('H_pair_{}: {}s'.format(tag, clock() - start))
     outplot(tag + '_pairwise.dat', ['', ''], h, b[1:])
 
-    pd = squareform(dst)
-    np.fill_diagonal(pd, 1e6)
-    dst = np.min(pd, 1)
-    outplot(tag + '_neighbor.dat', [''], dst)
+    return [mu_grav, sigma_grav, H_grav, H_pair]
+
+
+def fixed_tag_metrics(t):
+    return simple_metrics(DB.photos, t, None, datetime.datetime(2008, 1, 1),
+                          datetime.datetime.now()) + [t]
+
+
+def top_metrics():
+    pool = Pool(1)
+    res = map(fixed_tag_metrics, get_top_tags(50, 'smalltags.dat')[45:])
+    outplot('e_grav.dat', ['H', 'tags'],
+            [v[2] for v in res], [v[4] for v in res])
+    outplot('e_pair.dat', ['H', 'tags'],
+            [v[3] for v in res], [v[4] for v in res])
+    mus = np.array([v[0] for v in res])
+    sigmas = np.array([v[1] for v in res])
+    sio.savemat('mu_sigma', {'A': np.vstack([mus, sigmas]).T})
+    tag_cloud([v[4] for v in res], zip(mus, sigmas), True)
 
 
 def get_user_status(with_count=False):
@@ -358,15 +381,16 @@ if __name__ == '__main__':
     #                       datetime.datetime(2008, 1, 1),
     #                       datetime.datetime(2014, 1, 1), 200, nb_inter, False)
     # plot_polygons(b, '_tourist', nb_inter, minv, maxv)
-    entropies = []
-    tags = get_top_tags(200)
-    for t in tags:
-        b, minv, maxv, e = compute_frequency(photos, t, SF_BBOX,
-                                             datetime.datetime(2008, 1, 1),
-                                             datetime.datetime(2014, 1, 1), 30,
-                                             nb_inter)
-        entropies.append(e)
-    outplot('entropies30.dat', ['tag', 'H'], tags, entropies)
+    top_metrics()
+    # entropies = []
+    # tags = get_top_tags(200)
+    # for t in tags:
+    #     b, minv, maxv, e = compute_frequency(photos, t, SF_BBOX,
+    #                                          datetime.datetime(2008, 1, 1),
+    #                                          datetime.datetime(2014, 1, 1), 30,
+    #                                          nb_inter)
+    #     entropies.append(e)
+    # outplot('entropies30.dat', ['tag', 'H'], tags, entropies)
     # print(minv, maxv)
     # plot_polygons(b, '_winter', nb_inter, minv, maxv)
     # classify_users(DB)

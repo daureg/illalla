@@ -96,7 +96,7 @@ def get_photo_url(p, size='z', webpage=False):
 
 
 def tag_location(collection, tag, bbox, start, end, extra_info=None,
-                 tourist_status=False, uploaded=False):
+                 tourist_status=False, uploaded=False, user=None):
     """Return a list of [long, lat] for each photo taken between start and end
     (or uploaded) in bbox which has tag. extra_info is a list of other fields
     to include after. It can also adds tourist status as [long, lat,
@@ -117,6 +117,8 @@ def tag_location(collection, tag, bbox, start, end, extra_info=None,
     query['hint'] = 'sf'
     if tag is not None:
         query['tags'] = tag
+    if user is not None:
+        query['uid'] = user
     time_field = 'upload' if uploaded else 'taken'
     query[time_field] = {'$gte': start, '$lte': end}
     # query.update(season_query(2008, 2013, 'winter'))

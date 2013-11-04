@@ -199,14 +199,32 @@ def compute_entropy(count):
     return np.log(N) - np.sum(c*np.log(c))/N
 
 
+def compute_KL(tag, k=200):
+    from math import log
+    coords = tag_location(DB.photos, tag, SF_BBOX,
+                          datetime.datetime(2008, 1, 1),
+                          datetime.datetime.now())
+    r, f = k_split_bbox(SF_BBOX, k)
+    count = (len(r)+1)*[0, ]
+    for loc in coords:
+        count[f(loc)+1] += 1
+    Nt = len(count)
+    d = sio.loadmat('freq__background_200')
+    N = sum(d['c'])
+    ratio = log(1.0*N/Nt)
+    KL = sum([(p/Nt)*log(1.0*p/q)+ratio for p, q in zip(count[1:], d['c'])
+              if p > 0 and q > 0])
+    return KL
+
+
 def compute_frequency(collection, tag, bbox, start, end, k=3,
-                      nb_inter=3, exclude_zero=True, uploaded=False):
+                      nb_inter=3, exclude_zero=True, plot=True):
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
     them. Return a list of list of Polygon, grouped by similar frequency
     into nb_inter bucket (potentialy omiting the zero one for clarity)."""
     # coords = tag_location(collection, tag, bbox, start, end,
-    #                       tourist_status=True, uploaded=uploaded)
-    coords = tag_location(collection, tag, bbox, start, end, uploaded=uploaded)
+    #                       tourist_status=True)
+    coords = tag_location(collection, tag, bbox, start, end)
     r, f = k_split_bbox(bbox, k)
     # count[0] is for potential points that do not fall in any region (it must
     # only happens because of rounding inprecision)
@@ -221,10 +239,12 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
     # save_var('alltourist', count)
     # count = load_var('alltourist')
     # N = len(coords)
-    # sio.savemat('freq_{}'.format(tag), {'c': np.array(count[1:])})
+    tag = '_background' if tag is None else tag
+    sio.savemat('freq_{}_{}'.format(k, tag), {'c': np.array(count[1:])})
     entropy = compute_entropy(count[1:])
-    return 0, 0, 0, entropy
     print("Entropy of {}: {:.4f}".format(tag, entropy))
+    if not plot:
+        return 0, 0, 0, entropy
     # freq = np.array(count[1:])/(1.0*N)
     log_freq = np.maximum(0, np.log(count[1:]))
 
@@ -244,6 +264,7 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
                     'properties': {}}
             index = (min(nb_inter - 1, int(floor(v / interval_size))))
             bucket[index].append(poly)
+    #TODO call plot_polygons directly if plot?
     return bucket, minv, maxv, entropy
 
 

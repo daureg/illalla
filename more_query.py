@@ -118,7 +118,7 @@ def tag_location(collection, tag, bbox, start, end, extra_info=None,
 #        query['loc'] = inside_bbox(bbox)
     query['hint'] = 'sf'
     if tag is not None:
-        query['tags'] = tag
+        query['ntags'] = tag
     if user is not None:
         query['uid'] = user
     time_field = 'upload' if uploaded else 'taken'
@@ -380,7 +380,7 @@ def get_top_tags(n=100, filename='sftags.dat'):
 
 def users_and_tag(tag):
     r = DB.photos.aggregate([
-        {"$match": {"hint": "sf", "tags": tag}},
+        {"$match": {"hint": "sf", "ntags": tag}},
         {"$project": {"uid": 1}},
         {"$group": {"_id": "$uid", "count": {"$sum": 1}}},
         {"$sort": SON([("count", -1), ("_id", -1)])}

@@ -19,9 +19,10 @@ def last_query_time(db):
 def tag_count(db, bbox, output='tags_count.dat'):
     start = clock()
     tags = photos.aggregate([
-        {"$match": {"loc": inside_bbox(bbox)}},
-        {"$unwind": "$tags"},
-        {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
+        # {"$match": {"loc": inside_bbox(bbox)}},
+        {"$match": {"hint": "sf"}},
+        {"$unwind": "$ntags"},
+        {"$group": {"_id": "$ntags", "count": {"$sum": 1}}},
         {"$sort": SON([("count", -1), ("_id", -1)])}
     ])
     t = 1000*(clock() - start)
@@ -55,6 +56,6 @@ if __name__ == '__main__':
     photos = db['photos']
     db.set_profiling_level(pymongo.ALL)
     SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
-    tc = tag_count(photos, [37.768, -122.4, 37.778, -122.38])
+    tc = tag_count(photos, None, 'nsf_tag.dat')
     # u, c = user_count(photos)
     # u = user_loc(photos)

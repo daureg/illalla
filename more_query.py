@@ -26,6 +26,8 @@ KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
                 'proj': {'id': 'laea', 'lat0': 37.78, 'lon0': -122.45}}
 DB = 0
 SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
+FIRST_TIME = datetime.datetime(2008, 1, 1)
+LAST_TIME = datetime.datetime.now()
 
 
 def total_seconds(td):
@@ -199,15 +201,10 @@ def compute_entropy(count):
     return np.log(N) - np.sum(c*np.log(c))/N
 
 
-def compute_KL(tag, k=200):
+def compute_KL(count):
+    """ Return D(tag || all_photos) given count of tag (including the 0
+    region)."""
     from math import log
-    coords = tag_location(DB.photos, tag, SF_BBOX,
-                          datetime.datetime(2008, 1, 1),
-                          datetime.datetime.now())
-    r, f = k_split_bbox(SF_BBOX, k)
-    count = (len(r)+1)*[0, ]
-    for loc in coords:
-        count[f(loc)+1] += 1
     Nt = len(count)
     d = sio.loadmat('freq__background_200')
     N = sum(d['c'])
@@ -239,12 +236,16 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
     # save_var('alltourist', count)
     # count = load_var('alltourist')
     # N = len(coords)
-    tag = '_background' if tag is None else tag
+    if tag is None:
+        tag = '_background'
+        KL_div = 0
+    else:
+        KL_div = compute_KL(count)
     sio.savemat('freq_{}_{}'.format(k, tag), {'c': np.array(count[1:])})
     entropy = compute_entropy(count[1:])
-    print("Entropy of {}: {:.4f}".format(tag, entropy))
+    print("Entropy and KL of {}: {:.4f}, {:4f}".format(tag, entropy, KL_div))
     if not plot:
-        return 0, 0, 0, entropy
+        return entropy, KL_div
     # freq = np.array(count[1:])/(1.0*N)
     log_freq = np.maximum(0, np.log(count[1:]))
 
@@ -264,8 +265,8 @@ def compute_frequency(collection, tag, bbox, start, end, k=3,
                     'properties': {}}
             index = (min(nb_inter - 1, int(floor(v / interval_size))))
             bucket[index].append(poly)
-    #TODO call plot_polygons directly if plot?
-    return bucket, minv, maxv, entropy
+    plot_polygons(bucket, tag, nb_inter, minv, maxv)
+    return entropy, KL_div
 
 
 def plot_polygons(bucket, tag, nb_inter, minv, maxv):
@@ -388,44 +389,26 @@ def users_and_tag(tag):
     save_var('u14', r['result'])
 
 
+def sf_entropy(t):
+    return compute_frequency(DB.photos, t, SF_BBOX,
+                             FIRST_TIME, LAST_TIME,
+                             200, 0, plot=False)
+
+
 if __name__ == '__main__':
-    start = clock()
     client = pymongo.MongoClient('localhost', 27017)
     DB = client['flickr']
     photos = DB['photos']
     KARTO_CONFIG['bounds']['data'] = [SF_BBOX[1], SF_BBOX[0],
                                       SF_BBOX[3], SF_BBOX[2]]
-    # import doctest
-    # doctest.testmod()
+    start = clock()
     nb_inter = 19
-    # b, minv, maxv, e = compute_frequency(photos, None, SF_BBOX,
-    #                       datetime.datetime(2008, 1, 1),
-    #                       datetime.datetime(2014, 1, 1), 200, nb_inter, False)
-    # plot_polygons(b, '_tourist', nb_inter, minv, maxv)
+    e, KL = sf_entropy(None)
+    tags = get_top_tags(200)
+    p = Pool(4)
+    res = p.map(sf_entropy, tags)
+    outplot('nentropies.dat', ['tag', 'H'], tags, [r[0] for r in res])
+    outplot('nKentropies.dat', ['tag', 'D'], tags, [r[1] for r in res])
     top_metrics()
-    # entropies = []
-    # tags = get_top_tags(200)
-    # for t in tags:
-    #     b, minv, maxv, e = compute_frequency(photos, t, SF_BBOX,
-    #                                          datetime.datetime(2008, 1, 1),
-    #                                          datetime.datetime(2014, 1, 1), 30,
-    #                                          nb_inter)
-    #     entropies.append(e)
-    # outplot('entropies30.dat', ['tag', 'H'], tags, entropies)
-    # print(minv, maxv)
-    # plot_polygons(b, '_winter', nb_inter, minv, maxv)
-    # classify_users(DB)
-    # u = get_user_status(DB['users'])
-    # tag_over_time(photos, 'local', None,
-    #               datetime.datetime(2005, 1, 1),
-    #               datetime.timedelta(days=3218), u)
-    # simple_metrics(photos, 'street',
-    #         SF_BBOX,
-    #         datetime.datetime(2008, 1, 1),
-    #         datetime.datetime(2014, 1, 1))
-    # simple_metrics(photos, 'museum',
-    #                SF_BBOX,
-    #                datetime.datetime(2008, 1, 1),
-    #                datetime.datetime(2014, 1, 1))
     t = 1000*(clock() - start)
-    print('aggregate in {:.3f}ms'.format(t))
+    print('done in {:.3f}ms'.format(t))

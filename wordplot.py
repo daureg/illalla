@@ -4,6 +4,8 @@
 
 def tag_cloud(words, coords, label):
     from matplotlib.font_manager import FontProperties
+    import matplotlib
+    matplotlib.use('PDF')
     import matplotlib.pyplot as plt
     plt.figure(dpi=200)
 
@@ -18,3 +20,7 @@ def tag_cloud(words, coords, label):
             plt.text(c[0], c[1], w, fontproperties=font0, **pos)
     plt.axis('off')
     plt.savefig('tag_cloud.pdf', format='pdf', transparent=True)
+
+
+if __name__ == '__main__':
+    tag_cloud(['hello', 'world'], [(0, 0), (1, 1)], True)

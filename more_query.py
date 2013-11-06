@@ -205,17 +205,17 @@ def compute_KL(count):
     """ Return D(tag || all_photos) given count of tag (including the 0
     region)."""
     from math import log
-    Nt = len(count)
-    d = sio.loadmat('freq__background_200')
-    N = sum(d['c'])
-    ratio = log(1.0*N/Nt)
-    KL = sum([(p/Nt)*log(1.0*p/q)+ratio for p, q in zip(count[1:], d['c'])
-              if p > 0 and q > 0])
+    Nt = float(sum(count[1:]))
+    d = sio.loadmat('freq_200__background.mat')
+    N = np.sum(d['c'])
+    ratio = log(N/Nt)
+    KL = sum([(p/Nt)*(log(float(p)/q)+ratio)
+              for p, q in zip(count[1:], d['c'].flat) if p > 0 and q > 0])
     return KL
 
 
-def compute_frequency(collection, tag, bbox, start, end, k=3,
-                      nb_inter=3, exclude_zero=True, plot=True):
+def compute_frequency(collection, tag, bbox, start, end, k=200,
+                      nb_inter=19, exclude_zero=True, plot=True):
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
     them. Return a list of list of Polygon, grouped by similar frequency
     into nb_inter bucket (potentialy omiting the zero one for clarity)."""
@@ -296,7 +296,7 @@ def simple_metrics(collection, tag, bbox, start, end):
     grav = np.mean(p, 0)
     tmp = p - grav
     dst = np.sum(tmp**2, 1)
-    sio.savemat(tag + '_grav', {'grav': dst})
+    sio.savemat('grav_' + tag, {'grav': dst})
     mu_grav = np.mean(dst)
     sigma_grav = np.std(dst)
     H_grav = compute_entropy(dst)
@@ -306,19 +306,19 @@ def simple_metrics(collection, tag, bbox, start, end):
     start = clock()
     H_pair = compute_entropy(dst)
     print('H_pair_{}: {}s'.format(tag, clock() - start))
-    outplot(tag + '_pairwise.dat', ['', ''], h, b[1:])
+    outplot('pairwise_' + tag, ['', ''], h, b[1:])
 
     return [mu_grav, sigma_grav, H_grav, H_pair]
 
 
 def fixed_tag_metrics(t):
-    return simple_metrics(DB.photos, t, None, datetime.datetime(2008, 1, 1),
-                          datetime.datetime.now()) + [t]
+    return simple_metrics(DB.photos, t, None, FIRST_TIME, LAST_TIME) + [t]
 
 
-def top_metrics():
-    pool = Pool(1)
-    res = map(fixed_tag_metrics, get_top_tags(50, 'smalltags.dat')[45:])
+def top_metrics(tags):
+    pool = Pool(4)
+    res = pool.map(fixed_tag_metrics, tags)
+    pool.close()
     outplot('e_grav.dat', ['H', 'tags'],
             [v[2] for v in res], [v[4] for v in res])
     outplot('e_pair.dat', ['H', 'tags'],
@@ -403,12 +403,14 @@ if __name__ == '__main__':
                                       SF_BBOX[3], SF_BBOX[2]]
     start = clock()
     nb_inter = 19
-    e, KL = sf_entropy(None)
-    tags = get_top_tags(200)
+
+    # e, KL = sf_entropy(None)
+    tags = get_top_tags(200, 'nsf_tag.dat')
     p = Pool(4)
     res = p.map(sf_entropy, tags)
-    outplot('nentropies.dat', ['tag', 'H'], tags, [r[0] for r in res])
-    outplot('nKentropies.dat', ['tag', 'D'], tags, [r[1] for r in res])
-    top_metrics()
+    p.close()
+    outplot('nentropies.dat', ['H', 'tag'], [r[0] for r in res], tags)
+    outplot('nKentropies.dat', ['D', 'tag'], [r[1] for r in res], tags)
+    top_metrics(tags)
     t = 1000*(clock() - start)
     print('done in {:.3f}ms'.format(t))

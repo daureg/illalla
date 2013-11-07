@@ -43,17 +43,6 @@ def total_seconds(td):
     return td.seconds + td.days * 24 * 3600
 
 
-def to_css_hex(color):
-    r = '#'
-    for i in color[:-1]:
-        c = hex(int(255*i))[2:]
-        if len(c) == 2:
-            r += c
-        else:
-            r += '0' + c
-    return r
-
-
 def bbox_to_polygon(bbox, latitude_first=True):
     """Return a 5 points GeoJSON polygon based on the bottom left and upper
     right coordinates of bbox [lat_bl, long_bl, lat_ur, long_ur]

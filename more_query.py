@@ -18,6 +18,11 @@ import fiona
 import numpy as np
 from scipy.spatial.distance import pdist
 from operator import itemgetter
+from utils import to_css_hex
+try:
+    from collection import Counter
+except ImportError:
+    from Counter import Counter
 
 CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.25px;}}'
 KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
@@ -395,6 +400,14 @@ def sf_entropy(t):
                              200, 0, plot=False)
 
 
+def time_entropy(tag):
+    time_step = 7*24*3600
+    places = tag_location(DB.photo, tag, None, FIRST_TIME, LAST_TIME,
+                          extra_info=['taken'])
+    times = [int(total_seconds(p[2] - FIRST_TIME)/time_step)
+             for p in places]
+    return compute_entropy(Counter(times))
+
 if __name__ == '__main__':
     client = pymongo.MongoClient('localhost', 27017)
     DB = client['flickr']
@@ -404,13 +417,14 @@ if __name__ == '__main__':
     start = clock()
     nb_inter = 19
 
+    print(time_entropy('baseball'))
     # e, KL = sf_entropy(None)
-    tags = get_top_tags(200, 'nsf_tag.dat')
-    p = Pool(4)
-    res = p.map(sf_entropy, tags)
-    p.close()
-    outplot('nentropies.dat', ['H', 'tag'], [r[0] for r in res], tags)
-    outplot('nKentropies.dat', ['D', 'tag'], [r[1] for r in res], tags)
-    top_metrics(tags)
+    # tags = get_top_tags(200, 'nsf_tag.dat')
+    # p = Pool(4)
+    # res = p.map(sf_entropy, tags)
+    # p.close()
+    # outplot('nentropies.dat', ['H', 'tag'], [r[0] for r in res], tags)
+    # outplot('nKentropies.dat', ['D', 'tag'], [r[1] for r in res], tags)
+    # top_metrics(tags)
     t = 1000*(clock() - start)
     print('done in {:.3f}ms'.format(t))

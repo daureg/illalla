@@ -27,6 +27,7 @@ import logging
 logging.basicConfig(filename='more_query.log',
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
+import prettytable
 
 CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.25px;}}'
 KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
@@ -37,6 +38,8 @@ DB = 0
 SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
 FIRST_TIME = datetime.datetime(2008, 1, 1)
 LAST_TIME = datetime.datetime.now()
+PERIOD = [1, 7, 30, 91, 365]
+PERIOD_NAME = ['day', 'week', 'month', 'quarter', 'year']
 
 
 def total_seconds(td):
@@ -307,7 +310,7 @@ def simple_metrics(collection, tag, bbox, start, end):
             start = clock()
             H_pair = compute_entropy(dst)
             print(u'H_pair_{}: {}s'.format(tag, clock() - start))
-        #outplot('pairwise_' + tag, ['', ''], h, b[1:])
+            # outplot('pairwise_' + tag, ['', ''], h, b[1:])
     except MemoryError:
         logging.warn(u'{} is too big for pdist'.format(tag))
 
@@ -319,9 +322,9 @@ def fixed_tag_metrics(t):
 
 
 def top_metrics(tags):
-#    pool = Pool(4)
+    # pool = Pool(4)
     res = map(fixed_tag_metrics, tags)
-#    pool.close()
+    # pool.close()
     outplot('e_grav.dat', ['H', 'tags'],
             [v[2] for v in res], [v[4] for v in res])
     outplot('e_pair.dat', ['H', 'tags'],
@@ -399,12 +402,15 @@ def sf_entropy(t):
 
 
 def time_entropy(tag):
-    time_step = 7*24*3600
-    places = tag_location(DB.photo, tag, None, FIRST_TIME, LAST_TIME,
+    places = tag_location(DB.photos, tag, None, FIRST_TIME, LAST_TIME,
                           extra_info=['taken'])
-    times = [int(total_seconds(p[2] - FIRST_TIME)/time_step)
-             for p in places]
-    return compute_entropy(Counter(times))
+    res = []
+    for days in PERIOD:
+        time_step = days*24*3600
+        times = [int(total_seconds(p[2] - FIRST_TIME)/time_step)
+                 for p in places]
+        res.append(float(compute_entropy(Counter(times))))
+    return [tag] + res
 
 if __name__ == '__main__':
     client = pymongo.MongoClient('localhost', 27017)
@@ -414,15 +420,22 @@ if __name__ == '__main__':
                                       SF_BBOX[3], SF_BBOX[2]]
     start = clock()
     nb_inter = 19
-
-    print(time_entropy('baseball'))
     # e, KL = sf_entropy(None)
-    # tags = get_top_tags(200, 'nsf_tag.dat')
+    tags = get_top_tags(200, 'nsf_tag.dat')
     # p = Pool(4)
     # res = p.map(sf_entropy, tags)
     # p.close()
     # outplot('nentropies.dat', ['H', 'tag'], [r[0] for r in res], tags)
     # outplot('nKentropies.dat', ['D', 'tag'], [r[1] for r in res], tags)
     # top_metrics(tags)
+    te = [time_entropy(tag) for tag in tags]
+    t = prettytable.PrettyTable(['tag'] + PERIOD_NAME, sortby='day')
+    t.align['tag'] = 'l'
+    t.padding_width = 0
+    for row in te:
+        t.add_row(row)
+    with codecs.open('time_entropy.txt', 'w', 'utf8') as f:
+        f.write(t.get_string(border=False, left_padding_width=0,
+                             right_padding_width=2))
     t = 1000*(clock() - start)
     print('done in {:.3f}ms'.format(t))

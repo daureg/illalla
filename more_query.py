@@ -23,6 +23,10 @@ try:
     from collection import Counter
 except ImportError:
     from Counter import Counter
+import logging
+logging.basicConfig(filename='more_query.log',
+                    level=logging.INFO,
+                    format='%(asctime)s [%(levelname)s]: %(message)s')
 
 CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.25px;}}'
 KARTO_CONFIG = {'bounds': {'data': [-122.4, 37.768, -122.38, 37.778],
@@ -151,7 +155,7 @@ def tag_over_time(collection, tag, bbox, start, interval, user_status=None):
                                   tourist_status=True))
         print('{} - {}: {}'.format(start + i * interval,
                                    start + (i+1) * interval, len(places)))
-        name = '{}_{}.shp'.format(tag, i+1)
+        name = u'{}_{}.shp'.format(tag, i+1)
         with fiona.collection(name, "w", "ESRI Shapefile", schema) as f:
             f.writerecords(places)
 
@@ -235,9 +239,9 @@ def compute_frequency(collection, tag, bbox, start, end, k=200,
         KL_div = 0
     else:
         KL_div = compute_KL(count)
-    sio.savemat('freq_{}_{}'.format(k, tag), {'c': np.array(count[1:])})
+    sio.savemat(u'freq_{}_{}'.format(k, tag), {'c': np.array(count[1:])})
     entropy = compute_entropy(count[1:])
-    print("Entropy and KL of {}: {:.4f}, {:4f}".format(tag, entropy, KL_div))
+    print(u'Entropy and KL of {}: {:.4f}, {:.4f}'.format(tag, entropy, KL_div))
     if not plot:
         return entropy, KL_div
     # freq = np.array(count[1:])/(1.0*N)
@@ -271,7 +275,7 @@ def plot_polygons(bucket, tag, nb_inter, minv, maxv):
     style = []
     for i in range(nb_inter):
         if len(bucket[i]) > 0:
-            name = '{}_freq_{:03}'.format(tag, i+1)
+            name = u'{}_freq_{:03}'.format(tag, i+1)
             KARTO_CONFIG['layers'][name] = {'src': name+'.shp'}
             style.append(CSS.format(name, colormap[i], colormap[i]))
             with fiona.collection(name+'.shp', "w",
@@ -290,17 +294,22 @@ def simple_metrics(collection, tag, bbox, start, end):
     grav = np.mean(p, 0)
     tmp = p - grav
     dst = np.sum(tmp**2, 1)
-    sio.savemat('grav_' + tag, {'grav': dst})
+    sio.savemat(u'grav_' + tag, {'grav': dst})
     mu_grav = np.mean(dst)
     sigma_grav = np.std(dst)
     H_grav = compute_entropy(dst)
 
-    dst = pdist(p)
-    h, b = np.histogram(dst, 200)
-    start = clock()
-    H_pair = compute_entropy(dst)
-    print('H_pair_{}: {}s'.format(tag, clock() - start))
-    outplot('pairwise_' + tag, ['', ''], h, b[1:])
+    H_pair = -1
+    try:
+        if len(dst) < 22000:
+            dst = pdist(p)
+            h, b = np.histogram(dst, 200)
+            start = clock()
+            H_pair = compute_entropy(dst)
+            print(u'H_pair_{}: {}s'.format(tag, clock() - start))
+        #outplot('pairwise_' + tag, ['', ''], h, b[1:])
+    except MemoryError:
+        logging.warn(u'{} is too big for pdist'.format(tag))
 
     return [mu_grav, sigma_grav, H_grav, H_pair]
 
@@ -310,9 +319,9 @@ def fixed_tag_metrics(t):
 
 
 def top_metrics(tags):
-    pool = Pool(4)
-    res = pool.map(fixed_tag_metrics, tags)
-    pool.close()
+#    pool = Pool(4)
+    res = map(fixed_tag_metrics, tags)
+#    pool.close()
     outplot('e_grav.dat', ['H', 'tags'],
             [v[2] for v in res], [v[4] for v in res])
     outplot('e_pair.dat', ['H', 'tags'],

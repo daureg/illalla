@@ -199,6 +199,11 @@ tourist/total - 0.5 ∈
 
 top tag intersection
 
+# Friday 8
+function duplicateTags(){
+    db.photos.find({hint: "sf"}).forEach(function(doc){
+         db.photos.update({_id:doc._id}, {$set:{"ntags":doc.tags}});
+    });}
 
 Pre processing used to remove spurious photos:
 We want to get rid of burst of photos (say more than a threshold T) taken by
@@ -208,17 +213,57 @@ First make a loop to duplicates "tags" of every photo.
 for each user u
 	get a list L of the tags she has used more than T times
 		for each tag t of L
-			get its distribution in quantized space (200x200) and time (2
-weeks) (need photo id and original tag array, add addition_info argument to
-tag_location)
+			get its distribution in quantized space (200x200) and time (2 weeks)
 			get index of the corresponding count matrix > T
-			update those photos id by setting ntags = tags - t (actually,
-batch update to allow user parallelism)
+			update those photos id by setting ntags = tags - t
 			keep a count of how many photos were cleaned
 ```
+recompute tag usage: out.patch
+recompute nentropies.dat and KL w.r.t background distribution nKentropies.dat
+compute gravity distance
+zathura tag_cloud.pdf &
+and entropy e_grav.dat
+compute pairwise distance entropy e_pair.dat
+compute time entropy time_entropy.txt
+LANG=C soffice time_entropy.ods &
+dimensionality reduction
+zathura red.pdf &
+other course
 
-function duplicateTags(){
-    db.photos.find({hint: "sf"}).forEach(function(doc){
-         db.photos.update({_id:doc._id}, {$set:{"ntags":doc.tags}});
-    });
-}
+What we discussed:
+
+- preprocessing the tag. For each user u and each tag t, I computed the
+  distribution of photos tagged t by u and removed the tags from those photos
+that appear more than T times in the same place (in the 200×200 discrete grid)
+in the same time (2 weeks interval). For T=120, it removed around 20% of all
+tags and it somewhat changed the list of top tag (see out.patch) but with no
+clear pattern. At least, it removed very low entropy value.
+
+- KL divergence. I computed D(tag distribution||photos distribution) >= 0
+  which is indeed low for "general" tag like sanfrancisco or california and
+higher for tag like ucsfschoolofdentistry (see nKentropies.dat)
+
+- Gravity. For the top tags, I computed the distribution of distance between
+  each photo and the gravity center of the tag. Then I plotted these tags with
+the mean distance in the horizontal axis and standard deviation in vertical
+axis (see tag_cloud.pdf, where the point are bluer when regular entropy is
+larger). It seems that there is relationship between mean and standard
+deviation which in my opinion means that as photos are farther from their
+center, they tend to be uniformly distributed in that larger area. (or at
+least with no clear motif) But it's not clear whether we can take advantage of
+that (rather natural) fact.
+
+- Time entropy. I computed entropy in time for the top tag at different scale
+  (day, week, month, quarter, year) and again, some tags with low day entropy
+are event (baytobreaker, googleio, wwdc, karnaval, sfpride) while general tags
+have high entropy (see
+https://docs.google.com/spreadsheet/ccc?key=0AtQDypHHoV_OdGhwcVVaZGZZLWRRWF8yR3otRzY5dnc&usp=sharing).
+
+Then we agree that we have done enough exploration and that in the last 4 weeks, we should focus on two problems:
+
+- given a tag, find the top k location where it is concentrated, using for
+  instance spatial scan:
+http://www.cs.utah.edu/~jeffp/papers/stat-disc-KDD06.pdf
+
+- conversely, given a location, find top k tags that best describe it compared
+  with other locations of similar scale.

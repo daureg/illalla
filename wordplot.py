@@ -34,12 +34,12 @@ def tag_cloud(words, coords, label):
             plt.text(c[0], c[1], w, fontproperties=font0,
                      rotation=randint(-28, 28), **pos)
     plt.axis('off')
-    plt.savefig('tag_cloud.pdf', format='pdf', transparent=True)
+    plt.savefig('red.pdf', format='pdf', transparent=True)
 
 
 if __name__ == '__main__':
     import more_query as mq
-    data = mq.sio.loadmat('mu_sigma.mat')['A']
+    data = mq.sio.loadmat('MDS1.mat')['A']
     words = mq.get_top_tags(mq.np.size(data, 0), 'nsf_tag.dat')
     coords = [(p[0], p[1]) for p in data]
     tag_cloud(words, coords, True)

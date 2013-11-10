@@ -98,3 +98,5 @@ nosetests.xml
 *.vrb
 *.xdy
 *.tdo
+
+*.sty

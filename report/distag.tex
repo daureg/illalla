@@ -1,0 +1,27 @@
+\documentclass[svgnames]{standalone}
+\usepackage{pgfplots}
+\usepackage{xcolor}
+\pgfplotsset{compat=1.8}
+\begin{document}
+\begin{tikzpicture}
+	\begin{loglogaxis}[%
+			log basis x=10,
+			xmin=1,
+			axis x line=bottom, axis y line=left,enlarge x limits=true,
+			% title=Degree distribution in TX (loglog),
+			xticklabel style={font=\tiny},
+			yticklabel style={font=\tiny},
+			xlabel style={font=\tiny},
+			ylabel style={font=\tiny},
+			legend style={font=\tiny},
+			ylabel=tag count,
+		xlabel=rank,]
+		\addplot[DodgerBlue!80!Black, very thin] table{ssf.dat};
+		\addplot[DodgerBlue, densely dashed, very thin] table{nsf.dat};
+		\addplot[FireBrick, very thin] table{sca.dat};
+		\addplot[LimeGreen, very thin] table{sus.dat};
+		\legend{San Francisco, San Francisco (cleaned), California, USA}
+	\end{loglogaxis}
+\end{tikzpicture}
+\end{document}
+

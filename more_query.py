@@ -219,7 +219,8 @@ def compute_frequency(collection, tag, bbox, start, end, k=200,
                       nb_inter=19, exclude_zero=True, plot=True):
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
     them. Return a list of list of Polygon, grouped by similar frequency
-    into nb_inter bucket (potentialy omiting the zero one for clarity)."""
+    into nb_inter bucket (potentially omitting the zero one for clarity)."""
+    collection = DB if collection is None else collection
     # coords = tag_location(collection, tag, bbox, start, end,
     #                       tourist_status=True)
     coords = tag_location(collection, tag, bbox, start, end)
@@ -272,7 +273,7 @@ def compute_frequency(collection, tag, bbox, start, end, k=200,
 
 def plot_polygons(bucket, tag, nb_inter, minv, maxv):
     schema = {'geometry': 'Polygon', 'properties': {}}
-    colormap_ = matplotlib.cm.ScalarMappable(cmap='bwr')
+    colormap_ = matplotlib.cm.ScalarMappable(cmap='YlOrBr')
     vrange = np.linspace(minv, maxv, nb_inter)
     colormap = [to_css_hex(c) for c in colormap_.to_rgba(vrange)]
     style = []
@@ -421,7 +422,7 @@ if __name__ == '__main__':
     start = clock()
     nb_inter = 19
     # e, KL = sf_entropy(None)
-    tags = get_top_tags(200, 'nsf_tag.dat')
+    tags = get_top_tags(500, 'nsf_tag.dat')
     # p = Pool(4)
     # res = p.map(sf_entropy, tags)
     # p.close()

@@ -9,7 +9,7 @@ import matplotlib.colors as mcolor
 from math import log
 from more_query import SF_BBOX, KARTO_CONFIG, FIRST_TIME, LAST_TIME
 CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.5px;}}'
-from more_query import k_split_bbox, bbox_to_polygon, compute_frequency
+from more_query import k_split_bbox, bbox_to_polygon, compute_frequency, clock
 from utils import to_css_hex
 from shapely.geometry import shape, mapping
 from shapely import speedups
@@ -22,6 +22,7 @@ from ProgressBar import AnimatedProgressBar
 import persistent
 from os.path import join as mkpath
 import pymongo
+from multiprocessing import Pool
 ALLD = []
 
 
@@ -31,7 +32,7 @@ def get_discrepancy_function(total_m, total_b, support):
     at least support points (otherwise return None)."""
     def discrepancy(m, b):
         """Compute d(m, b) or return None if it lacks support."""
-        if m < support or b < support:
+        if m < support:
             return None
         m_ratio = 1.0*m/total_m
         b_ratio = 1.0*b/total_b
@@ -64,9 +65,24 @@ def add_maybe(new_value, values_so_far, max_nb_values):
     if len(values_so_far) == 0:
         return [new_value]
     if real_value > values_so_far[0][0]:
-        if not all([(previous[1].disjoint(poly) or previous[1].touches(poly))
-                    for previous in values_so_far]):
-            return values_so_far
+        # need_heapify = False
+        # discard = False
+        # for i, previous in enumerate(values_so_far):
+        #     if poly.intersects(previous[1]) and not poly.touches(previous[1]):
+        #         if poly.area > previous[1].area:
+        #             del values_so_far[i]
+        #             print('\ndelete\n')
+        #             need_heapify = True
+        #         else:
+        #             discard = True
+        #             break
+        # if discard:
+        #     return [new_value]
+        # if not all([(previous[1].disjoint(poly) or previous[1].touches(poly))
+        #             for previous in values_so_far]):
+        #     return values_so_far
+        # if need_heapify:
+        #     heapq.heapify(values_so_far)
         if len(values_so_far) < max_nb_values:
             heapq.heappush(values_so_far, new_value)
         else:
@@ -84,20 +100,25 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
     assert grid_size == GRID_SIZE, "GRID_SIZE conflict with provided data"
     side = grid_size/max_size
     max_values = []
+    min_width = 2
+    min_height = 2
     p = AnimatedProgressBar(end=grid_size, width=120)
     for i in range(grid_size):  # left line
         cum_m = np.cumsum(measured[i, :])
         cum_b = np.cumsum(background[i, :])
         p + 1
         p.show_progress()
-        for j in range(i+1, min(grid_size, i+1+side)):  # right line
+        for j in range(i+min_width, min(grid_size, i+1+side)):  # right line
+            if min_width != 1 and j == i+min_width:
+                cum_m += np.sum(np.cumsum(measured[i:i+min_width, :], 1), 0)
+                cum_b += np.sum(np.cumsum(background[i:i+min_width, :], 1), 0)
             cum_m += np.cumsum(measured[j, :])
             cum_b += np.cumsum(background[j, :])
             for k in range(grid_size):  # bottom line
-                for l in range(k, min(grid_size, k+side)):  # top line
+                for l in range(k+min_height-1, min(grid_size, k+side)):  # top line
                     if k == 0:
-                        m = cum_m[k]
-                        b = cum_b[k]
+                        m = cum_m[l]
+                        b = cum_b[l]
                     else:
                         m = cum_m[l] - cum_m[k-1]
                         b = cum_b[l] - cum_b[k-1]
@@ -119,16 +140,21 @@ def plot_regions(regions, bbox, tag):
     style = []
     KARTO_CONFIG['bounds']['data'] = [SF_BBOX[1], SF_BBOX[0],
                                       SF_BBOX[3], SF_BBOX[2]]
+
+    polys = [{'geometry': mapping(r[1]), 'properties': {}} for r in regions]
     for i, r in enumerate(regions):
         color = to_css_hex(colormap.to_rgba(r[0]))
         name = u'disc_{}_{:03}'.format(tag, i+1)
         KARTO_CONFIG['layers'][name] = {'src': name+'.shp'}
         color = 'red'
         style.append(CSS.format(name, color, 'black'))
+        # style.append(CSS.format(name, color, color))
         with fiona.collection(mkpath('disc', name+'.shp'),
                               "w", "ESRI Shapefile", schema) as f:
             poly = {'geometry': mapping(r[1]), 'properties': {}}
-            f.write(poly)
+            # f.write(poly)
+            f.writerecords(polys)
+        break
 
     with open(mkpath('disc', 'photos.json'), 'w') as f:
         json.dump(KARTO_CONFIG, f)
@@ -140,8 +166,8 @@ def spatial_scan(tag):
     """The main method loads the data from the disk (or compute them) and
     calls appropriate methods to find top discrepancy regions."""
     grid_size = GRID_SIZE
-    background_name = 'freq_{}_{}.mat'.format(grid_size, '_background')
-    measured_name = 'freq_{}_{}.mat'.format(grid_size, tag)
+    background_name = 'mfreq/freq_{}_{}.mat'.format(grid_size, '_background')
+    measured_name = 'mfreq/freq_{}_{}.mat'.format(grid_size, tag)
     res = []
     for tag, filename in [(None, background_name), (tag, measured_name)]:
         try:
@@ -154,14 +180,23 @@ def spatial_scan(tag):
 
     total_b = np.sum(background)
     total_m = np.sum(measured)
-    discrepancy = get_discrepancy_function(total_m, total_b, 100)
+    if 0 < total_m <= 500:
+        support = 25
+    if 500 < total_m <= 2000:
+        support = 50
+    if 2000 < total_m:
+        support = 150
+    discrepancy = get_discrepancy_function(total_m, total_b, support)
     grid_dim = (grid_size, grid_size)
     top_loc = exact_grid(np.reshape(measured, grid_dim),
-                         np.reshape(background, grid_dim), discrepancy, 10, 50)
-    print('\n')
-    for v in top_loc:
-        print('{:.4f}'.format(v[0]))
-    plot_regions(top_loc, SF_BBOX, tag)
+                         np.reshape(background, grid_dim),
+                         discrepancy, 1500, 50)
+    persistent.save_var(u'disc/top_{}'.format(tag), top_loc)
+    # print('\n')
+    # for v in top_loc:
+    #     print('{:.4f}'.format(v[0]))
+    #     print(top_loc[0][1].intersects(v[1]))
+    # plot_regions(top_loc, SF_BBOX, tag)
 
 
 def get_connection():
@@ -173,6 +208,17 @@ GRID_SIZE = 200
 rectangles, dummy, index_to_rect = k_split_bbox(SF_BBOX, GRID_SIZE)
 if __name__ == '__main__':
     import sys
+    import random
     tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
-    spatial_scan(tag)
-    persistent.save_var('alld', ALLD)
+    tmp = persistent.load_var('supported')
+    tags = [v[0] for v in tmp]
+    random.shuffle(tags)
+    tt = clock()
+    p = Pool(1)
+    p.map(spatial_scan, tags[:4])
+    p.close()
+    print('done in {:.2f}.'.format(clock() - tt))
+    # spatial_scan(tag)
+    # top_loc = persistent.load_var('top_mus')
+    # plot_regions(top_loc[:100], SF_BBOX, tag)
+    # persistent.save_var('alld', ALLD)

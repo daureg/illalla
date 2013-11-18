@@ -4,13 +4,14 @@ import more_query as mq
 import logging
 import datetime
 from multiprocessing import Pool, cpu_count
-logging.basicConfig(filename='cleaning.log', level=logging.INFO,
-                    format=u'%(asctime)s [%(levelname)s]: %(message)s')
+# logging.basicConfig(filename='cleaning.log', level=logging.INFO,
+#                     format=u'%(asctime)s [%(levelname)s]: %(message)s')
 T = 120
-regions, to_region = mq.k_split_bbox(mq.SF_BBOX, 200)
+# regions, to_region, _ = mq.k_split_bbox(mq.SF_BBOX, 200)
 sot = datetime.datetime(2008, 1, 1)
 now = datetime.datetime.utcnow()
 time_step = 14*24*3600
+DB = 0
 
 def to_timecell(date):
     return int(mq.total_seconds(date - sot)/time_step) + 1
@@ -51,10 +52,22 @@ def remove_tags(u):
     return removed
 
 
+def get_freq(tag):
+    print(tag)
+    mq.compute_frequency(DB.photos, tag, mq.SF_BBOX, sot, now, plot=False)
+
 if __name__ == '__main__':
     import pymongo
+    import random
     client = pymongo.MongoClient('localhost', 27017)
     DB = client['flickr']
     mq.DB = DB
+    tmp = mq.load_var('supported')
+    tags = [v[0] for v in tmp]
+    random.shuffle(tags)
     tt = mq.clock()
-    logging.info('removed tags in {} photos ({:.2f}).'.format(clean_tags(), mq.clock() - tt))
+    p = Pool(4)
+    p.map(get_freq, tags)
+    p.close()
+    print('done in {:.2f}.'.format(mq.clock() - tt))
+    # logging.info('removed tags in {} photos ({:.2f}).'.format(clean_tags(), mq.clock() - tt))

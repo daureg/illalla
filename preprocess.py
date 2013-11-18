@@ -7,7 +7,7 @@ from multiprocessing import Pool, cpu_count
 logging.basicConfig(filename='cleaning.log', level=logging.INFO,
                     format=u'%(asctime)s [%(levelname)s]: %(message)s')
 T = 120
-regions, to_region = mq.k_split_bbox(mq.SF_BBOX, 200)
+regions, to_region, _ = mq.k_split_bbox(mq.SF_BBOX, 200)
 sot = datetime.datetime(2008, 1, 1)
 now = datetime.datetime.utcnow()
 time_step = 14*24*3600

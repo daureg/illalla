@@ -55,6 +55,8 @@ def bbox_to_polygon(bbox, latitude_first=True):
     right coordinates of bbox [lat_bl, long_bl, lat_ur, long_ur]
     (5 because the polygon needs to be closed, see:
     https://groups.google.com/d/msg/mongodb-user/OPouYFHS_zU/cS21L0XAMkkJ )
+    Or in other words ;(
+    http://toblerity.org/shapely/manual.html#shapely.geometry.box
     >>> bbox_to_polygon([37, -122, 35, -120])
     {'type': 'Polygon', 'coordinates': [[[-122, 37], [-120, 37], [-120, 35], [-122, 35], [-122, 37]]]}
     """
@@ -181,7 +183,7 @@ def k_split_bbox(bbox, k=2, offset=0):
         y += lat_step
         x = bbox[1]
 
-    def coord2region(coords):
+    def coord2region_index(coords):
         longitude, latitude = coords
         # TODO handle correctly edge case
         x = longitude - hoffset - bbox[1] - 1e-8
@@ -193,7 +195,15 @@ def k_split_bbox(bbox, k=2, offset=0):
             return - 1
         return r
 
-    return region, coord2region
+    def region_index2bbox(r):
+        i = r/k
+        j = r%k
+        x = bbox[1] + j * long_step
+        y = bbox[0] + i * lat_step
+        return [x + hoffset, y + voffset,
+                x + hoffset + long_step, y + voffset + lat_step]
+
+    return region, coord2region_index, region_index2bbox
 
 
 def compute_entropy(count):
@@ -220,11 +230,11 @@ def compute_frequency(collection, tag, bbox, start, end, k=200,
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
     them. Return a list of list of Polygon, grouped by similar frequency
     into nb_inter bucket (potentially omitting the zero one for clarity)."""
-    collection = DB if collection is None else collection
+    collection = DB.photos if collection is None else collection
     # coords = tag_location(collection, tag, bbox, start, end,
     #                       tourist_status=True)
     coords = tag_location(collection, tag, bbox, start, end)
-    r, f = k_split_bbox(bbox, k)
+    r, f, _ = k_split_bbox(bbox, k)
     # count[0] is for potential points that do not fall in any region (it must
     # only happens because of rounding inprecision)
     count = (len(r)+1)*[0, ]

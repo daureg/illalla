@@ -199,10 +199,53 @@ def spatial_scan(tag):
     # plot_regions(top_loc, SF_BBOX, tag)
 
 
+def merge_regions(top_loc):
+    merged = []
+    merging = 0
+    print('from {}'.format(len(top_loc)))
+    for i, loc in enumerate(top_loc):
+        val, poly = loc
+        new_val = [val]
+        # size = poly.area
+        merged_neighbors = 0
+        to_remove = []
+        for j, others in enumerate(top_loc[i+1:]):
+            if poly.intersects(others[1]):
+                # inter = poly.intersection(others[1])
+                # print(size, inter.area)
+                # TODO: mean value, max value, linear combination with surface
+                # coefficient
+                # if poly.touches(others[1]) and merged_neighbors < 1:
+                if merged_neighbors < 2:
+                    poly = poly.union(others[1])
+                    new_val.append(others[0])
+                    merged_neighbors += 1
+                #     val = 0.5*(val + others[0])
+                #     size = poly.area
+                to_remove.append(j+i+1)
+        merging += merged_neighbors
+        for j in to_remove[::-1]:
+            del top_loc[j]
+        merged.append((np.mean(new_val), poly))
+    print('to {} with {} merges'.format(len(merged), merging))
+    return merged
+
+
 def get_connection():
     client = pymongo.MongoClient('localhost', 27017)
     return client['flickr']['photos']
 
+
+def post_process(tag):
+    top_loc = persistent.load_var(u'disc/top_{}'.format(tag))
+    merged = merge_regions(top_loc)
+    persistent.save_var(u'disc/post_{}'.format(tag), merged)
+
+
+def consolidate(tags):
+    d = {tag: persistent.load_var(u'disc/post_{}'.format(tag))
+         for tag in tags}
+    persistent.save_var(u'disc/all', d)
 
 GRID_SIZE = 200
 rectangles, dummy, index_to_rect = k_split_bbox(SF_BBOX, GRID_SIZE)
@@ -210,15 +253,16 @@ if __name__ == '__main__':
     import sys
     import random
     tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
+    tt = clock()
     tmp = persistent.load_var('supported')
     tags = [v[0] for v in tmp]
     random.shuffle(tags)
     tt = clock()
-    p = Pool(1)
-    p.map(spatial_scan, tags[:4])
+    p = Pool(5)
+    p.map(post_process, tags)
     p.close()
+    consolidate(tags)
     print('done in {:.2f}.'.format(clock() - tt))
     # spatial_scan(tag)
-    # top_loc = persistent.load_var('top_mus')
-    # plot_regions(top_loc[:100], SF_BBOX, tag)
+    # plot_regions(merged, SF_BBOX, tag)
     # persistent.save_var('alld', ALLD)

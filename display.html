@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>San Francisco</title>
+		<script src="jquery-2.0.3.js" type="text/javascript" charset="utf-8"></script>
+		<style type="text/css" media="all">
+			* {margin: 0; padding: 0;}
+			body {background: black;}
+		</style>
+		<script type="text/javascript" charset="utf-8">
+			var first = true;
+			var sx = 0;
+			var sy = 0;
+			function relMouseCoords(event) {
+				var totalOffsetX = 0;
+				var totalOffsetY = 0;
+				var canvasX = 0;
+				var canvasY = 0;
+				var elem = this;
+				var w = elem.width;
+				var h = elem.height;
+				var grid_size = 200;
+
+				do {
+					totalOffsetX += elem.offsetLeft - elem.scrollLeft;
+					totalOffsetY += elem.offsetTop - elem.scrollTop;
+				}
+				while (elem = elem.offsetParent) {
+					canvasX = event.pageX - totalOffsetX;
+					canvasY = event.pageY - totalOffsetY;
+				}
+				if (first) {
+					sx = canvasX;
+					sy = canvasY;
+					first = false;
+				}
+				else {
+					rect = {'coords': [grid_size*sx/w, grid_size*(h-sy)/h,
+						grid_size*canvasX/w, grid_size*(h-canvasY)/h]};
+					first = true;
+				var jqxhr = $.post("click", rect, function(data) {
+						console.log(data); });
+				}
+			}
+			HTMLImageElement.prototype.relMouseCoords = relMouseCoords;
+		</script>
+	</head>
+	<body>
+		<img src="disc/museum.png" onclick="relMouseCoords(event);"
+		alt="San Francisco" title="San Francisco" width="1399px" />
+	</body>
+</html>

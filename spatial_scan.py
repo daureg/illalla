@@ -11,7 +11,7 @@ from more_query import SF_BBOX, KARTO_CONFIG, FIRST_TIME, LAST_TIME
 CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.5px;}}'
 from more_query import k_split_bbox, bbox_to_polygon, compute_frequency, clock
 from utils import to_css_hex
-from shapely.geometry import shape, mapping
+from shapely.geometry import shape, mapping, Point
 from shapely import speedups
 if speedups.available:
     speedups.enable()
@@ -247,21 +247,33 @@ def consolidate(tags):
          for tag in tags}
     persistent.save_var(u'disc/all', d)
 
+
+def get_best_tags(point):
+    tags = persistent.load_var('disc/all')
+    res = []
+    for tag, polys in tags.items():
+        for val, poly in polys:
+            if point.within(poly):
+                res.append((tag, val))
+                break
+    return sorted(res, key=lambda x: x[1], reverse=True)
+
 GRID_SIZE = 200
 rectangles, dummy, index_to_rect = k_split_bbox(SF_BBOX, GRID_SIZE)
 if __name__ == '__main__':
-    import sys
-    import random
-    tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
+    # import sys
+    # import random
+    # tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
+    # tt = clock()
+    # tmp = persistent.load_var('supported')
+    # tags = [v[0] for v in tmp]
+    # random.shuffle(tags)
     tt = clock()
-    tmp = persistent.load_var('supported')
-    tags = [v[0] for v in tmp]
-    random.shuffle(tags)
-    tt = clock()
-    p = Pool(5)
-    p.map(post_process, tags)
-    p.close()
-    consolidate(tags)
+    # p = Pool(5)
+    # p.map(post_process, tags)
+    # p.close()
+    # consolidate(tags)
+    print(get_best_tags(Point(-122.409615, 37.7899132)))
     print('done in {:.2f}.'.format(clock() - tt))
     # spatial_scan(tag)
     # plot_regions(merged, SF_BBOX, tag)

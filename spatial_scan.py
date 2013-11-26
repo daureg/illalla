@@ -184,7 +184,7 @@ def spatial_scan(tag):
 
     total_b = np.sum(background)
     total_m = np.sum(measured)
-    if not total_m > 0: #photos taken before 2008
+    if not total_m > 0:  # photos taken before 2008
         return
     if 0 < total_m <= 500:
         support = 20
@@ -251,7 +251,7 @@ def post_process(tag):
 def consolidate():
     import os
     tags = [f[4:] for f in os.listdir(u'disc/')
-        if f.startswith(u'top_')]
+            if f.startswith(u'top_')]
     d = {tag: persistent.load_var(u'disc/post_{}'.format(tag))
          for tag in tags}
     persistent.save_var(u'disc/all', d)

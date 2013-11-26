@@ -32,6 +32,7 @@ def get_discrepancy_function(total_m, total_b, support):
     at least support points (otherwise return None)."""
     def discrepancy(m, b):
         """Compute d(m, b) or return None if it lacks support."""
+        assert m <= total_m, "common!"
         if m < support:
             return None
         m_ratio = 1.0*m/total_m
@@ -107,13 +108,14 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
         cum_m = np.cumsum(measured[i, :])
         cum_b = np.cumsum(background[i, :])
         p + 1
-        p.show_progress()
-        for j in range(i+min_width, min(grid_size, i+1+side)):  # right line
-            if min_width != 1 and j == i+min_width:
-                cum_m += np.sum(np.cumsum(measured[i:i+min_width, :], 1), 0)
-                cum_b += np.sum(np.cumsum(background[i:i+min_width, :], 1), 0)
-            cum_m += np.cumsum(measured[j, :])
-            cum_b += np.cumsum(background[j, :])
+        # p.show_progress()
+        for j in range(i+min_width-1, min(grid_size, i+1+side)):  # right line
+            if min_width > 1 and j == i+min_width-1:
+                cum_m += np.sum(np.cumsum(measured[i+1:j, :], 1), 0)
+                cum_b += np.sum(np.cumsum(background[i+1:j, :], 1), 0)
+            if j > i:
+                cum_m += np.cumsum(measured[j, :])
+                cum_b += np.cumsum(background[j, :])
             for k in range(grid_size):  # bottom line
                 for l in range(k+min_height-1, min(grid_size, k+side)):  # top line
                     if k == 0:
@@ -166,26 +168,30 @@ def spatial_scan(tag):
     """The main method loads the data from the disk (or compute them) and
     calls appropriate methods to find top discrepancy regions."""
     grid_size = GRID_SIZE
-    background_name = 'mfreq/freq_{}_{}.mat'.format(grid_size, '_background')
-    measured_name = 'mfreq/freq_{}_{}.mat'.format(grid_size, tag)
+    background_name = u'mfreq/freq_{}_{}.mat'.format(grid_size, '_background')
+    measured_name = u'mfreq/freq_{}_{}.mat'.format(grid_size, tag)
     res = []
     for tag, filename in [(None, background_name), (tag, measured_name)]:
         try:
             res.append(sio.loadmat(filename)['c'])
         except IOError:
-            compute_frequency(get_connection(), tag, SF_BBOX, FIRST_TIME,
+            conn, client = get_connection()
+            compute_frequency(conn, tag, SF_BBOX, FIRST_TIME,
                               LAST_TIME, grid_size, plot=False)
+            client.close()
             res.append(sio.loadmat(filename)['c'])
     background, measured = res
 
     total_b = np.sum(background)
     total_m = np.sum(measured)
+    if not total_m > 0: #photos taken before 2008
+        return
     if 0 < total_m <= 500:
-        support = 25
+        support = 20
     if 500 < total_m <= 2000:
-        support = 50
+        support = 40
     if 2000 < total_m:
-        support = 150
+        support = 130
     discrepancy = get_discrepancy_function(total_m, total_b, support)
     grid_dim = (grid_size, grid_size)
     top_loc = exact_grid(np.reshape(measured, grid_dim),
@@ -202,7 +208,7 @@ def spatial_scan(tag):
 def merge_regions(top_loc):
     merged = []
     merging = 0
-    print('from {}'.format(len(top_loc)))
+    # print('from {}'.format(len(top_loc)))
     for i, loc in enumerate(top_loc):
         val, poly = loc
         new_val = [val]
@@ -227,13 +233,13 @@ def merge_regions(top_loc):
         for j in to_remove[::-1]:
             del top_loc[j]
         merged.append((np.mean(new_val), poly))
-    print('to {} with {} merges'.format(len(merged), merging))
+    # print('to {} with {} merges'.format(len(merged), merging))
     return merged
 
 
 def get_connection():
     client = pymongo.MongoClient('localhost', 27017)
-    return client['flickr']['photos']
+    return client['flickr']['photos'], client
 
 
 def post_process(tag):
@@ -242,7 +248,10 @@ def post_process(tag):
     persistent.save_var(u'disc/post_{}'.format(tag), merged)
 
 
-def consolidate(tags):
+def consolidate():
+    import os
+    tags = [f[4:] for f in os.listdir(u'disc/')
+        if f.startswith(u'top_')]
     d = {tag: persistent.load_var(u'disc/post_{}'.format(tag))
          for tag in tags}
     persistent.save_var(u'disc/all', d)
@@ -261,19 +270,24 @@ def get_best_tags(point):
 GRID_SIZE = 200
 rectangles, dummy, index_to_rect = k_split_bbox(SF_BBOX, GRID_SIZE)
 if __name__ == '__main__':
-    # import sys
-    # import random
+    import sys, os
+    import random
     # tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
-    # tt = clock()
-    # tmp = persistent.load_var('supported')
-    # tags = [v[0] for v in tmp]
-    # random.shuffle(tags)
     tt = clock()
-    # p = Pool(5)
-    # p.map(post_process, tags)
+    tmp = persistent.load_var('supported')
+    tags = set([f[4:] for f in os.listdir(u'disc/')
+        if f.startswith(u'top_')])
+    tags.difference_update(set([v[0] for v in tmp]))
+    tags = list(tags)
+    random.shuffle(tags)
+    p = Pool(5)
+    # p.map(spatial_scan, tags)
     # p.close()
-    # consolidate(tags)
-    print(get_best_tags(Point(-122.409615, 37.7899132)))
+    # p = Pool(5)
+    p.map(post_process, tags)
+    p.close()
+    consolidate()
+    # print(get_best_tags(Point(-122.409615, 37.7899132)))
     print('done in {:.2f}.'.format(clock() - tt))
     # spatial_scan(tag)
     # plot_regions(merged, SF_BBOX, tag)

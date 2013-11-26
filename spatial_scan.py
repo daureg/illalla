@@ -101,18 +101,18 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
     assert grid_size == GRID_SIZE, "GRID_SIZE conflict with provided data"
     side = grid_size/max_size
     max_values = []
-    min_width = 2
-    min_height = 2
+    min_width = 1
+    min_height = 1
     p = AnimatedProgressBar(end=grid_size, width=120)
     for i in range(grid_size):  # left line
         cum_m = np.cumsum(measured[i, :])
         cum_b = np.cumsum(background[i, :])
         p + 1
-        # p.show_progress()
+        p.show_progress()
         for j in range(i+min_width-1, min(grid_size, i+1+side)):  # right line
-            if min_width > 1 and j == i+min_width-1:
-                cum_m += np.sum(np.cumsum(measured[i+1:j, :], 1), 0)
-                cum_b += np.sum(np.cumsum(background[i+1:j, :], 1), 0)
+            if min_width != 1 and j == i+min_width:
+                cum_m += np.sum(np.cumsum(measured[i:i+min_width, :], 1), 0)
+                cum_b += np.sum(np.cumsum(background[i:i+min_width, :], 1), 0)
             if j > i:
                 cum_m += np.cumsum(measured[j, :])
                 cum_b += np.cumsum(background[j, :])
@@ -196,13 +196,13 @@ def spatial_scan(tag):
     grid_dim = (grid_size, grid_size)
     top_loc = exact_grid(np.reshape(measured, grid_dim),
                          np.reshape(background, grid_dim),
-                         discrepancy, 1500, 50)
+                         discrepancy, 150, 200)
     persistent.save_var(u'disc/top_{}'.format(tag), top_loc)
     # print('\n')
     # for v in top_loc:
     #     print('{:.4f}'.format(v[0]))
     #     print(top_loc[0][1].intersects(v[1]))
-    # plot_regions(top_loc, SF_BBOX, tag)
+    plot_regions(top_loc, SF_BBOX, tag)
 
 
 def merge_regions(top_loc):
@@ -260,9 +260,11 @@ def consolidate():
 def get_best_tags(point):
     tags = persistent.load_var('disc/all')
     res = []
+    size = point.area
     for tag, polys in tags.items():
         for val, poly in polys:
-            if point.within(poly):
+            if point.intersects(poly) and \
+               point.intersection(poly).area > .6*size:
                 res.append((tag, val))
                 break
     return sorted(res, key=lambda x: x[1], reverse=True)
@@ -270,25 +272,20 @@ def get_best_tags(point):
 GRID_SIZE = 200
 rectangles, dummy, index_to_rect = k_split_bbox(SF_BBOX, GRID_SIZE)
 if __name__ == '__main__':
-    import sys, os
-    import random
-    # tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
+    import sys
+    # import random
+    tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
+    # tt = clock()
+    # tmp = persistent.load_var('supported')
+    # tags = [v[0] for v in tmp]
+    # random.shuffle(tags)
     tt = clock()
-    tmp = persistent.load_var('supported')
-    tags = set([f[4:] for f in os.listdir(u'disc/')
-        if f.startswith(u'top_')])
-    tags.difference_update(set([v[0] for v in tmp]))
-    tags = list(tags)
-    random.shuffle(tags)
-    p = Pool(5)
-    # p.map(spatial_scan, tags)
-    # p.close()
     # p = Pool(5)
-    p.map(post_process, tags)
-    p.close()
-    consolidate()
+    # p.map(post_process, tags)
+    # p.close()
+    # consolidate(tags)
     # print(get_best_tags(Point(-122.409615, 37.7899132)))
     print('done in {:.2f}.'.format(clock() - tt))
-    # spatial_scan(tag)
+    spatial_scan(tag)
     # plot_regions(merged, SF_BBOX, tag)
     # persistent.save_var('alld', ALLD)

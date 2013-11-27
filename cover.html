@@ -1,0 +1,52 @@
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="viewport" content="user-scalable=no, width=device-width,
+		initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+		<title>Tree</title>
+		<style type="text/css">
+		body {background-color: #fefefc; padding: 0; width: 100%;}
+		#display {display: block; margin: 0 0; border: 1px solid black;
+			background:url(disc/map.png)}
+		</style>
+		<script src="topone.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript" charset="utf-8">
+			function fit_text(ctx, x0, y0, x1, y1, text, padding) {
+				// pixel coordinates
+				var metric = ctx.measureText(text);
+				var height = Math.abs(y1 - y0);
+				var width = Math.abs(x1 - x0);
+				ctx.fillStyle="rgba(255,0,0,0.4)";
+				ctx.fillRect(x0,y0,width,-height);
+				ctx.fillStyle="#000";
+				// ctx.stroke();
+				var vertical = height > width;
+				ctx.save();
+				if (vertical) {
+					ctx.translate(x0+(width+14)/2, y0-height*(padding/2));
+					// ctx.translate(x0+width*(1-padding/2), y0-height*(padding/2));
+					// ctx.scale((1-padding)*width/20.0, (1-padding)*height/metric.width);
+					ctx.scale(1, (1-padding)*height/metric.width);
+					ctx.rotate(-Math.PI/2);
+				}
+				else {
+					ctx.translate(x0+width*(padding/2), y0-(height-14)/2);
+					// ctx.translate(x0+width*(padding/2), y0-height*(padding/2));
+					// ctx.scale((1-padding)*width/metric.width, (1-padding)*height/20.0);
+					ctx.scale((1-padding)*width/metric.width, 1);
+				}
+				ctx.fillText(text, 0,0);
+				ctx.restore();
+			}
+
+			function draw() {
+				var ctx = document.getElementById('display').getContext('2d');
+				ctx.font = '14pt OpenSans,Georgia,Times New Roman';
+				topone(ctx, .15);
+			}
+		</script>
+	</head>
+	<body onload="draw()">
+		<canvas id="display" width="5000" height="4456"></canvas>
+	</body>
+</html>

@@ -9,11 +9,33 @@ import json
 from os.path import join as mkpath
 
 
+def long_lat_to_canvas_pixel(coords, canvas_w=2000, canvas_h=1758):
+    res = []
+    for i in range(0, len(coords), 2):
+        lon = coords[i]
+        lat = coords[i+1]
+        res.append([(lon - SF_BBOX[1])*canvas_w/(1.0*SF_BBOX[3] - SF_BBOX[1]),
+                    canvas_h*(1-(lat - SF_BBOX[0])/(1.0*SF_BBOX[2] -
+                                                    SF_BBOX[0]))])
+    return [int(v) for pair in res for v in pair]
+
+
 def top_discrepancy(allowed_tags=None):
     return sorted([(v[0][0], v[0][1], k) for k, v in t.items()
                    if len(v) > 0 and (allowed_tags is None or
                                       k in allowed_tags)],
                   key=lambda x: x[0], reverse=True)
+
+
+def js_some(tags, n=15):
+    res = ['function topone(ctx, padding) {']
+    call = 'fit_text(ctx, {}, {}, {}, {}, "{}", padding);'
+    for t in tags[:n]:
+        info = long_lat_to_canvas_pixel(t[1].bounds, 5000, 4465)+[t[2]]
+        res.append(call.format(*info))
+    res.append('}')
+    with open('topone.js', 'w') as f:
+        f.write('\n'.join(res))
 
 
 def plot_some(tags, n=15):
@@ -45,4 +67,5 @@ if __name__ == '__main__':
     supported = [v[0] for v in persistent.load_var('supported')][:600]
     d = top_discrepancy(supported)
     # print([v[2] for v in d[-15:]], [v[2] for v in d[:15]])
-    plot_some(d)
+    # plot_some(d)
+    js_some(d, 50)

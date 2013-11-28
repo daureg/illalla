@@ -20,22 +20,24 @@ def long_lat_to_canvas_pixel(coords, canvas_w=2000, canvas_h=1758):
     return [int(v) for pair in res for v in pair]
 
 
-def top_discrepancy(allowed_tags=None):
+def top_discrepancy(t, allowed_tags=None):
     return sorted([(v[0][0], v[0][1], k) for k, v in t.items()
                    if len(v) > 0 and (allowed_tags is None or
                                       k in allowed_tags)],
                   key=lambda x: x[0], reverse=True)
 
 
-def js_some(tags, n=15):
-    res = ['function topone(ctx, padding) {']
-    call = 'fit_text(ctx, {}, {}, {}, {}, "{}", padding);'
+def js_some(tags, n=15, cw=1350, ch=1206, padding=0.1):
+    # res = ['function topone(ctx, padding) {']
+    res = []
+    call = 'fit_text(ctx, {}, {}, {}, {}, "{}", {});'
     for t in tags[:n]:
-        info = long_lat_to_canvas_pixel(t[1].bounds, 5000, 4465)+[t[2]]
+        info = long_lat_to_canvas_pixel(t[1].bounds, cw, ch)+[t[2], padding]
         res.append(call.format(*info))
-    res.append('}')
+    # res.append('}')
     with open('topone.js', 'w') as f:
         f.write('\n'.join(res))
+    return '\n'.join(res)
 
 
 def plot_some(tags, n=15):
@@ -65,7 +67,7 @@ if __name__ == '__main__':
     t = persistent.load_var('disc/all')
     top = get_top_tags(500, 'nsf_tag.dat')
     supported = [v[0] for v in persistent.load_var('supported')][:600]
-    d = top_discrepancy(supported)
+    d = top_discrepancy(t, supported)
     # print([v[2] for v in d[-15:]], [v[2] for v in d[:15]])
     # plot_some(d)
-    js_some(d, 50)
+    js_some(d, 15)

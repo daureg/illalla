@@ -4,10 +4,11 @@
 		<meta name="viewport" content="user-scalable=no, width=device-width,
 		initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
 		<title>Tree</title>
+		<script src="jquery-2.0.3.js" type="text/javascript" charset="utf-8"></script>
 		<style type="text/css">
 		body {background-color: #fefefc; padding: 0; width: 100%;}
 		#display {display: block; margin: 0 0; border: 1px solid black;
-			background:url(disc/map.png)}
+			background:url(disc/map_sm.png)}
 		</style>
 		<script src="topone.js" type="text/javascript" charset="utf-8"></script>
 		<script type="text/javascript" charset="utf-8">
@@ -38,15 +39,64 @@
 				ctx.fillText(text, 0,0);
 				ctx.restore();
 			}
-
+			function set_map(big) {
+				var canvas = $('#display');
+				var ctx = canvas[0].getContext('2d');
+				if (big) {
+					canvas[0].width=5000;
+					canvas[0].height=4456;
+					ctx.font = '28pt OpenSans';
+					canvas.css('background', "url('disc/map_bg.png')");
+				}
+				else {
+					canvas[0].width=1350;
+					canvas[0].height=1206;
+					ctx.font = '14pt OpenSans';
+					canvas.css('background', "url('disc/map_sm.png')");
+				}
+			}
+			function display_tags(data, ctx, canvas) {
+				ctx.setTransform(1, 0, 0, 1, 0, 0);
+				ctx.clearRect(0, 0, canvas.width(), canvas.height());
+				todo = data.split('\n');
+				for	(i=0; i<todo.length; i++) {
+					eval(todo[i]);
+				}
+			}
 			function draw() {
-				var ctx = document.getElementById('display').getContext('2d');
-				ctx.font = '14pt OpenSans,Georgia,Times New Roman';
-				topone(ctx, .15);
+				var canvas = $('#display');
+				var ctx = canvas[0].getContext('2d');
+				set_map(true);
+				$('#big').change(function() {
+						set_map($('#big').prop('checked'));
+						var n = $('#n').val();
+						$.post("cover", {'n': n, 'w': canvas.width(), 'h': canvas.height()},
+							function(data) {display_tags(data, ctx, canvas);});
+						});
+				$('#n').change(function() {
+						var n = $('#n').val();
+						$('#nval').text(': '+n);
+						$.post("cover", {'n': n, 'w': canvas.width(), 'h': canvas.height()},
+							function(data) {display_tags(data, ctx, canvas);});
+						});
+
+				// canvas.width(1350);
+				// canvas.height(1206);
+				// canvas.css('background', "url('disc/map_sm.png')");
+				// ctx.setTransform(1, 0, 0, 1, 0, 0);
+				// ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+				// ctx.font = '14pt OpenSans,Georgia,Times New Roman';
+				// topone(ctx, .15);
 			}
 		</script>
 	</head>
 	<body onload="draw()">
-		<canvas id="display" width="5000" height="4456"></canvas>
+	<form action="cover_submit" method="get" accept-charset="utf-8">
+		<input type="range" name="n" id="n" size="50" min="0" max="50" step="1" value="10">
+		<label id="nval">: 10</label>
+		<label for="big" >big:</label><input type="checkbox" id="big" name="big" >
+	</form>
+		<canvas id="display" width="1350" height="1206"></canvas>
 	</body>
 </html>

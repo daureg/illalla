@@ -53,7 +53,8 @@ def cover():
     n = int(request.POST.get('n'))
     w = int(request.POST.get('w'))
     h = int(request.POST.get('h'))
-    return js_some(d, n, w, h)
+    overlap = request.POST.get('overlap') == 'true'
+    return js_some(d, n, w, h, overlap=overlap)
 
 t = persistent.load_var('disc/all')
 top = get_top_tags(500, 'nsf_tag.dat')

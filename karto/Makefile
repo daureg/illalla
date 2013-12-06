@@ -4,7 +4,9 @@ photos.svg: photos.json photos.css
 	sed -i s/'r="2"/r="0.7"/g' photos.svg
 
 combine: sf_map.svg photos.svg
-	cat sf_map.svg photos.svg > sf.svg
+	# cat sf_map.svg photos.svg > sf.svg
+	cat sf_map.svg > sf.svg
+	echo "</svg>" >> sf.svg
 	rsvg-convert --background-color='#fff' -a -z 3 -d 200 -p 200 sf.svg -o sf.png
 
 usa.svg: test.json style.css

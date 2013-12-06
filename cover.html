@@ -1,0 +1,107 @@
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="viewport" content="user-scalable=no, width=device-width,
+		initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+		<title>Tree</title>
+		<script src="jquery-2.0.3.js" type="text/javascript" charset="utf-8"></script>
+		<style type="text/css">
+		body {background-color: #fefefc; padding: 0; width: 100%;}
+		#display {display: block; margin: 0 0; border: 1px solid black;
+			background:url(disc/map_sm.png)}
+		</style>
+		<!-- <script src="topone.js" type="text/javascript" charset="utf&#45;8"></script> -->
+		<script type="text/javascript" charset="utf-8">
+			function fit_text(ctx, x0, y0, x1, y1, text, padding) {
+				// pixel coordinates
+				var metric = ctx.measureText(text);
+				var height = Math.abs(y1 - y0);
+				var width = Math.abs(x1 - x0);
+				ctx.fillStyle="rgba(255,0,0,0.4)";
+				ctx.fillRect(x0,y0,width,-height);
+				ctx.fillStyle="#000";
+				// ctx.stroke();
+				var vertical = height > 1.2*width;
+				ctx.save();
+				if (vertical) {
+					ctx.translate(x0+(width+14)/2, y0-height*(padding/2));
+					// ctx.translate(x0+width*(1-padding/2), y0-height*(padding/2));
+					// ctx.scale((1-padding)*width/20.0, (1-padding)*height/metric.width);
+					ctx.scale(1, (1-padding)*height/metric.width);
+					ctx.rotate(-Math.PI/2);
+				}
+				else {
+					ctx.translate(x0+width*(padding/2), y0-(height-14)/2);
+					// ctx.translate(x0+width*(padding/2), y0-height*(padding/2));
+					// ctx.scale((1-padding)*width/metric.width, (1-padding)*height/20.0);
+					ctx.scale((1-padding)*width/metric.width, 1);
+				}
+				ctx.fillText(text, 0,0);
+				ctx.restore();
+			}
+			function set_map(big) {
+				var canvas = $('#display');
+				var ctx = canvas[0].getContext('2d');
+				if (big) {
+					canvas[0].width=4000;
+					canvas[0].height=3572;
+					ctx.font = '24pt OpenSans';
+					canvas.css('background', "url('disc/map_bg.png')");
+				}
+				else {
+					canvas[0].width=1350;
+					canvas[0].height=1206;
+					ctx.font = '14pt OpenSans';
+					canvas.css('background', "url('disc/map_sm.png')");
+				}
+			}
+			function display_tags(data, ctx, canvas) {
+				ctx.setTransform(1, 0, 0, 1, 0, 0);
+				ctx.clearRect(0, 0, canvas.width(), canvas.height());
+				todo = data.split('\n');
+				for	(i=0; i<todo.length; i++) {
+					eval(todo[i]);
+				}
+			}
+			function new_cover() {
+				var canvas = $('#display');
+				var ctx = canvas[0].getContext('2d');
+						var n = $('#n').val();
+						var o = $('#overlap').prop('checked')
+						$.post("cover", {'n': n, 'w': canvas.width(),
+							   'h': canvas.height(), 'overlap': o},
+							   function(data) {display_tags(data, ctx, canvas);});
+			}
+			function draw() {
+				var canvas = $('#display');
+				var ctx = canvas[0].getContext('2d');
+				$('#n').val(10);
+				$('#big').prop('checked', false)
+				$('#overlap').prop('checked', false)
+				set_map(false);
+				new_cover();
+				$('#overlap').change(function() {
+						new_cover(); });
+				$('#big').change(function() {
+						set_map($('#big').prop('checked'));
+						new_cover();
+						});
+				$('#n').change(function() {
+						var n = $('#n').val();
+						$('#nval').text(': '+n);
+						new_cover();
+						});
+				// topone(ctx, .15);
+			}
+		</script>
+	</head>
+	<body onload="draw()">
+	<form action="cover_submit" method="get" accept-charset="utf-8">
+		<input type="range" name="n" id="n" size="50" min="0" max="500" step="1" value="10">
+		<label id="nval">: 10</label>
+		<label for="big" >big:</label><input type="checkbox" id="big" name="big" >
+		<label for="overlap" >overlap:</label><input type="checkbox" id="overlap" name="overlap" >
+	</form>
+		<canvas id="display" width="1350" height="1206"></canvas>
+	</body>
+</html>

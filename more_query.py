@@ -253,7 +253,8 @@ def compute_frequency(collection, tag, bbox, start, end, k=200,
         KL_div = 0
     else:
         KL_div = compute_KL(count)
-    sio.savemat(u'freq_{}_{}'.format(k, tag), {'c': np.array(count[1:])})
+    sio.savemat(u'mfreq/freq_{}_{}'.format(k, tag),
+                {'c': np.array(count[1:])}, do_compression=True)
     entropy = compute_entropy(count[1:])
     print(u'Entropy and KL of {}: {:.4f}, {:.4f}'.format(tag, entropy, KL_div))
     if not plot:

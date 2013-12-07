@@ -39,7 +39,7 @@ def do_login():
     y0 = bbox[0]
     bx, tx = (bx, tx) if tx > bx else (tx, bx)
     by, ty = (by, ty) if ty > by else (ty, by)
-    return '\n'.join([u'{}: {:4f}'.format(t, float(v))
+    return '\n'.join([u'{}: {:.4f}'.format(t, float(v))
                       for t, v in get_best_tags(box(x0+bx*long_step,
                                                     y0+by*lat_step,
                                                     x0+tx*long_step,

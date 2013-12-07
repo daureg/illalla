@@ -7,6 +7,8 @@
 		<style type="text/css" media="all">
 			* {margin: 0; padding: 0;}
 			body {background: black;}
+			#display {display: block; margin: 0 0; border: 1px solid black;
+				background:url(disc/map_med.png)}
 		</style>
 		<script type="text/javascript" charset="utf-8">
 			var first = true;
@@ -38,16 +40,50 @@
 				else {
 					rect = {'coords': [grid_size*sx/w, grid_size*(h-sy)/h,
 						grid_size*canvasX/w, grid_size*(h-canvasY)/h]};
+					var mx = (sx + canvasX)/2;
+					var my = (sy + canvasY)/2;
+					var wr = Math.abs(sx - canvasX);
+					var hr = Math.abs(sy - canvasY);
+					var LWIDTH = 320;
+					var FONT_SIZE = 18;
+					if (mx + wr/2 + LWIDTH < w) { var lx = mx + wr/2 + 10; }
+					else  {  var lx = mx - wr/2 - LWIDTH - 10; }
+					var ly = my - hr/2 - 10;
+					var wl = Math.min(w - lx, 320);
+					var canvas = document.getElementById('display');
+					var ctx = canvas.getContext('2d');
+					ctx.setTransform(1, 0, 0, 1, 0, 0);
+					ctx.clearRect(0, 0, w, h);
+					ctx.font = FONT_SIZE+'pt OpenSans';
+					ctx.strokeStyle="#FF0000";
+					ctx.lineWidth = 4;
+					ctx.strokeRect(Math.min(sx, canvasX), Math.min(sy, canvasY), wr, hr);
+					var jqxhr = $.post("click", rect, function(data) {
+							var tags = data.split("\n");
+							var NUM_RES = tags.length;
+							if (NUM_RES < 2) {return;}
+							var hl = Math.min(h - ly, FONT_SIZE*1.25*(NUM_RES+1));
+							ctx.fillStyle = 'rgba(55, 55, 55, 0.75)';
+							ctx.fillRect(lx, ly, wl, hl);
+							ctx.fillStyle = 'white';
+							multilines_text(ctx, tags, lx, ly, FONT_SIZE*1.25);
+							console.log(data); });
 					first = true;
-				var jqxhr = $.post("click", rect, function(data) {
-						console.log(data); });
+				}
+			};
+			function multilines_text(ctx, lines, x, y, line_height) {
+				var num_line = lines.length;
+				var current_y = y + line_height/2;
+				for (var i=0; i<num_line; i++) {
+					current_y += line_height;
+					ctx.fillText(lines[i], x+line_height/2, current_y);
 				}
 			}
-			HTMLImageElement.prototype.relMouseCoords = relMouseCoords;
+			HTMLCanvasElement.prototype.relMouseCoords = relMouseCoords;
 		</script>
 	</head>
 	<body>
-		<img src="disc/museum.png" onclick="relMouseCoords(event);"
-		alt="San Francisco" title="San Francisco" width="2000px" />
+		<canvas id="display" width="2000" height="1786" onclick="relMouseCoords(event);"
+			alt="San Francisco" title="San Francisco"></canvas>
 	</body>
 </html>

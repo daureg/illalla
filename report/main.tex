@@ -5,18 +5,20 @@ Provide a short description of the project (problem studied, contributions, find
 \section{Introduction}
 
 A common way of organizing information on websites it to rely on tags provided
-by user. Although these words are chosen freely, we do not expect them to be
-arbitrary and thus hope being able to extract limited semantics from them. In
+by users. Although these words are chosen freely, we do not expect them to be
+arbitrary and thus hope to be able to extract limited semantics from them. In
 this project, we focus on tags associated with geolocated photos extracted
 from
 Flickr\footnote{\href{https://secure.flickr.com/}{http://www.flickr.com/}}.
-Using this crowdsourced set of (tags, location) pairs, we investigate two
+Using this crowdsourced set of (tags, location) pairs, we investigate three
 problems:
 \begin{itemize}
-	\item Given a tag, find the places in a city or in country where it is
-		significantly concentrated.
+	\item Given a tag, find the places in a city where it is significantly
+		concentrated.
 	\item Conversely, given a location, find the tags that best describe it
 		compared with other locations of similar scale.
+	\item Finally, find the places in the city that seems to generate the
+		most interest.
 \end{itemize}
 
 In the first case, it could be applied in a touristic context. When arriving in a
@@ -24,14 +26,14 @@ new city, a person interested in \textsf{baseball} or \textsf{streetart} could
 find relevant places according to the experience of inhabitants and previous
 visitors. The second answer could be used by Flickr to suggest relevant tags
 when users upload photos. Consequently, more sensibly tagged photos allow more
-relevant search result and improve the website user experience.
+relevant search result and improve the website user experience. The last could
+for instance the first step of an automatic travel guide that select point of
+interest in a city or a region.
 
 Other applications may include inferring missing information (like location or
 time of the day) from the tags or…
 
 What are the contributions of this project?
-
-
 
 \section{Setting}
 \label{sec:setting}
@@ -39,49 +41,35 @@ What are the contributions of this project?
 Provide information that will be necessary for a reader to understand your contributions.
 
 \subsection{General Description of the Dataset}
-Using the Flickr API, we download metadata from every photos satisfying a set
-of criteria: they contain at least one tag, they are located (with enough
-precision, namely what Flickr calls street level), they have been uploaded
-after January 1\textsuperscript{st}, 2008 and they belong to predefined
-rectangular region. Most of the work was done on a set of around
-\numprint{780000} photos in the city of San Francisco, but we also get data in
+
+Using the Flickr API, we downloaded metadata from every photos satisfying a
+set of criteria: they contained at least one tag, they were located, they have
+been uploaded after January 1\textsuperscript{st}, 2008 and they belonged to a
+predefined rectangular region. Most of the work was done on a set of around
+\numprint{780000} photos in the city of San Francisco, but we also got data in
 a part California\footnote{from San José to Reno} and over the whole United
 States.
 
 More precisely, in addition to tags and location, we know when each photos was
 taken and uploaded, by which user and what title was given to it (the title
-was not used except when it contains hashtag, that were converted to tags). A
-typical data point look like this:
+was not used except when it contained hashtag, that were converted to tags).
+Thus a typical data point look like this:
 
-\begin{verbatim}
-loc   : {type : Point,
-         coordinates : [-122.39094, 37.7777]}
-taken : ISODate(2013-02-03T15:59:49Z)
-user  : 37996593020@N01
-tags  : [geotagged,
-         giants,
-         sanfranciscogiants,
-         gigantes,
-         worldchampions]
-title  : Champions
-upload : ISODate(2013-02-05T18:36:49Z)
-_id    : 8447225241
-\end{verbatim}
+\vspace{\baselineskip}
+{\centering\begin{minipage}{0.7\linewidth}
+  \begin{Verbatim}[frame=none, gobble=0]
+loc     : [-122.392501, 37.77515],
+taken   : "2008-03-24 14:55:40",
+user_id : "37417902@N00",
+tags    : ["sanfrancisco", "california", "bridge", "chinabasin"]
+title   : "sf 4th st bridge 8"
+  \end{Verbatim}
+\end{minipage}\par}
 
-\subsection{Useful Data Statistics}
+\input{data}
 
-\begin{figure}[hbtp]
-\includegraphics[width=\columnwidth]{distag}
-\label{fig:distag}
-\caption{Tag distribution in the three regions}
-\end{figure}
-
-tag distrib => preprocessing >= after
-photos distribution on a map
-museum vs street, find difference
-entropy and nKentropy
-plot of pairwise dst and gravity dst
-plot of mu,sigma grav
+\subsection{Statistical exploration}
+\input{stats}
 \section{Algorithms}
 \label{sec:algorithms}
 
@@ -89,14 +77,10 @@ Define the algorithms you employ for the purposes of the project.
 
 \section{Experimental Evaluation}
 
-Here you report your findings from running your algorithms (Section
-\ref{sec:algorithms}) on your data (Section \ref{sec:setting}).
+Here you report your findings from running your algorithms
+(Section~\ref{sec:algorithms}) on your data (Section~\ref{sec:setting}).
 
 \section{Conclusion \& Future Work}
 
-\balance
+\balance{}
 Summarize your findings. Describe how you would extend your work.
-
-
-
-

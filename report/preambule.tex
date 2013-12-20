@@ -1,21 +1,37 @@
+\usepackage[nochapters,pdfspacing]{classicthesis}
+\usepackage{arsclassica}
 \usepackage{ifxetex}
-\ifxetex
+\ifxetex{}
 \usepackage{polyglossia}
 \setmainlanguage{english}
 \usepackage{xltxtra}
 \setmainfont{Linux Libertine O}
 \fontspec[Numbers={OldStyle}]{Linux Libertine O}
+\usepackage{relsize}
+\makeatletter
+\newdimen\M@ht
+\newcommand*{\fup}[1]{%
+\@ifundefined{@@textsuperscript}%
+{\settoheight{\M@ht}{M}%
+\raisebox{.65\M@ht}{\relscale{.60}{#1}}}%
+{\@@textsuperscript{#1}}}%
+\makeatother
 \else
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\newcommand*{\fup}[1]{\textsuperscript{#1}}
 \fi
 
 % \usepackage{algorithm}
 % \usepackage{algorithmic}
+\usepackage{changepage}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
-\usepackage[autolanguage]{numprint}
+\usepackage[]{numprint}
+\usepackage{wrapfig}
+% \selectlanguage{english}
 \usepackage{balance}
 \usepackage{booktabs}
 % \usepackage{caption}
@@ -24,14 +40,16 @@
 \usepackage{graphicx} 
 \usepackage{hyperref}
 \usepackage{microtype}
-% \usepackage{natbib}
+\usepackage[numbers,square]{natbib}
 % \usepackage{pgfplots}
 % \usepackage{pgfplotstable}
-% \usepackage[strict]{csquotes}
+\usepackage[strict]{csquotes}
 % \usepackage{subcaption}
 % \usepackage{subfigure} 
-\usepackage[svgnames]{xcolor}
+% \usepackage[svgnames]{xcolor}
 \usepackage{varioref}
+\usepackage{fancyvrb}
+\usepackage[left=2.3cm,right=2.3cm]{geometry}
 
 % \DeclareMathOperator*{\argmax}{argmax}
 % \newcommand{\argmax}[1]{\arg\underset{#1}{\max}\;}
@@ -39,15 +57,3 @@
 % \newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
 % \newcommand{\vnorm}[1]{\left|\left|#1\right|\right|}
 % \renewcommand{\thesubsection}{\alph{subsection}}
-
-% \pgfplotsset{height=8cm,compat=newest}
-% \pgfplotstableset{
-% every head row/.style={before row=\toprule,after row=\midrule},
-% every last row/.style={after row=\bottomrule},
-% every even row/.style={before row={\rowcolor{white}}},
-% }
-% \tikzexternalize% activate externalization!
-% \tikzset{cost/.style={inner sep=0.5mm,align=center},
-% traceback/.style={->,>=stealth,Blue}, }
-% \usepgfplotslibrary{external}
-% \usetikzlibrary{calc,arrows}

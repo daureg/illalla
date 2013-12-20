@@ -1,0 +1,48 @@
+\paragraph{Uncertainty of the data}
+\begin{itemize}
+	\item User id are subject to caution since nothing prevent people to
+ upload photos on behalf of others. It would require serious effort to
+ detect it but one may expect it is rather uncommon. Moreover, the mere
+ fact that the upload take place still denotes a relation between the
+ user and the photos.
+	\item While timestamp issued by mobile phones are likely to be correct,
+ as their internal clock is synchronized by internet, this may not
+ always be the case for dedicated cameras. More concerning than usual
+ drift of low quality clock is the situation of tourists coming from
+ different timezone. Yet as I could not think of any simple solution to
+ that problem, I just ignored it and carried on.
+	\item To ensure the quality of the localization, I restrict myself to
+ photos whose precision is deemed \enquote{street level} by Flickr. The
+ potential problem is that it would again cost an extra request to know
+ whether this location was given by GPS (in which case the camera
+ position is accurate) or by the user at upload time. In the latter
+ case, in addition to the general imprecision of the method, it is
+ ambiguous whether this location refer the place where the photo was
+ shot or the position of the photo's subject\footnote{Think of a bridge
+ taken from a nearby hill.}.
+	\item Finally, without additional request, the tags obtained are those
+ normalized by Flickr. This normalization is not bijective but it is
+ assumed that two tags with the same normalized form were close in the
+ first place.
+\end{itemize}
+
+Overall, these restrictions are not really problematic. Yet there is another
+one that is not specific to a given field. Users have the possibility to
+upload photos by batch and assign them common location and tags. In some case,
+this could skew the corresponding distributions. Take the tag
+\textsf{14thstreet} as an example. One user have uploaded more than
+\numprint{3500} photos at one corner street during a marathon whereas only a
+handful of others users have employed this tag, which is therefore not as
+popular as the raw number would suggest. To alleviate this situation, I
+performed a simple preprocessing step that I will describe later.
+
+First, I duplicated the \enquote{tags} field of every photos. Then, for each
+user $u$ and each tag $t$, I computed the distribution of photos tagged $t$ by
+$u$ and removed the tags from the photos that appeared more than $T=120$ times
+in the same place (the same cell of the $200\time 200$ discrete grid) in the same
+time (2 weeks interval). With such threshold, it removed around 20\% of all
+tags and it somewhat modified the list of top tag but with no clear pattern.
+But tags with very low entropy like \textsf{14thstreet} did not appeared
+anymore because they lost most of their support. A better way to deal with
+that issue could be to weight tags by the number of their users but it would
+computationally more expensive.

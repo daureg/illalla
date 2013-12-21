@@ -1,4 +1,30 @@
-\paragraph{Uncertainty of the data}
+\subsection{General Description of the Dataset}
+
+Using the Flickr API, we downloaded metadata from every photos satisfying a
+set of criteria: they contained at least one tag, they were located, they have
+been uploaded after January 1\textsuperscript{st}, 2008 and they belonged to a
+predefined rectangular region. Most of the work was done on a set of around
+\numprint{780000} photos in the city of San Francisco, but we also got data in
+a part California\footnote{from San José to Reno} and over the whole United
+States.
+
+More precisely, in addition to tags and location, we know when each photos was
+taken and uploaded, by which user and what title was given to it (the title
+was not used except when it contained hashtag, that were converted to tags).
+Thus a typical data point look like this:
+
+\vspace{\baselineskip}
+{\centering\begin{minipage}{0.7\linewidth}
+  \begin{Verbatim}[frame=none, gobble=0]
+loc     : [-122.392501, 37.77515],
+taken   : "2008-03-24 14:55:40",
+user_id : "37417902@N00",
+tags    : ["sanfrancisco", "california", "bridge", "chinabasin"]
+title   : "sf 4th st bridge 8"
+  \end{Verbatim}
+\end{minipage}\par}
+
+\subsection{Uncertainty of the data}
 \label{p:data}
 \begin{itemize}
 	\item User id are subject to caution since nothing prevent people to

@@ -1,0 +1,142 @@
+With this last statistic, we will now see how we can answer the three initial
+questions, albeit not optimally.
+
+\subsection{Tag positioning}
+
+To find where a tag appears, we simply compute its discrepancy over all
+regions that satisfy some size constraints and we keep track of the $K$ ones
+with the highest discrepancy. When this is done, we merge some of the
+overlapping regions and discard the others. Namely, we rank region by
+discrepancy, start from the top one, merge it with its two highest neighbors
+and remove the others ones. Then we move to next cluster until we have visited
+all regions once.
+
+While this is conceptually easy, the main drawback is the sensitivity to the
+scale of the grid and even for the same grid, the choice of parameters.
+Figure~\vref{f:mus} show result for \textsf{museum} and Figure~\vref{f:ggp}
+for \textsf{goldengatepark}. Because they cover area of small and larger size,
+we see that the appropriated grid is different. The problem is that we need to
+realize that before this point.
+
+\begin{figure}
+        \centering
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{mus/museum_200_130_2000_2_5.png}
+                \caption{$g=200$, $K=1000$, $T=130$, $min=2$, $max=5$}
+        \end{subfigure}~
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{mus/museum_80_250_2000_1_4.png}
+                \caption{$g=80$, $K=1000$, $T=250$, $min=1$, $max=4$}
+        \end{subfigure}~
+
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{mus/museum_200_250_2000_2_5.png}
+                \caption{$g=200$, $K=1000$, $T=250$, $min=2$, $max=5$}
+        \end{subfigure}~
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{mus/museum_20_350_3000_1_1.png}
+                \caption{$g=20$, $K=1000$, $T=350$, $min=1$, $max=1$}
+        \end{subfigure}~
+
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{mus/museum_200_300_1000_2_2.png}
+                \caption{$g=200$, $K=1000$, $T=300$, $min=2$, $max=2$}
+        \end{subfigure}~
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{mus/museum_20_350_3000_1_4.png}
+                \caption{$g=20$, $K=1000$, $T=350$, $min=1$, $max=4$}
+        \end{subfigure}
+        \caption{Photos with tags \textsf{museum} are blue dots and red
+rectangles represent high discrepancy regions. $g$ is the subdivision of the
+grid, $K$ the maximum number of regions before merging, $T$ the minimum
+number of photos in a region to be considered, and $min$ and $max$ are the
+size constraints of the regions in number of cells.\label{f:mus}}
+\end{figure}
+
+
+\begin{figure}
+        \centering
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{ggp/ggp_20_250_2000_1_5.png}
+                \caption{$g=20$, $K=1000$, $T=250$, $min=1$, $max=5$}
+        \end{subfigure}~
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{ggp/ggp_80_200_1000_1_4.png}
+                \caption{$g=80$, $K=1000$, $T=200$, $min=1$, $max=4$}
+        \end{subfigure}~
+
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{ggp/ggp_20_250_2000_1_6.png}
+                \caption{$g=20$, $K=1000$, $T=250$, $min=1$, $max=6$}
+        \end{subfigure}~
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{ggp/ggp_200_100_2000_3_7.png}
+                \caption{$g=200$, $K=1000$, $T=100$, $min=3$, $max=7$}
+        \end{subfigure}~
+
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{ggp/ggp_20_250_2000_1_7.png}
+                \caption{$g=20$, $K=1000$, $T=250$, $min=1$, $max=7$}
+        \end{subfigure}~
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{ggp/ggp_200_200_1000_1_5.png}
+                \caption{$g=200$, $K=1000$, $T=200$, $min=1$, $max=5$}
+        \end{subfigure}
+		\caption{Same as Figure~\ref{f:mus} but for
+		\textsf{goldengatepark}.\label{f:ggp}}
+\end{figure}
+
+\subsection{Location describing}
+
+We can also use discrepancy to describe a location as follow: we perform the
+merging process just presented for all supported tags. For each of them, we will
+thus obtain a few regions with an associated scalar value. Given a query
+region, we go through this list and returned matching tag, sorted by
+discrepancy. Screenshots of working demonstration are displayed in
+Figure~\vref{f:loc}. One issue they do not show is that the list of results
+is sometimes very sensitive to the rectangle selected. But they exhibit the
+other ones; this list can be very long and it would be desirable to limit it
+(for instance in Alcatraz, return only tag above $3$). The matching process
+can also be improved, maybe by scaling the discrepancy by the overlapping
+area between the query and the tag regions.
+
+\begin{figure}
+        \centering
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{czoo.png}
+                \caption{San Francisco Zoo, where Google Map indeed reports
+the existence of a \enquote{Penguin Island}.}
+        \end{subfigure}~
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{cloh.png}
+                \caption{California Palace of the Legion of Honor, exhibiting
+many Auguste Rodin's sculptures.}
+        \end{subfigure}
+
+        \begin{subfigure}[b]{0.5\textwidth}
+                \includegraphics[width=\textwidth]{calca.png}
+                \caption{Alcatraz Island, aka \enquote{The Rock}, home of an
+abandoned prison.}
+        \end{subfigure}
+		\caption{Description of three points of interest in San Francisco.\label{f:loc}}
+\end{figure}
+
+\subsection{Map covering}
+
+Finally, as a proxy for finding interesting locations, we tried to pave the
+map with suitable tag. More precisely, we selected the highest discrepancy
+region of each tag and ranked. Result are shown in Figure~\vref{f:cover}. In
+its current form, the visualisation quickly become unreadable if we allow
+overlapping tags. But there are more fundamental issues. Namely, because it
+was computed with the values from the $200\times 200$ grid and regions smaller
+than $4$ cells at most, it misses larger areas like the Golden Gate Park.
+Moreover, discrepancy is an arguable criteria of interest. Even if at first
+look, it seems to return mostly relevant locations, it lacks flexibility and
+will always yield the same result, regardless of the user typology and its
+preferences.
+
+\begin{figure}[hbtp]
+\centering
+\includegraphics[width=\columnwidth]{../prez/tourist.png}
+\caption{The $20$ more discrepant tags are their characteristics location.\label{f:cover}}
+\end{figure}

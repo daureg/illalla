@@ -5,11 +5,11 @@
 
 The first thing was to look at the tags to get a sense of them. In San
 Francisco after the preprocessing, there was a total of \numprint{4977625}
-occurence of the \numprint{145242} unique tags. But their distribution varies
+occurrences of the \numprint{145242} unique tags. But their distribution varies
 widely, between the most popular one, \textsf{sanfrancisco}, used
 \numprint{373427} times and the \numprint{101361} that are used less than 5
 times. Some of them are shown in Table~\vref{tab:tags} but a more synthetic
-vizualisation is presented in Figure~\vref{f:tags}, where we can see that like
+visualization is presented in Figure~\vref{f:tags}, where we can see that like
 words in a written documents, tags follows a power law.
 
 \begin{table}[ht]
@@ -42,19 +42,19 @@ After making these observations, I decided to consider only tags with enough
 support, both to ease the computational effort and to avoid outliers. For each
 tags, I compute three simple metrics, total count, distinct users count and
 time span. Using the three threshold (150 photos, 25 users, 500 days), I kept
-only \numprint{1836} tags. It may seem quite restricve but they still cover
-68.6\% of all occurence and we can always change these thresholds
+only \numprint{1836} tags. It may seem quite restrictive but they still cover
+68.6\% of all occurrences and we can always change these thresholds
 later\footnote{For instance, with $(20, 2, 0)$, we get \numprint{12959} tags
 and 84.4\% coverage.}.
 
 We can then conduct a similar analysis over the locations in which photos
 appear. Because of their large number, it was not convenient nor readable to
-display them indivudually. Therefore, I discretized space as a regular grid of
+display them individually. Therefore, I discretized space as a regular grid of
 size 200 by 200. In that case, each rectangular cell is around $80\times 70$
 meters and I used this same method for all other spatial computation. A
-natural way of vizualising them is to draw a heatmap (Figure~\vref{f:heat}).
-We notice again that they are far from being uniformily distributed and that
-some neighboord are more popular than others. More quantitatively, number of
+natural way of visualizing them is to draw a heatmap (Figure~\vref{f:heat}).
+We notice again that they are far from being uniformly distributed and that
+some neighborhood are more popular than others. More quantitatively, number of
 photos of each location as a function of their rank (Figure~\vref{f:pdis}), we
 notice that it first follows a power law and after some point, a more
 abrupt one. Moreover, the same phenomena occurs for other grid size, albeit

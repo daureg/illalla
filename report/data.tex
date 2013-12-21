@@ -1,4 +1,5 @@
 \paragraph{Uncertainty of the data}
+\label{p:data}
 \begin{itemize}
 	\item User id are subject to caution since nothing prevent people to
  upload photos on behalf of others. It would require serious effort to
@@ -42,7 +43,7 @@ $u$ and removed the tags from the photos that appeared more than $T=120$ times
 in the same place (the same cell of the $200\time 200$ discrete grid) in the same
 time (2 weeks interval). With such threshold, it removed around 20\% of all
 tags and it somewhat modified the list of top tag but with no clear pattern.
-But tags with very low entropy like \textsf{14thstreet} did not appeared
+But tags with very low entropy like \textsf{14thstreet} did not appear
 anymore because they lost most of their support. A better way to deal with
 that issue could be to weight tags by the number of their users but it would
 computationally more expensive.

@@ -1,13 +1,8 @@
-\begin{figure}[hbtp]
-\includegraphics[width=\columnwidth]{distag}
-\caption{Tag distribution log-log scale over three regions of different scale.\label{f:tags}}
-\end{figure}
-
 The first thing was to look at the tags to get a sense of them. In San
 Francisco after the preprocessing, there was a total of \numprint{4977625}
 occurrences of the \numprint{145242} unique tags. But their distribution varies
 widely, between the most popular one, \textsf{sanfrancisco}, used
-\numprint{373427} times and the \numprint{101361} that are used less than 5
+\numprint{373427} times and the \numprint{101361} one that are used less than 5
 times. Some of them are shown in Table~\vref{tab:tags} but a more synthetic
 visualization is presented in Figure~\vref{f:tags}, where we can see that like
 words in a written documents, tags follows a power law.
@@ -22,12 +17,12 @@ words in a written documents, tags follows a power law.
 		california       & pacific                             & rolexbigboatseries \\
 		iphoneography    & february                            & proshowgold \\
 		square           & foundinsf                           & neutraface \\
-		% squareformat     & dolorespark                         & natur€ \\
+		squareformat     & dolorespark                         & natur€ \\
 		instagramapp     & japaneseteagarden                   & lusty \\
 		unitedstates     & boat                                & lightousetender \\
 		sf               & 5k                                  & jennyholzer \\
 		usa              & national                            & img0562jpg \\
-		% ca               & σανφρανσίσκο                        & djguyruben \\
+		ca               & σανφρανσίσκο                        & djguyruben \\
 		san              & cruise                              & cutebaby \\
 		francisco        & above                               & cardamine \\
 		goldengatepark   & july2009                            & californiaproduce \\
@@ -38,53 +33,68 @@ words in a written documents, tags follows a power law.
 	\caption{A sample of San Francisco tags, depending of their rank.\label{tab:tags}}
 \end{table}
 
-After making these observations, I decided to consider only tags with enough
+After making these observations, we decided to consider only tags with enough
 support, both to ease the computational effort and to avoid outliers. For each
-tags, I compute three simple metrics, total count, distinct users count and
-time span. Using the three threshold (150 photos, 25 users, 500 days), I kept
-only \numprint{1874} tags. It may seem quite restrictive but they still cover
-68.6\% of all occurrences and we can always change these thresholds
+tags, we computed three simple metrics: total count, distinct users count and
+time span. Using the three thresholds (150 photos, 25 users, 500 days), we
+kept only \numprint{1874} tags. It may seem quite restrictive but they still
+cover 68.6\% of all occurrences and these thresholds can be changed
 later\footnote{For instance, with $(20, 2, 0)$, we get \numprint{12959} tags
 and 84.4\% coverage.}.
 
 We can then conduct a similar analysis over the locations in which photos
 appear. Because of their large number, it was not convenient nor readable to
-display them individually. Therefore, I discretized space as a regular grid of
-size 200 by 200. In that case, each rectangular cell is around $80\times 70$
-meters and I used this same method for all other spatial computation. A
-natural way of visualizing them is to draw a heatmap (Figure~\vref{f:heat}).
-We notice again that they are far from being uniformly distributed and that
-some neighborhood are more popular than others. More quantitatively, number of
-photos of each location as a function of their rank (Figure~\vref{f:pdis}), we
-notice that it first follows a power law and after some point, a more
-abrupt one. Moreover, the same phenomena occurs for other grid size, albeit
-with different $\alpha$ coefficient. Despite this similar behavior, it was
-more tricky to explicitly exclude parts of the city.
+display them individually. Therefore, we discretized space as a regular grid
+of size 200 by 200. A natural way of visualizing them is to draw a heatmap
+(Figure~\vref{f:heat}).  We notice again that they are far from being
+uniformly distributed and that some neighborhoods are more popular than
+others. More quantitatively, plotting number of photos of each location as a
+function of their rank (Figure~\vref{f:pdis}), we notice that it first follows
+a power law and after some point, a more abrupt one. Moreover, the same
+phenomena occurs for other grid size, albeit with different $\alpha$
+coefficients. Despite this similar behavior, it was more tricky to explicitly
+exclude parts of the city.
 
-\begin{figure}[hbtp]
-\includegraphics[width=\columnwidth]{../heatmap.png}
-\caption{Photos count in logarithmic scale (the darker, the more
-photos).\label{f:heat}}
-\end{figure}
+\clearpage
+\newgeometry{left=0.8cm,right=0.8cm,bottom=1cm,top=0.5cm}
+\thispagestyle{empty}
+\begin{figure}[p]
+        \centering
+		\begin{subfigure}[b]{0.5\textwidth}
+			\includegraphics[height=.4\textheight,width=\textwidth,keepaspectratio]{distag}
+			\caption{Tag distribution log-log scale over three regions of
+			different scale.\label{f:tags}}
+		\end{subfigure}~
+        \begin{subfigure}[b]{0.5\textwidth}
+			\includegraphics[height=.4\textheight,width=\textwidth,keepaspectratio]{../prez/pdistrib.png}
+			\caption{Spatial distribution of photos over three grids with
+			different granularity.\label{f:pdis}}
+        \end{subfigure}
 
-\begin{figure}[hbtp]
-\includegraphics[width=\columnwidth]{../prez/pdistrib.png}
-\caption{Spatial distribution of photos over three grids with different
-granularity.\label{f:pdis}}
+		\begin{subfigure}[b]{\textwidth}
+			\centering
+			\includegraphics[height=.6\textheight]{../heatmap.png}
+			\caption{Photos count in logarithmic scale (the darker, the more
+			photos).\label{f:heat}}
+		\end{subfigure}
+		\caption{.\label{f:distrib}}
 \end{figure}
+\restoregeometry
 
 Let us return to one of our original problem, find which tags describe a given
 location. The first approach would to filter this \numprint{1874} tags to keep
 only those that are enough concentrated at one position and reject those that
-too uniformily distributed. After that, it would simply a matter of returning
-those that appear in the place of interest. An example of this two kind of
-tags are \textsf{museum} and \textsf{street}. As shown in Figure~\vref{f:sm},
-\textsf{museum} photos are mostly located around five or six points whereas
-\textsf{street} is more diffuse. But instead of looking at a map, we want a
-numerical statistic that allow us to distinguish between this two cases.
+too uniformly distributed. After that, it would simply be a matter of
+returning those that appear in the place of interest. An example of this two
+kind of tags are \textsf{museum} and \textsf{street}. As shown in
+Figure~\vref{f:sm}, \textsf{museum} photos are mostly located around five or
+six points whereas \textsf{street} is more diffuse. But instead of looking at
+a map, we want a numerical statistic that allow us to distinguish between this
+two cases.
 
 \begin{figure}[hbtp]
-\includegraphics[width=\columnwidth]{../prez/sm.png}
-\caption{Red dots denote photos tagged \textsf{museum} while blue ones are
+	\centering
+	\includegraphics[width=\columnwidth]{../prez/sm.png}
+	\caption{Red dots denote photos tagged \textsf{museum} while blue ones are
 	\textsf{street}.\label{f:sm}}
 \end{figure}

@@ -1,5 +1,5 @@
 By \keyfinding{summarizing} what we have done so far, we will be able to see
-what \keyfinding{limitations} can be addressed in further work. After
+which \keyfinding{limitations} can be addressed in further work. After
 extracting photos metadata from Flickr and exploring their location and their
 tags, we computed some statistics about them and notably the discrepancy of
 the most supported tags. We then use this information to highlight various
@@ -14,51 +14,52 @@ be more relevant if we manage to \keyfinding{clean them}. Yet it remains to be
 seen if it is worth the extra effort. A simpler direction would be to
 \keyfinding{increase their amount}. This can be done by crawling photos from
 others cities, to see if the same methods produce the same results or if
-working only on San Francisco have introduced some bias. Another approach
+working only with San Francisco have introduced some bias. Another approach
 would be to use more diverse sources like instagram, foursquare or any other
-social networks that allows users to share localized and tagged tags contents.
+social networks that allows users to share localized and tagged contents.
 
 
-The second limitation that arose from focusing on a single area is that we
+The second limitation that arise from focusing on a single area is that we
 were not confronted enough with one fundamental issue of spatial analysis, the
 \keyfinding{modifiable areal unit problem}\cite{scale}, which states that
-statistical measurement can be profoundly affected by the choice of the
+statistical measurements can be profoundly affected by the choice of the
 spatial partition and its characteristics size (in our case, the grid and its
 cells dimension).  It is an open question whether the current approach can
 simply be tuned to tackle different area like states, countries or even the
-whole world or if it needs radical change and scale-invariant statistics.
+whole world, or if it needs radical change and scale invariant statistics.
 
 A related issue is that the presented approach comes with \keyfinding{many
-parameters and threshold}. That would be fine if they encode some prior
+parameters and thresholds}. That would be fine if they encode some prior
 knowledge but the truth is, they were chosen empirically. Indeed, the problem
 is mostly unsupervised. For instance, except for specific tag like the name of
 buildings, most of them can be found in several locations. Likewise, places
 can be described by many tags, maybe of various relevance but with no clear
-cut. Finally, finding interesting locations is rather subjective and depending
-of the chosen criteria, can yield diverse results. The rather rigid grid
-division is therefore quite limited, not least because not all locations are
-rectangular! It may thus be more appropriate to try some
-\keyfinding{unsupervised clustering methods}, for instance based on Euclidean
-norm in the case of the photos locations or draw from natural language topic
-modeling approaches in the case of tags\cite{topicModel}.
+cut. Finally, finding interesting locations is rather subjective and,
+depending of the chosen criterion, can yield diverse results. The rather rigid
+grid division is therefore quite limited, not least because not all locations
+are rectangular! It may thus be more appropriate to try some
+\keyfinding{unsupervised clustering methods}, for instance based on the
+Euclidean norm in the case of the photos locations or drawn from natural
+language \keyfinding{topic modeling} approaches in the case of
+tags\cite{topicModel}.
 
 
 Even with this lack of definitive results, it would be helpful to have a way
 to \keyfinding{evaluate them}. One way could be to generate
 \keyfinding{artificial data} from which we know precisely what should be found
-inside, but it would again require some assumption of our part. We can also
-create \keyfinding{hand picked ground truth} by manually annoying tags and
+inside, but it would again require some assumptions of our part. We can also
+create \keyfinding{hand picked ground truth} by manually annotating tags and
 locations, as in \cite{Rattenbury2009}. To cope with ambiguity, it would be
-even better aggregate evaluation from several individuals\footnote{But also
-more time consuming, although this may be presented as a game, like GeoGuessr:
-\url{http://geoguessr.com/}.}. An easier alternative would be to manually
-extract famous landmarks from existing tourist guide and assess precision and
-recall of the method.
+even better to aggregate evaluations from several individuals\footnote{But
+also more time consuming, although this may be presented as a game, like
+GeoGuessr: \url{http://geoguessr.com/}.}. An easier alternative would be to
+manually extract famous landmarks from existing tourist guides and assess
+precision and recall of the method.
 
 \medskip
 
 Finally, whereas photos come with \keyfinding{four kinds of
-information}---tags, location, user, time---we only work with the first two
+information}---tags, location, user and time---we only work with the first two
 and it would undoubtedly be more interesting to \keyfinding{use all of them}.
 Let us try to list systematically what we can do of it.
 
@@ -77,6 +78,6 @@ water or that consist of park have similar characteristics.
 
 Then we should consider \keyfinding{pair of concepts}. The present work deals
 with tags \texrel locations in both directions, thus there are $\binom{4}{2} -
-1$ other to look for: tags \texrel time, tags \texrel users, locations \texrel
+1$ others to look for: tags \texrel time, tags \texrel users, locations \texrel
 times, locations \texrel users and times \texrel users. Yet all of them may
 not be interesting and we need to hierarchize our priorities. 

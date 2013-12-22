@@ -5,28 +5,28 @@
 \end{wrapfigure}
 Let first define some notation. As mentioned before, the city is divided in a
 $g\times g$ grid made of rectangular cells $1$ through $g^2$ (like pictured on
-the right). For a cell $i$, let $b(i)$ be the total number of photos in cell
-$i$\footnote{The so called background, hence the notation.}, $B=\sum_i b(i)$
-the total number of photos and $b_f(i)$ the frequency of each cell. For a tag
-$t$, we define in the same manner, $t(i)$, $T$ and $t_f(i)$, this time
-considering only photos which have tags $t$.
+the right). For a cell $i$, let $b(i)$ be the total number of photos in
+$i$\fup{th} cell \footnote{The so called background, hence the notation.},
+$B=\sum_i b(i)$ the total number of photos and $b_f(i)=\frac{b(i)}{B}$ the
+frequency of each cell. For a tag $t$, we define in the same manner $t(i)$,
+$T$ and $t_f(i)$, this time considering only photos which have tags $t$.
 
 With these frequencies we can compute entropy. Let \[H(t,g) = -\frac{1}{2\log
 g}\sum_{i=1}^{g^2} t_f(i)\log t_f(i)\] be the entropy of tag $t$ on a grid of
-size $g$. The normalization factor ensure that regardless of $g$, the values
+size $g$. The normalization factor ensures that regardless of $g$, the values
 will range from $0$ (all photos in the same cell) to $1$ (uniform
 distribution). Tags with extremal values are presented in
-Table~\vref{tab:entropy} for three grids: $200\times 200$ ($80\times 70$ meters,
-less than a block), $80\times 80$ ($200\times 180$ meters, slightly more that
-a block) and $20\times 20$ ($800\times 700$ meters, maybe a district). We notice
-that the lowest values relate to specific location like museum while highest
-one are very generic. Whereas $g=200$ and $g=80$ yield comparable result, it
-is no more the case for $g=20$. In particular high valued tag become even more
-generic.
+Table~\vref{tab:entropy} for three grids: $200\times 200$ (each cell is $80$
+by $70$ meters long, less than a block), $80\times 80$ ($200\times 180$
+meters, slightly more that a block) and $20\times 20$ ($800\times 700$ meters,
+maybe a district). We notice that the lowest values relate to specific
+location like museum while highest one are generic. Whereas $g=200$ and
+$g=80$ yield comparable result, it is no more the case for $g=20$. In
+particular high valued tags become even more generic (sky, dog, \dots).
 
 \begin{table}[ht]
 \centering
-\setlength{\tabcolsep}{1.2em}
+\setlength{\tabcolsep}{0.8em}
 \begin{tabular}{lclclc}
 \toprule
  \multicolumn{2}{c}{$g=200$}&  \multicolumn{2}{c}{$g=80$}&  \multicolumn{2}{c}{$g=20$}  \\
@@ -67,19 +67,19 @@ sanfrancisco     & .738 & foundinsf              & .803 & foundinsf           & 
 \textsf{saintspeterandpaulchurch}).\label{tab:entropy}}
 \end{table}
 
-To further differenciate tags that are highly concentrated, we can compute the
+To further differentiate tags that are highly concentrated, we can compute the
 Kullback Leibler divergence of their distribution with the one of all the
 photos. For that, we define \[D_g(t||b) = \frac{-1}{\log
 	\min_{b_f(i)>0}b_f(i)}\sum_{i=1,\, b_f(i)>0}^{g^2} t_f(i)\log
-\frac{t_f(i)}{b_f(i)}\] This time, values range from $1$ (all the tags in the
-cell where there is the fewest photos in total and thus maximally distinct) to
-$0$ (for $t=b$, which is not possible). Again extremal values are shown in
-Table~\vref{tab:kl}.  It also differenciates between the two kinds of tag but
-compared with entropy, it seems more robust to change in the grid dimensions
-as the three rows shows roughly the same set of tags. Weirdly enough, there is
-also a semantic shift for position specific tags. Whereas those picked by
-entropy were mostly building, here they relate more to recreational area like
-park.
+\frac{t_f(i)}{b_f(i)}\] This time, values range from $1$ (when all the $t$
+photos are in the cell where there are the fewest total photos and thus are
+maximally distinct) to $0$ (for $t=b$, which is not possible). Again extremal
+values are shown in Table~\vref{tab:kl}. It also differentiates between the
+two kinds of tag but compared with entropy, it seems more robust to change in
+the grid dimensions as the three rows shows roughly the same set of tags.
+Weirdly enough, there is also a semantic shift for position specific tags.
+Whereas those picked by entropy were mostly buildings, here they relate more to
+recreational areas like parks.
 
 \begin{table}[ht]
 \centering
@@ -122,13 +122,14 @@ sanfrancisco  & .011 & sanfrancisco  & .006 & sanfrancisco  & .002 \\
 \end{table}
 
 This two statistics are interesting but they have one major drawback, they
-give a single value for each tag which is convenient for ranking them but lose
-all the information about their position. That why we finally use the Kulldorf
-spatial scan statistic\cite{kulldorff}. Let $R_{i,w,h}$ be a rectangular region
-defined by its bottom left cell $i$, its width $w$ and its height $h$ as the
-following set of cells \[R_{i,w,h} = \{i + k + lg,\, k\in\llbracket 0,\dots,
-w-1\rrbracket,\, l\in\llbracket 0,\dots, h-1\rrbracket\}\] For a given $R$,
-what we will now call its discrepancy with respect to tag $t$ is
+give a single value for each tag. While this is convenient for ranking them,
+it loses all the information about their position. That why we finally use the
+Kulldorf spatial scan statistic\cite{kulldorff}. Let $R_{i,w,h}$ be a
+rectangular region defined by its bottom left cell $i$, its width $w$ and its
+height $h$ as the following set of cells: \[R_{i,w,h} = \{i + k + lg,\,
+k\in\llbracket 0,\dots, w-1\rrbracket,\, l\in\llbracket 0,\dots,
+h-1\rrbracket\}\] For a given $R$, what we will now call its discrepancy with
+respect to tag $t$ is
 \[
 	d(t, R) =
 \begin{dcases}
@@ -137,6 +138,56 @@ what we will now call its discrepancy with respect to tag $t$ is
 	0 & \text{otherwise}
 \end{dcases}
 \]
-and we recognise the Kullback Leibler divergence restricted to $R$ and its
-complementary.
-param T,w,h,K implementation using a modified version of Algorithm 3 \cite{Agarwal2006spatial}
+and we recognize the Kullback Leibler divergence restricted to $R$ and its
+complementary. $T$ is a threshold ensuring that we consider only region with
+enough support to be significant.
+
+To compute it, we implemented the exhaustive method described in
+\citep[Algorithm 3]{Agarwal2006spatial} with two modifications. First, letting
+$w$ and $h$ go from $1$ to $g$, there are $g^2\cdot g\cdot g$ possible
+regions. But to speed up computations and because we did not want to get
+regions covering a large portion of the city, we restricted their maximum
+size. Then, instead of returning the most discrepant region, we maintained a
+list of the top $K$ ones. Like before, it is informative to look at
+Table~\vref{t:disc} to see which tags get high and low values (over all their
+regions).
+
+\begin{table}[ht]
+\centering
+\setlength{\tabcolsep}{1.2em}
+\begin{tabular}{lclclc}
+\toprule
+ \multicolumn{2}{c}{$g=200$}&  \multicolumn{2}{c}{$g=80$}&  \multicolumn{2}{c}{$g=20$}  \\
+\midrule
+\multicolumn{6}{c}{Highest discrepancy} \\
+\midrule
+grandviewpark     & 7.493 &  &  &  & \\
+sterngrove        & 7.208 &  &  &  & \\
+local             & 6.881 &  &  &  & \\
+alcohol           & 6.666 &  &  &  & \\
+dubocepark        & 6.467 &  &  &  & \\
+yoda              & 6.467 &  &  &  & \\
+coronaheights     & 6.374 &  &  &  & \\
+performer         & 6.374 &  &  &  & \\
+circus            & 6.371 &  &  &  & \\
+candlestickpark   & 6.285 &  &  &  & \\
+bernalheightspark & 6.158 &  &  &  & \\
+\midrule
+\multicolumn{6}{c}{Lowest discrepancy} \\
+\midrule
+instagramapp  & 0.013 &  &  &  & \\
+squareformat  & 0.013 &  &  &  & \\
+square        & 0.012 &  &  &  & \\
+iphoneography & 0.012 &  &  &  & \\
+sf            & 0.009 &  &  &  & \\
+xproii        & 0.008 &  &  &  & \\
+sierra        & 0.007 &  &  &  & \\
+california    & 0.004 &  &  &  & \\
+rise          & 0.003 &  &  &  & \\
+amaro         & 0.002 &  &  &  & \\
+sanfrancisco  & 0.001 &  &  &  & \\
+\bottomrule
+\end{tabular}
+\caption{Tags with lowest and highest discrepancy for three different grid
+size (TODO).\label{t:disc}}
+\end{table}

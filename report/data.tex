@@ -1,16 +1,16 @@
-\subsection{General Description of the Dataset}
+\subsection{Description of the Dataset}
 
 Using the Flickr API, we downloaded metadata from every photos satisfying a
 set of criteria: they contained at least one tag, they were located, they have
 been uploaded after January 1\textsuperscript{st}, 2008 and they belonged to a
 predefined rectangular region. Most of the work was done on a set of around
-\numprint{780000} photos in the city of San Francisco, but we also got data in
-a part California\footnote{from San José to Reno} and over the whole United
-States.
+\numprint{780000} photos in the city of San Francisco, but we also got data
+from a part of California\footnote{from San José to Reno} and over the whole
+United States.
 
 More precisely, in addition to tags and location, we know when each photos was
 taken and uploaded, by which user and what title was given to it (the title
-was not used except when it contained hashtag, that were converted to tags).
+was not used except when it contained hashtags, which were converted to tags).
 Thus a typical data point look like this:
 
 \vspace{\baselineskip}
@@ -26,8 +26,13 @@ title   : "sf 4th st bridge 8"
 
 \subsection{Uncertainty of the data}
 \label{p:data}
+
+This retrieval process was naturally not perfect. In addition to some API
+calls returning strange results, the casual nature of the data explains their
+inherent noise.
+
 \begin{itemize}
-	\item User id are subject to caution since nothing prevent people to
+	\item User id are subject to caution since nothing prevents people to
  upload photos on behalf of others. It would require serious effort to
  detect it but one may expect it is rather uncommon. Moreover, the mere
  fact that the upload take place still denotes a relation between the
@@ -38,9 +43,9 @@ title   : "sf 4th st bridge 8"
  drift of low quality clock is the situation of tourists coming from
  different timezone. Yet as I could not think of any simple solution to
  that problem, I just ignored it and carried on.
-	\item To ensure the quality of the localization, I restrict myself to
+	\item To ensure the quality of the localization, I restricted myself to
  photos whose precision is deemed \enquote{street level} by Flickr. The
- potential problem is that it would again cost an extra request to know
+ potential problem is that it would cost an extra request to know
  whether this location was given by GPS (in which case the camera
  position is accurate) or by the user at upload time. In the latter
  case, in addition to the general imprecision of the method, it is
@@ -60,16 +65,16 @@ this could skew the corresponding distributions. Take the tag
 \textsf{14thstreet} as an example. One user have uploaded more than
 \numprint{3500} photos at one corner street during a marathon whereas only a
 handful of others users have employed this tag, which is therefore not as
-popular as the raw number would suggest. To alleviate this situation, I
-performed a simple preprocessing step that I will describe later.
+popular as the raw number would suggest. To alleviate this situation, we
+performed the following preprocessing step.
 
-First, I duplicated the \enquote{tags} field of every photos. Then, for each
-user $u$ and each tag $t$, I computed the distribution of photos tagged $t$ by
+First, we duplicated the \enquote{tags} field of every photos. Then, for each
+user $u$ and each tag $t$, we computed the distribution of photos tagged $t$ by
 $u$ and removed the tags from the photos that appeared more than $T=120$ times
 in the same place (the same cell of the $200\time 200$ discrete grid) in the same
 time (2 weeks interval). With such threshold, it removed around 20\% of all
-tags and it somewhat modified the list of top tag but with no clear pattern.
-But tags with very low entropy like \textsf{14thstreet} did not appear
+tags and it somewhat modified the list of top tags but with no clear pattern.
+Yet tags with very low entropy like \textsf{14thstreet} did not appear
 anymore because they lost most of their support. A better way to deal with
 that issue could be to weight tags by the number of their users but it would
 computationally more expensive.

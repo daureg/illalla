@@ -1,40 +1,47 @@
 \begin{abstract}
-Provide a short description of the project (problem studied, contributions, findings).
+
+In addition to tagging content on social media, users can also localized them
+on a map. Extracting metadata of localized photos from Flickr website as an
+example, we try to uncover association rules between locations and tags. This
+allows us to tackle three questions: find where a given tag appears
+significantly, select tags that best characterize a given location and
+retrieve which locations generate the more interest. We provide answers for
+the city of San Francisco by filtering tags and computing spatial statistics.
+Yet much remains to be done: validate these results, be less prescriptive but
+more data driven and extend to different scales and others dimensions (time,
+users).
+
 \end{abstract}
 
 \section{Introduction}
 
 A common way of organizing information on websites it to rely on tags provided
 by users. Although these words are chosen freely, we do not expect them to be
-arbitrary and thus hope to be able to extract limited semantics from them. In
-this project, we focus on tags associated with geolocated photos extracted
-from
+arbitrary and thus hope to extract limited semantics from them. In this work,
+we focus on tags associated with geolocated photos extracted from
 Flickr\footnote{\href{https://secure.flickr.com/}{http://www.flickr.com/}}.
 Using this crowdsourced set of (tags, location) pairs, we investigate three
 problems:
+
 \begin{itemize}
 	\item Given a tag, find the places in a city where it is significantly
 		concentrated.
 	\item Conversely, given a location, find the tags that best describe it
 		compared with other locations of similar scale.
-	\item Finally, find the places in the city that seems to generate the
-		most interest.
+	\item Finally, find those places that seems to generate the most interest.
 \end{itemize}
 
-In the first case, it could be applied in a touristic context. When arriving in a
-new city, a person interested in \textsf{baseball} or \textsf{streetart} could
-find relevant places according to the experience of inhabitants and previous
-visitors. The second answer could be used by Flickr to suggest relevant tags
-when users upload photos. Consequently, more sensibly tagged photos allow more
-relevant search result and improve the website user experience. The last could
-for instance the first step of an automatic travel guide that select point of
-interest in a city or a region.
+In the first case, it could be applied in a touristic context. When arriving
+in a new city, a person interested in \textsf{baseball} or \textsf{streetart}
+could find relevant places according to the experience of inhabitants and
+previous visitors. The second answer could be used by Flickr to suggest
+relevant tags when users upload photos. Consequently, more sensibly tagged
+photos allow more relevant search results and improve the website user
+experience. The last answer could for instance be the first step of an
+automatic travel guide that select points of interest in a city or a region.
 
 Other applications may include inferring missing information (like location or
-time of the day) from the tags or…
-
-What are the contributions of this project?
-
+time of the day) from the tags or create tailored visualisation.
 \section{Setting}
 \input{data}
 
@@ -44,9 +51,11 @@ What are the contributions of this project?
 
 \section{Methods}
 \input{methods}
+\clearpage
 
 \section{Experimental Evaluation}
 \input{result}
+\clearpage
 
 \section{Conclusion \& Future Work}
 \input{future}

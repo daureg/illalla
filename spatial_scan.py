@@ -108,7 +108,7 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
         cum_m = np.cumsum(measured[i, :])
         cum_b = np.cumsum(background[i, :])
         p + 1
-        p.show_progress()
+        # p.show_progress()
         for j in range(i+min_width-1, min(grid_size, i+1+side)):  # right line
             if min_width != 1 and j == i+min_width:
                 cum_m += np.sum(np.cumsum(measured[i:i+min_width, :], 1), 0)
@@ -134,6 +134,7 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
 def plot_regions(regions, bbox, tag):
     """Output one shapefile for each region (represented by its bottom left and
     upper right index in the grid) with color depending of its discrepancy."""
+    #TODO not unicode safe
     discrepancies = [v[0] for v in regions]
     colormap = cm.ScalarMappable(mcolor.Normalize(min(discrepancies),
                                                   max(discrepancies)),
@@ -167,6 +168,7 @@ def plot_regions(regions, bbox, tag):
 def spatial_scan(tag):
     """The main method loads the data from the disk (or compute them) and
     calls appropriate methods to find top discrepancy regions."""
+    print(tag)
     grid_size = GRID_SIZE
     background_name = u'mfreq/freq_{}_{}.mat'.format(grid_size, '_background')
     measured_name = u'mfreq/freq_{}_{}.mat'.format(grid_size, tag)
@@ -196,13 +198,13 @@ def spatial_scan(tag):
     grid_dim = (grid_size, grid_size)
     top_loc = exact_grid(np.reshape(measured, grid_dim),
                          np.reshape(background, grid_dim),
-                         discrepancy, 150, 200)
-    persistent.save_var(u'disc/top_{}'.format(tag), top_loc)
+                         discrepancy, 1500, 10)
+    persistent.save_var(u'disc/top_{}_{}'.format(tag, grid_size), top_loc)
     # print('\n')
     # for v in top_loc:
     #     print('{:.4f}'.format(v[0]))
     #     print(top_loc[0][1].intersects(v[1]))
-    plot_regions(top_loc, SF_BBOX, tag)
+    # plot_regions(top_loc, SF_BBOX, tag)
 
 
 def merge_regions(top_loc):
@@ -243,22 +245,22 @@ def get_connection():
 
 
 def post_process(tag):
-    top_loc = persistent.load_var(u'disc/top_{}'.format(tag))
+    top_loc = persistent.load_var(u'disc/top_{}_{}'.format(tag, GRID_SIZE))
     merged = merge_regions(top_loc)
-    persistent.save_var(u'disc/post_{}'.format(tag), merged)
+    persistent.save_var(u'disc/post_{}_{}'.format(tag, GRID_SIZE), merged)
 
 
-def consolidate():
+def consolidate(tags):
     import os
-    tags = [f[4:] for f in os.listdir(u'disc/')
-            if f.startswith(u'top_')]
-    d = {tag: persistent.load_var(u'disc/post_{}'.format(tag))
+    # tags = [f.split('_'[5:] for f in os.listdir(u'disc/')
+    #         if f.startswith(u'post_') and f.endswith(u'_{}'.format(GRID_SIZE))]
+    d = {tag: persistent.load_var(u'disc/post_{}_{}'.format(tag, GRID_SIZE))
          for tag in tags}
-    persistent.save_var(u'disc/all', d)
+    persistent.save_var(u'disc/all_{}'.format(GRID_SIZE), d)
 
 
 def get_best_tags(point):
-    tags = persistent.load_var('disc/all')
+    tags = persistent.load_var(u'disc/all_{}'.format(GRID_SIZE), d)
     res = []
     size = point.area
     for tag, polys in tags.items():
@@ -269,23 +271,24 @@ def get_best_tags(point):
                 break
     return sorted(res, key=lambda x: x[1], reverse=True)
 
-GRID_SIZE = 200
+GRID_SIZE = 80
 rectangles, dummy, index_to_rect = k_split_bbox(SF_BBOX, GRID_SIZE)
 if __name__ == '__main__':
     import sys
-    # import random
+    import random
+    random.seed(135)
     tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
-    # tt = clock()
-    # tmp = persistent.load_var('supported')
-    # tags = [v[0] for v in tmp]
-    # random.shuffle(tags)
     tt = clock()
-    # p = Pool(5)
-    # p.map(post_process, tags)
-    # p.close()
-    # consolidate(tags)
+    tmp = persistent.load_var('supported')
+    tags = [v[0] for v in tmp]
+    random.shuffle(tags)
+    tt = clock()
+    p = Pool(3)
+    p.map(spatial_scan, tags)
+    p.map(post_process, tags)
+    p.close()
+    consolidate(tags)
     # print(get_best_tags(Point(-122.409615, 37.7899132)))
     print('done in {:.2f}.'.format(clock() - tt))
-    spatial_scan(tag)
     # plot_regions(merged, SF_BBOX, tag)
     # persistent.save_var('alld', ALLD)

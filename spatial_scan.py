@@ -31,9 +31,11 @@ def get_discrepancy_function(total_m, total_b, support):
     that there is total_m measured data, total_b background data and we want
     at least support points (otherwise return None)."""
     def discrepancy(m, b):
+        global Reject
         """Compute d(m, b) or return None if it lacks support."""
         assert m <= total_m, "common!"
         if m < support:
+            Reject += 1
             return None
         m_ratio = 1.0*m/total_m
         b_ratio = 1.0*b/total_b
@@ -101,8 +103,8 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
     assert grid_size == GRID_SIZE, "GRID_SIZE conflict with provided data"
     side = grid_size/max_size
     max_values = []
-    min_width = 1
-    min_height = 1
+    min_width = MIN_WIDTH
+    min_height = MIN_HEIGHT
     p = AnimatedProgressBar(end=grid_size, width=120)
     for i in range(grid_size):  # left line
         cum_m = np.cumsum(measured[i, :])
@@ -193,13 +195,16 @@ def spatial_scan(tag):
     if 500 < total_m <= 2000:
         support = 40
     if 2000 < total_m:
-        support = 130
+        support = MAX_SUPPORT
     discrepancy = get_discrepancy_function(total_m, total_b, support)
     grid_dim = (grid_size, grid_size)
     top_loc = exact_grid(np.reshape(measured, grid_dim),
                          np.reshape(background, grid_dim),
-                         discrepancy, 1500, 10)
-    persistent.save_var(u'disc/top_{}_{}'.format(tag, grid_size), top_loc)
+                         discrepancy, TOP_K, GRID_SIZE/MAX_SIZE)
+    info = u'\n{}: g={}, s={}, k={}, w={}, h={}, max={}'
+    print(info.format(tag, GRID_SIZE, support, TOP_K, MIN_WIDTH, MIN_HEIGHT,
+                      MAX_SIZE))
+    # persistent.save_var(u'disc/top_{}'.format(tag), top_loc)
     # print('\n')
     # for v in top_loc:
     #     print('{:.4f}'.format(v[0]))
@@ -252,8 +257,6 @@ def post_process(tag):
 
 def consolidate(tags):
     import os
-    # tags = [f.split('_'[5:] for f in os.listdir(u'disc/')
-    #         if f.startswith(u'post_') and f.endswith(u'_{}'.format(GRID_SIZE))]
     d = {tag: persistent.load_var(u'disc/post_{}_{}'.format(tag, GRID_SIZE))
          for tag in tags}
     persistent.save_var(u'disc/all_{}'.format(GRID_SIZE), d)
@@ -271,7 +274,13 @@ def get_best_tags(point):
                 break
     return sorted(res, key=lambda x: x[1], reverse=True)
 
-GRID_SIZE = 80
+GRID_SIZE = 20
+TOP_K = 2000
+MIN_WIDTH = 1
+MIN_HEIGHT = 1
+MAX_SIZE = 5
+MAX_SUPPORT = 250
+Reject = 0
 rectangles, dummy, index_to_rect = k_split_bbox(SF_BBOX, GRID_SIZE)
 if __name__ == '__main__':
     import sys
@@ -289,6 +298,9 @@ if __name__ == '__main__':
     p.close()
     consolidate(tags)
     # print(get_best_tags(Point(-122.409615, 37.7899132)))
+    # spatial_scan(tag)
+    # sio.savemat('alld', {'d': ALLD})
+    print(Reject)
     print('done in {:.2f}.'.format(clock() - tt))
     # plot_regions(merged, SF_BBOX, tag)
     # persistent.save_var('alld', ALLD)

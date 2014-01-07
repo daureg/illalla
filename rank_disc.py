@@ -64,7 +64,7 @@ def plot_some(tags, n=15):
     name = u'top_disc'
     KARTO_CONFIG['layers'][name] = {'src': name+'.shp',
                                     'labeling': {'key': 'tag'}}
-    color = 'red'
+    color = '#ffa873'
     style.append(CSS.format(name, color, 'black'))
     with fiona.collection(mkpath('disc', name+'.shp'),
                           "w", "ESRI Shapefile", schema) as f:
@@ -72,7 +72,7 @@ def plot_some(tags, n=15):
 
     with open(mkpath('disc', 'photos.json'), 'w') as f:
         json.dump(KARTO_CONFIG, f)
-    style.append('#top_disc-label {font-family: OpenSans; font-size: 6px}')
+    style.append('#top_disc-label {font-family: OpenSans; font-size: 14px}')
     with open(mkpath('disc', 'photos.css'), 'w') as f:
         f.write('\n'.join(style))
     sf = box(SF_BBOX[1], SF_BBOX[0], SF_BBOX[3], SF_BBOX[2])
@@ -81,9 +81,10 @@ def plot_some(tags, n=15):
 
 if __name__ == '__main__':
     t = persistent.load_var('disc/all')
-    top = get_top_tags(2000, 'nsf_tag.dat')
-    # supported = [v[0] for v in persistent.load_var('supported')][:600]
-    d = top_discrepancy(t, top)
-    print([v[2] for v in d[-15:]], [v[2] for v in d[:15]])
-    # plot_some(d, 21)
+    # top = get_top_tags(2000, 'nsf_tag.dat')
+    supported = [v[0] for v in persistent.load_var('supported')][:600]
+    d = top_discrepancy(t, supported)
+    N=11
+    print([v[2] for v in d[-N:]], [v[2] for v in d[:N]])
+    # plot_some(d, 20)
     # js_some(d, 15)

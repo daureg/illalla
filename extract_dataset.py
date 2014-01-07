@@ -23,7 +23,7 @@ def write_tagset(DB):
 
 def supported_tags(DB, photos_threshold=150, users_threshold=25, timespan=500):
     interval = timespan*24*3600
-    return [(p['_id'], p['count'], len(p['users']))
+    return [(p['_id'], p['count'], len(p['users']), p['first'], p['last'])
             for p in DB.photos.aggregate([
                 {"$match": {"hint": "sf"}},
                 {'$project': {'_id': 0, 'upload': 1,
@@ -37,9 +37,10 @@ def supported_tags(DB, photos_threshold=150, users_threshold=25, timespan=500):
                 # http://stackoverflow.com/a/15224544 for the exist trick
                 {"$match": {"count": {"$gte": photos_threshold},
                             "users."+str(users_threshold-1): {"$exists": 1}}},
-                {"$sort": SON([("count", -1)])}
+                # {"$sort": SON([("count", -1)])}
             ])['result']
-            if (p['last'] - p['first']).total_seconds() > interval]
+            ]
+            # if (p['last'] - p['first']).total_seconds() > interval]
 
 
 def tag_time(DB, tag, fm=None):
@@ -88,10 +89,11 @@ if __name__ == '__main__':
     client = pymongo.MongoClient('localhost', 27017)
     DB = client['flickr']
     s = clock()
-    # tags = supported_tags(DB)
-    # save_var('supported', tags)
+    tags = supported_tags(DB, photos_threshold=1, users_threshold=1,
+                            interval=0)
+    save_var('tag_support', tags)
     # entropies = {t[0]: period_entropy(DB, t[0]) for t in tags}
     # save_var('Hsupported', entropies)
-    get_data(DB)
+    # get_data(DB)
     t = clock()
     print(t-s)

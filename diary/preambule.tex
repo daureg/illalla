@@ -1,0 +1,82 @@
+\usepackage{ifxetex}
+\ifxetex
+\usepackage{polyglossia}
+\setmainlanguage{english}
+\usepackage{xltxtra}
+\setmainfont{Linux Libertine O}
+\fontspec[Numbers={OldStyle}]{Linux Libertine O}
+\else
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\fi
+
+\usepackage{aaltologo}
+% \renewcommand{\thesubsection}{\alph{subsection}}
+% \usepackage{algorithm}
+% \usepackage{algorithmic}
+% \usepackage{amsmath}
+% \usepackage{amsfonts}
+% \usepackage{amssymb}
+% \usepackage[autolanguage]{numprint}
+% \usepackage{balance}
+% \usepackage{booktabs}
+% \usepackage{caption}
+% \usepackage{chngpage}
+% \usepackage{colortbl}
+% \usepackage{graphicx} 
+\usepackage{hyperref}
+\usepackage{microtype}
+% \usepackage{natbib}
+% \usepackage{pgfplots}
+% \usepackage{pgfplotstable}
+% \usepackage[strict]{csquotes}
+% \usepackage{caption}
+% \usepackage{subcaption}
+\usepackage{xcolor}
+% \usepackage{varioref}
+
+% \DeclareMathOperator*{\argmax}{argmax}
+% \newcommand{\argmax}[1]{\arg\underset{#1}{\max}\;}
+% \newcommand{\equiv}{ \Leftrightarrow}
+% \newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
+% \newcommand{\vnorm}[1]{\left|\left|#1\right|\right|}
+% \renewcommand{\thesubsection}{\alph{subsection}}
+
+% \pgfplotsset{height=8cm,compat=newest}
+% \pgfplotstableset{
+% every head row/.style={before row=\toprule,after row=\midrule},
+% every last row/.style={after row=\bottomrule},
+% every even row/.style={before row={\rowcolor{white}}},
+% }
+% \tikzexternalize% activate externalization!
+% \tikzset{cost/.style={inner sep=0.5mm,align=center},
+% traceback/.style={->,>=stealth,Blue}, }
+% \usepgfplotslibrary{external}
+% \usetikzlibrary{calc,arrows}
+
+\usepackage[style=ieee,sorting=nyt,backend=biber,defernumbers=true]{biblatex}
+\addbibresource{../report/report.bib}
+% From https://www.writelatex.com/630785fxzchp
+\usepackage[hmargin=2cm,vmargin=2.5cm]{geometry}
+\usepackage{fancyhdr}
+\newcommand{\userName}{Géraud Le Falher}
+\newcommand{\institution}{Aalto University}
+\pagestyle{fancy}
+\rhead{\workingDate}
+\chead{\textsc{Research Diary}}
+\lhead{\textsc{\userName}}
+\rfoot{\textsc{\thepage}}
+\cfoot{\textit{Last modified: \today}}
+\lfoot{\textsc{\institution}}
+
+\usepackage{wrapfig}
+\newcommand{\univlogo}{%
+  \noindent % University Logo
+  \begin{wrapfigure}{r}{0.15\textwidth}
+    \vspace{-18pt}
+    \begin{center}
+		\AaltoLogoRandomLarge{0.6}
+    \end{center}
+    \vspace{-100pt}
+  \end{wrapfigure}
+}

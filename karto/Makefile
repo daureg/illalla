@@ -7,7 +7,7 @@ combine: sf_map.svg photos.svg
 	# cat sf_map.svg photos.svg > sf.svg
 	cat sf_map.svg > sf.svg
 	echo "</svg>" >> sf.svg
-	rsvg-convert --background-color='#fff' -a -z 3 -d 200 -p 200 sf.svg -o sf.png
+	rsvg-convert --background-color='#fff' -a -z 2 -d 200 -p 200 sf.svg -o sf.png
 
 usa.svg: test.json style.css
 	kartograph test.json -o usa.svg -s style.css 

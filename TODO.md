@@ -5,3 +5,5 @@
 
 -  cluster: join tag with common semantic, look for co-occurence (at different
    scale, food can co-occurs with sushi in some place and tacos in another)
+
+-  [keep a log](https://www.writelatex.com/blog/14-writelatex-for-research)

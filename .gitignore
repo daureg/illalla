@@ -21,6 +21,17 @@ disc/*
 !disc/do.sh
 !disc/photos.css
 !disc/Makefile
+papers/
+freq/
+jquery*
+nantes/
+japng.jar
+report/*.tex
+report/*.pdf
+topone.js
+tag_support.txt
+time_entropy.ods
+tags
 
 karto/photos.*
 *.mat

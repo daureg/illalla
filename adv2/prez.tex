@@ -1,0 +1,180 @@
+\begin{frame}
+
+\begin{figure} \includegraphics[height=.85\textheight]{sheat.png}
+\caption{Photos distribution}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{Pre processing}
+
+\begin{itemize}
+\item
+  Avoid spurious photos by removing tags of the same user set almost in
+  the same place at almost the same time.
+\item
+  Suppress 25\% of tags but does not significantly affect the tags
+  distribution.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Some statistics}
+
+\begin{itemize}
+\item
+  We want to find tag that are discriminative descriptor of location.
+\item
+  Divide the city in a $g\times g$ grid and count tags in each cell.
+\item
+  Entropy of tag $t$: $H_t = -\sum_{c=1}^{g^2} t(c)\log t(c)$
+\end{itemize}
+
+\begin{small}
+\begin{longtable}[c]{@{}ll@{}}
+\hline\noalign{\medskip}
+Lowest & Highest
+\\\noalign{\medskip}
+\hline\noalign{\medskip}
+californiaacademyofsciences & instagramapp
+\\\noalign{\medskip}
+conservatoryofflowers & square
+\\\noalign{\medskip}
+sfmoma & squareformat
+\\\noalign{\medskip}
+deyoung & iphoneography
+\\\noalign{\medskip}
+deyoungmuseum & unitedstates
+\\\noalign{\medskip}
+ucsfschoolofdentistry & iphone
+\\\noalign{\medskip}
+attpark & foundinsf
+\\\noalign{\medskip}
+cityhall & california
+\\\noalign{\medskip}
+japantown & sanfrancisco
+\\\noalign{\medskip}
+\hline
+\end{longtable}
+\end{small}
+
+\end{frame}
+
+\begin{frame}{More statistics}
+
+Kullback Leibler divergence of tag $t$ with respect to the background
+distribution $b$:
+$D(t||b) = -\sum_{c=1}^{g^2} t(c)\log \frac{t(c)}{b(c)}$
+
+\begin{small}
+\begin{longtable}[c]{@{}ll@{}}
+\hline\noalign{\medskip}
+Highest & Lowest
+\\\noalign{\medskip}
+\hline\noalign{\medskip}
+zoo & san
+\\\noalign{\medskip}
+treasureisland & ca
+\\\noalign{\medskip}
+conservatoryofflowers & instagramapp
+\\\noalign{\medskip}
+oceanbeach & squareformat
+\\\noalign{\medskip}
+ucsfschoolofdentistry & square
+\\\noalign{\medskip}
+ucsf & iphoneography
+\\\noalign{\medskip}
+japantown & unitedstates
+\\\noalign{\medskip}
+sfmoma & usa
+\\\noalign{\medskip}
+castro & sf
+\\\noalign{\medskip}
+deyoung & california
+\\\noalign{\medskip}
+attpark & sanfrancisco
+\\\noalign{\medskip}
+\hline
+\end{longtable}
+\end{small}
+
+\end{frame}
+
+\begin{frame}{Even more statistics}
+
+Distribution of the distance from tags to their center of gravity
+$G_t =   (\bar{x_i}, \bar{y_i})$:
+$\mathcal{D}(t) = \{||p_i - G_t||^2\}_{i=1, \dots, T}$
+
+\begin{figure} \includegraphics[height=.7\textheight]{tag_cloud.pdf}
+\caption{std$(\mathcal{D}(t))$ as a function of mean$(\mathcal{D}(t))$}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{One last statistics}
+
+Kulldorff Spatial Scan Statistic:
+$d(t(R), b(R)) = t(R)\log \frac{t(R)}{b(R)} + (1-t(R))\log \frac{1-t(R)}{1-t(R)}$
+where $R$ is one of the $g^4$ possible rectangular region.
+
+\begin{scriptsize}
+\begin{longtable}[c]{@{}ll@{}}
+\hline\noalign{\medskip}
+Highest & Lowest
+\\\noalign{\medskip}
+\hline\noalign{\medskip}
+sutrobaths & sanfrancisco
+\\\noalign{\medskip}
+legionofhonor & amaro
+\\\noalign{\medskip}
+missiondolores & rise
+\\\noalign{\medskip}
+byobw & california
+\\\noalign{\medskip}
+palaceoffinearts & sierra
+\\\noalign{\medskip}
+twinpeaks & xproii
+\\\noalign{\medskip}
+dolorespark & sf
+\\\noalign{\medskip}
+conservatoryofflowers & iphoneography
+\\\noalign{\medskip}
+flickrhq & square
+\\\noalign{\medskip}
+surf & squareformat
+\\\noalign{\medskip}
+japaneseteagarden & instagramapp
+\\\noalign{\medskip}
+lombardstreet & normal
+\\\noalign{\medskip}
+exploratorium & usa
+\\\noalign{\medskip}
+\hline
+\end{longtable}
+\end{scriptsize}
+
+\end{frame}
+
+\begin{frame}{How to use this}
+
+Compute statistics for all tags with enough support and retrieve the
+most significant ones when a user query a region.
+
+\begin{figure} \includegraphics[height=.66\textheight]{../alcatraz.png}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{Next}
+
+\begin{itemize}
+\item
+  Improve the demonstration, maybe by weighting different statistics.
+\item
+  Cover the map with tags.
+\item
+  Try different parameter for computing the statistics.
+\end{itemize}
+
+\end{frame}

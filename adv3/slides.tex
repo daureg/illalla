@@ -1,0 +1,64 @@
+\documentclass[final,logo=yellowexc,fleqn,svgnames]{aaltoslides}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+% Comment these out if you don't want a slide with just the
+% part/section/subsection/subsubsection title:
+%\AtBeginPart{\frame{\partpage}}
+%\AtBeginSection{\frame{\sectionpage}}
+%\AtBeginSubsection{\frame{\subsectionpage}}
+%\AtBeginSubsubsection{\frame{\subsubsectionpage}}
+% \AtBeginSection[]{
+%   \begin{frame}{Plan}
+%   \scriptsize \tableofcontents[currentsection, hideothersubsections]
+%   \end{frame} 
+% }
+% \setlength{\parindent}{0pt}
+% \setlength{\parskip}{6pt plus 2pt minus 1pt}
+% \setlength{\emergencystretch}{3em}  % prevent overfull lines
+\usepackage{lastpage}
+\usepackage{longtable,booktabs}
+\usepackage{csquotes}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{chngpage}
+\usepackage{calc}
+\RequirePackage[absolute, overlay]{textpos}
+\setlength{\TPHorizModule}{\paperwidth}
+\setlength{\TPVertModule}{\paperheight}
+
+\aaltofootertext{Exploring San Francisco's geography using geo-tagged photos}{December 10,
+2013}{\arabic{page}/\pageref{LastPage}\ }
+\title{Exploring San Francisco's geography using geo-tagged photos}
+\author{Aristides Gionis \and Michael Mathioudakis \\ Géraud Le Falher}
+% \institute[ICS]{Department of Information and Computer Science\\ Aalto
+% University, School of Science and Technology\\kimmo.jarvinen@tkk.fi}
+\institute{December 10, 2013}
+\date{}
+
+\begin{document}
+\setbeamertemplate{caption}{\insertcaption}
+\aaltotitleframe{}
+\begin{frame}
+\frametitle{Outline}
+\tableofcontents
+\end{frame}
+
+% \mode<all>
+\input{prez}
+% \mode*
+\newgeometry{margin=0pt}%
+\begin{adjustwidth}{-\oddsidemargin-1in}{-\rightmargin}%
+\includegraphics[height=\paperheight]{bridge_moon.jpg}%
+\end{adjustwidth}
+\begin{textblock}{.5}[.5,.5](0.683,0.199)%
+	\begin{centering}
+		\scalebox{2.5}{\textcolor{white}{Thank y$\phantom{o}$u}}
+	\end{centering}
+\end{textblock}
+\begin{textblock}{.5}[.5,.5](0.9,0.35)%
+	\begin{centering}
+		\scalebox{1.7}{\textcolor{white}{Questions?}}
+	\end{centering}
+\end{textblock}
+\end{document}

@@ -32,6 +32,7 @@ topone.js
 tag_support.txt
 time_entropy.ods
 tags
+report/*.m
 
 karto/photos.*
 *.mat

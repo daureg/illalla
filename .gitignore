@@ -16,6 +16,7 @@ code.html
 *_log.py
 diary/aaltologo.sty
 diary/current.tex
+diary/*.pdf
 disc/*
 !disc/all*
 !disc/do.sh
@@ -33,6 +34,9 @@ tag_support.txt
 time_entropy.ods
 tags
 report/*.m
+karto/osmsf
+karto/end
+karto/metahead
 
 karto/photos.*
 *.mat
@@ -107,6 +111,7 @@ nosetests.xml
 *.alg
 *.aux
 *.bbl
+*.bcf
 *.blg
 *.dvi
 *.fdb_latexmk
@@ -129,6 +134,7 @@ nosetests.xml
 *.out
 *.pdfsync
 *.ps
+*.run.xml
 *.snm
 *.synctex.gz
 *.toc

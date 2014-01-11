@@ -1,6 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 from dateutil.parser import parse
+from subprocess import check_output, check_call
 from shutil import copy
 import datetime
 import sys
@@ -48,10 +49,9 @@ def together(dates, name):
 
 
 def log(date):
-    from subprocess import check_output
     cmd = "git whatchanged --since='{}' --pretty=format:'%B'"
     cmd += "|sed '/^$/d'|sed 's/^.*\.\.\. //'"
-    since = date.replace(day=date.day-1)
+    since = date.replace(hour=4)
     log = check_output(cmd.format(str(since)),
                        shell=True).strip()+"\n\end{verbatim}"
     print(log)
@@ -71,12 +71,15 @@ def finish(date):
     name = today.strftime(DATE_FORMAT)
     with open(name+'.tex', 'a') as f:
         f.write(log(today))
-    print('pdflatex current.tex')
+    check_call(['sed', '-i', '/class/ s/draft/final/', 'current.tex'])
+    print('pdflatex current.tex && pdflatex current.tex')
+    check_call(['sed', '-i', '/class/ s/final/draft/', 'current.tex'])
     print('mv current.pdf {}.pdf'.format(name))
-    print('git commit -m "write today log" {}.tex'.format(name))
+    print('git add {} && git commit -m "write today log" {}.tex'.format(name,
+                                                                        name))
 
 if __name__ == '__main__':
-    date = datetime.date.today()
+    date = datetime.datetime.now()
     command = 'create'
     if len(sys.argv) > 1:
         command = sys.argv[1].strip()

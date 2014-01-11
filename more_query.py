@@ -212,16 +212,16 @@ def compute_entropy(count):
     return np.log(N) - np.sum(c*np.log(c))/N
 
 
-def compute_KL(count):
+def compute_KL(count, k):
     """ Return D(tag || all_photos) given count of tag (including the 0
-    region)."""
+    region) on a grid of size k×k."""
     from math import log
     Nt = float(sum(count[1:]))
-    d = sio.loadmat('freq_200__background.mat')
+    d = sio.loadmat('mfreq/freq_{}__background.mat'.format(k))
     N = np.sum(d['c'])
     ratio = log(N/Nt)
-    KL = sum([(p/Nt)*(log(float(p)/q)+ratio)
-              for p, q in zip(count[1:], d['c'].flat) if p > 0 and q > 0])
+    KL = float(np.sum([(p/Nt)*(log(float(p)/q)+ratio)
+              for p, q in zip(count[1:], d['c'].flat) if p > 0 and q > 0]))
     return KL
 
 
@@ -230,31 +230,37 @@ def compute_frequency(collection, tag, bbox, start, end, k=200,
     """split bbox in k^2 rectangles and compute the frequency of tag in each of
     them. Return a list of list of Polygon, grouped by similar frequency
     into nb_inter bucket (potentially omitting the zero one for clarity)."""
-    collection = DB.photos if collection is None else collection
-    # coords = tag_location(collection, tag, bbox, start, end,
-    #                       tourist_status=True)
-    coords = tag_location(collection, tag, bbox, start, end)
-    r, f, _ = k_split_bbox(bbox, k)
-    # count[0] is for potential points that do not fall in any region (it must
-    # only happens because of rounding inprecision)
-    count = (len(r)+1)*[0, ]
-    # count = (len(r)+1)*[(0, 0), ]
-    for loc in coords:
-        # rloc = loc[0:2]
-        # prev = count[f(rloc)+1]
-        # count[f(rloc)+1] = (prev[0] + int(loc[2]), prev[1]+1)
-        count[f(loc)+1] += 1
+    freq_name = u'mfreq/freq_{}_{}.mat'.format(k, '_background' if tag is None else tag)
+    count = (k*k+1)*[0, ]
+    try:
+        count[1:] = sio.loadmat(freq_name)['c']
+        KL_div = 0 if tag is None else compute_KL(count, k)
+    except IOError:
+        collection = DB.photos if collection is None else collection
+        # coords = tag_location(collection, tag, bbox, start, end,
+        #                       tourist_status=True)
+        coords = tag_location(collection, tag, bbox, start, end)
+        # r, f, _ = k_split_bbox(bbox, k)
+        r, f = RECTANGLES, RECT_TO_INDEX
+        # count[0] is for potential points that do not fall in any region (it
+        # must only happens because of rounding inprecision)
+        count = (len(r)+1)*[0, ]
+        # count = (len(r)+1)*[(0, 0), ]
+        for loc in coords:
+            # rloc = loc[0:2]
+            # prev = count[f(rloc)+1]
+            # count[f(rloc)+1] = (prev[0] + int(loc[2]), prev[1]+1)
+            count[f(loc)+1] += 1
 
-    # save_var('alltourist', count)
-    # count = load_var('alltourist')
-    # N = len(coords)
-    if tag is None:
-        tag = '_background'
-        KL_div = 0
-    else:
-        KL_div = compute_KL(count)
-    sio.savemat(u'mfreq/freq_{}_{}'.format(k, tag),
-                {'c': np.array(count[1:])}, do_compression=True)
+        # save_var('alltourist', count)
+        # count = load_var('alltourist')
+        # N = len(coords)
+        if tag is None:
+            tag = '_background'
+            KL_div = 0
+        else:
+            KL_div = compute_KL(count, k)
+        sio.savemat(freq_name, {'c': np.array(count[1:])}, do_compression=True)
     entropy = compute_entropy(count[1:])
     print(u'Entropy and KL of {}: {:.4f}, {:.4f}'.format(tag, entropy, KL_div))
     if not plot:
@@ -410,7 +416,7 @@ def users_and_tag(tag):
 def sf_entropy(t):
     return compute_frequency(DB.photos, t, SF_BBOX,
                              FIRST_TIME, LAST_TIME,
-                             200, 0, plot=False)
+                             GRID_SIZE, 0, plot=False)
 
 
 def time_entropy(tag):
@@ -424,7 +430,10 @@ def time_entropy(tag):
         res.append(float(compute_entropy(Counter(times))))
     return [tag] + res
 
+GRID_SIZE = 200
+RECTANGLES, RECT_TO_INDEX, INDEX_TO_RECT = k_split_bbox(SF_BBOX, GRID_SIZE)
 if __name__ == '__main__':
+    from random import shuffle
     client = pymongo.MongoClient('localhost', 27017)
     DB = client['flickr']
     photos = DB['photos']
@@ -433,21 +442,26 @@ if __name__ == '__main__':
     start = clock()
     nb_inter = 19
     # e, KL = sf_entropy(None)
-    tags = get_top_tags(500, 'nsf_tag.dat')
-    # p = Pool(4)
-    # res = p.map(sf_entropy, tags)
-    # p.close()
-    # outplot('nentropies.dat', ['H', 'tag'], [r[0] for r in res], tags)
-    # outplot('nKentropies.dat', ['D', 'tag'], [r[1] for r in res], tags)
+    # tags = get_top_tags(500, 'nsf_tag.dat')
+    tmp = load_var('supported')
+    tags = [v[0] for v in tmp]
+    shuffle(tags)
+    tags = [None] + tags
+    # sf_entropy(None)
+    p = Pool(4)
+    res = p.map(sf_entropy, tags)
+    p.close()
+    outplot('nentropies_{}.dat'.format(GRID_SIZE), ['H', 'tag'], [r[0] for r in res], tags)
+    outplot('nKentropies_{}.dat'.format(GRID_SIZE), ['D', 'tag'], [r[1] for r in res], tags)
     # top_metrics(tags)
-    te = [time_entropy(tag) for tag in tags]
-    t = prettytable.PrettyTable(['tag'] + PERIOD_NAME, sortby='day')
-    t.align['tag'] = 'l'
-    t.padding_width = 0
-    for row in te:
-        t.add_row(row)
-    with codecs.open('time_entropy.txt', 'w', 'utf8') as f:
-        f.write(t.get_string(border=False, left_padding_width=0,
-                             right_padding_width=2))
+    # te = [time_entropy(tag) for tag in tags]
+    # t = prettytable.PrettyTable(['tag'] + PERIOD_NAME, sortby='day')
+    # t.align['tag'] = 'l'
+    # t.padding_width = 0
+    # for row in te:
+    #     t.add_row(row)
+    # with codecs.open('time_entropy.txt', 'w', 'utf8') as f:
+    #     f.write(t.get_string(border=False, left_padding_width=0,
+    #                          right_padding_width=2))
     t = 1000*(clock() - start)
     print('done in {:.3f}ms'.format(t))

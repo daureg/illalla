@@ -6,6 +6,16 @@ from collections import OrderedDict
 from math import log
 import scipy.io as sio
 import numpy as np
+import persistent
+from more_query import get_top_tags
+
+
+def increase_coverage(N=5000):
+    sup = persistent.load_var('supported')
+    more = get_top_tags(N, 'nsf_tag.dat')
+    already = [v[0] for v in sup]
+    addition = set(more).difference(set(already))
+    persistent.save_var('addition', addition)
 
 
 def read_entropies(grid=200, div=False):

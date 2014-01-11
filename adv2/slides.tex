@@ -1,0 +1,62 @@
+\documentclass[final,logo=yellowexc,nofoot,fleqn,svgnames]{aaltoslides}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+% Comment these out if you don't want a slide with just the
+% part/section/subsection/subsubsection title:
+%\AtBeginPart{\frame{\partpage}}
+%\AtBeginSection{\frame{\sectionpage}}
+%\AtBeginSubsection{\frame{\subsectionpage}}
+%\AtBeginSubsubsection{\frame{\subsubsectionpage}}
+% \AtBeginSection[]{
+%   \begin{frame}{Plan}
+%   \scriptsize \tableofcontents[currentsection, hideothersubsections]
+%   \end{frame} 
+% }
+% \setlength{\parindent}{0pt}
+% \setlength{\parskip}{6pt plus 2pt minus 1pt}
+% \setlength{\emergencystretch}{3em}  % prevent overfull lines
+\usepackage{lastpage}
+\usepackage{longtable}
+\usepackage{csquotes}
+\usepackage{tikz}
+\usepackage{xcolor}
+
+\aaltofootertext{Social Map Annotation}{November 26,
+2013}{\arabic{page}/\pageref{LastPage}\ }
+\title{Social Map Annotation}
+\author{Géraud Le Falher}
+% \institute[ICS]{Department of Information and Computer Science\\ Aalto
+% University, School of Science and Technology\\kimmo.jarvinen@tkk.fi}
+\institute{November 26, 2013}
+\date{}
+
+\begin{document}
+\setbeamertemplate{caption}{\insertcaption}
+\aaltotitleframe
+
+\mode<all>
+\input{prez}
+\mode*
+
+
+\begin{frame}[plain]
+
+  \begin{columns}
+    \begin{column}{0.8\textwidth}
+      \begin{center}
+        \includegraphics[width=\textwidth]{cof.jpg}          
+	\\ {\small Conservatory of flowers}
+      \end{center}
+    \end{column}
+    \begin{column}{0.35\textwidth}
+      \begin{center}
+	      \baselineskip 10.0mm
+	      \textcolor{DodgerBlue}{\Huge Thank you}
+      \end{center}    
+
+    \end{column}
+  \end{columns}
+
+\end{frame}
+\end{document}

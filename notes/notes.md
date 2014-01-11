@@ -267,7 +267,8 @@ are event (baytobreaker, googleio, wwdc, karnaval, sfpride) while general tags
 have high entropy (see
 https://docs.google.com/spreadsheet/ccc?key=0AtQDypHHoV_OdGhwcVVaZGZZLWRRWF8yR3otRzY5dnc&usp=sharing).
 
-Then we agree that we have done enough exploration and that in the last 4 weeks, we should focus on two problems:
+Then we agree that we have done enough exploration and that in the last 4
+weeks, we should focus on two problems:
 
 - given a tag, find the top k location where it is concentrated, using for
   instance spatial scan:
@@ -275,3 +276,33 @@ http://www.cs.utah.edu/~jeffp/papers/stat-disc-KDD06.pdf
 
 - conversely, given a location, find top k tags that best describe it compared
   with other locations of similar scale.
+
+
+15 November 2013 12:33
+This week, I implemented the exact grid algorithm with two modifications: it
+returns top k discrepancy regions and it limits the maximum size of considered
+rectangular region (which greatly improves run time and hopefully make sense
+for most of the tags).  Here is the result for "museum", on the 200×200 grid,
+with max_size=3×3, k=10 and support=100 tagged photos per region:
+https://dl.dropboxusercontent.com/u/23609132/half_museum_overlaps.png
+
+Then I forbid overlapping regions, for museum, bridge and street:
+https://dl.dropboxusercontent.com/u/23609132/half_museum.png
+https://dl.dropboxusercontent.com/u/23609132/half_bridge.png
+https://dl.dropboxusercontent.com/u/23609132/half_street.png
+
+Michael suggested that we can add another parameter (the minimum size of
+region) and keep all top K values in order to decide later which ones to
+discard (based on drop in value for instance).
+
+Next, we want to find tags given location. One natural way is to compute top
+discrepancy for all tags and then, given a location, retrieve tags with high
+discrepancy there. For sake of time, I plan to replace "all tags" by those
+with at least 150 occurrences,  by at least 25 different users and over at
+least a year (~1800 tags), probably for region no greater that 10% or 20% of
+total area. Since it's an offline process, we can always relax any of these
+limitations later.
+
+In the longer term (i.e. probably not next week) we want to tackle a more
+general problem: given an user looking at San Francisco, give her interesting
+or informative pairs (location, tags), in a sense to be defined later.

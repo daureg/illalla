@@ -1,0 +1,7 @@
+Raw data come from
+http://cumulus.cr.usgs.gov/webappcontent/neddownloadtool/NEDDownloadTool.html
+California, SF county, National Elevation Dataset (1/3 arc second) n38w123, ARC format
+Get a png with
+gdal_translate -of png -ot byte grdn38w123_13 h.png
+Only the city
+time convert th.png -crop 2800x2800+4400+1200 +repage sf_heightmap.png

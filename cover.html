@@ -17,7 +17,7 @@
 				var metric = ctx.measureText(text);
 				var height = Math.abs(y1 - y0);
 				var width = Math.abs(x1 - x0);
-				ctx.fillStyle="rgba(255,0,0,0.4)";
+				ctx.fillStyle="rgba(255,140,130,0.8)";
 				ctx.fillRect(x0,y0,width,-height);
 				ctx.fillStyle="#000";
 				// ctx.stroke();
@@ -27,14 +27,14 @@
 					ctx.translate(x0+(width+14)/2, y0-height*(padding/2));
 					// ctx.translate(x0+width*(1-padding/2), y0-height*(padding/2));
 					// ctx.scale((1-padding)*width/20.0, (1-padding)*height/metric.width);
-					ctx.scale(1, (1-padding)*height/metric.width);
+					ctx.scale(2*1, 2*(1-padding)*height/metric.width);
 					ctx.rotate(-Math.PI/2);
 				}
 				else {
 					ctx.translate(x0+width*(padding/2), y0-(height-14)/2);
 					// ctx.translate(x0+width*(padding/2), y0-height*(padding/2));
 					// ctx.scale((1-padding)*width/metric.width, (1-padding)*height/20.0);
-					ctx.scale((1-padding)*width/metric.width, 1);
+					ctx.scale(2*(1-padding)*width/metric.width, 2*1);
 				}
 				ctx.fillText(text, 0,0);
 				ctx.restore();

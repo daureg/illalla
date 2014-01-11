@@ -1,0 +1,6 @@
+Raw roads data from:
+http://download.geofabrik.de/north-america/us/california.html
+v1_lake and park from:
+http://mapserver.flightgear.org/shpdl/
+resize with:
+ogr2ogr -clipsrc -122.54 37.71 -122.35 37.84 {sf_,}roads.shp

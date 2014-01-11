@@ -1,0 +1,202 @@
+\section{Introduction}\label{introduction}
+
+\begin{frame}{Dataset}
+
+\begin{figure} \includegraphics[height=.75\textheight]{sfbbox-0.png}
+\caption{San Francisco: 780K photos and 140K tags since January 2008}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}[fragile]{Photo metadata}
+
+\begin{verbatim}
+"loc"     : [-122.392501, 37.77515],
+"taken"   : "2008-03-24 14:55:40",
+"user_id" : "37417902@N00",
+"tags"    : ["sanfrancisco", "california",
+             "bridge", "chinabasin"]
+\end{verbatim}
+
+\end{frame}
+
+\begin{frame}{Problem}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  The goal is to find association rules
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    tag: in which location it appears
+  \item
+    locations: which tags describe it
+  \item
+    city: which locations are interesting
+  \end{itemize}
+\item
+  Applications
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    Flickr website
+  \item
+    Tourism
+  \end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\section{Methods}\label{methods}
+
+\begin{frame}{Exploration of data}
+
+\begin{center}
+\includegraphics[width=\textwidth]{tagdistrib.pdf}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{center}
+\includegraphics[height=.9\textheight]{sheats.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{center}
+\includegraphics[height=.9\textheight]{pdistrib.png}
+\end{center}
+
+\end{frame}
+
+\begin{frame}{Preliminary cleaning}
+
+\begin{itemize}
+\item
+  Avoid spurious photos by removing tags of the same user set almost in
+  the same place at almost the same time.
+\item
+  Keep only tags used enough times by enough users over enough time.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Statistics}
+
+\begin{center} \includegraphics[height=\textheight]{sms.png} \end{center}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  First, Entropy and Kullback Leibler divergence with background photos:
+  $ H(museum)=3.565\;\; H(street)=6.875$
+  % \begin{itemize}
+  % \itemsep1pt\parskip0pt\parsep0pt
+  % \item
+  %   museum: 3.565
+  % \item
+  %   street: 6.875
+  % \end{itemize}
+\end{itemize}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule\addlinespace
+Lowest entropy & Highest divergence
+\\
+\midrule
+californiaacademyofsciences & zoo
+\\
+conservatoryofflowers & treasureisland
+\\
+sfmoma & conservatoryofflowers
+\\
+deyoung & oceanbeach
+\\
+deyoungmuseum & ucsfschoolofdentistry
+\\
+ucsfschoolofdentistry & ucsf
+\\
+attpark & japantown
+\\
+cityhall & sfmoma
+\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{itemize}
+\item
+  But it provide only one value for each tag, i.e.~it loses spatial
+  information
+\item
+  Enter Kulldorff Spatial Scan Statistic: for a region $R$, compute the
+  KL divergence considering only $R$ and its complementary:
+  $t(R)\log \frac{t(R)}{b(R)} + (1-t(R))\log \frac{1-t(R)}{1-t(R)}$
+\item
+  Computed for all supported tags over all reasonnably sized regions
+\end{itemize}
+
+\end{frame}
+
+\section{Result}\label{result}
+
+\begin{frame}{Where are the museums?}
+
+\begin{center} \includegraphics[width=\textwidth]{loc_museum.png} \end{center}
+
+\end{frame}
+
+\begin{frame}{What is this place?}
+
+\begin{center} \includegraphics[width=\textwidth]{alcatraz.png} \end{center}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{center} \includegraphics[width=\textwidth]{loh.png} \end{center}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{center} \includegraphics[width=\textwidth]{zoo.png} \end{center}
+
+\end{frame}
+
+\begin{frame}{Where to go in San Francisco?}
+
+\begin{center} \includegraphics[width=\textwidth]{tourist.png} \end{center}
+
+\end{frame}
+
+\section{Future work}\label{future-work}
+
+\begin{frame}{Future work}
+\begin{itemize}
+\item
+  Evaluate result using ground truth: tourist guide, manual annnotation
+\item
+  Use less parameters and more information from the data
+\item
+  Extend to different scales: city, region, country, world
+\item
+  Consider more type of entities: time, users
+\end{itemize}
+\end{frame}

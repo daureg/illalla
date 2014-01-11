@@ -150,7 +150,11 @@ regions covering a large portion of the city, we restricted their maximum
 size. Then, instead of returning the most discrepant region, we maintained a
 list of the top $K$ ones. Like before, it is informative to look at
 Table~\vref{t:disc} to see which tags get high and low values (over all their
-regions).
+regions). This time, the values are not normalized between different grid size
+hence only the relative order is meaningfull. Again tag with high discrepancy
+are related with locations such as parks. On the other side, tags with low
+discrepancy are more difficult to interpret because they mostly do not refer
+to geographic features.
 
 \begin{table}[ht]
 \centering
@@ -161,33 +165,34 @@ regions).
 \midrule
 \multicolumn{6}{c}{Highest discrepancy} \\
 \midrule
-grandviewpark     & 7.493 &  &  &  & \\
-sterngrove        & 7.208 &  &  &  & \\
-local             & 6.881 &  &  &  & \\
-alcohol           & 6.666 &  &  &  & \\
-dubocepark        & 6.467 &  &  &  & \\
-yoda              & 6.467 &  &  &  & \\
-coronaheights     & 6.374 &  &  &  & \\
-performer         & 6.374 &  &  &  & \\
-circus            & 6.371 &  &  &  & \\
-candlestickpark   & 6.285 &  &  &  & \\
-bernalheightspark & 6.158 &  &  &  & \\
+grandviewpark     & 7.493 & grandviewpark   & 7.113 & grandviewpark       & 6.521 \\
+sterngrove        & 7.208 & sterngrove      & 6.338 & sterngrove          & 5.998 \\
+local             & 6.881 & candlestickpark & 6.318 & fortfunston         & 5.924 \\
+alcohol           & 6.666 & dubocepark      & 6.152 & candlestickpark     & 5.638 \\
+dubocepark        & 6.467 & pier7           & 6.072 & bayareadisco[…]     & 5.484 \\
+yoda              & 6.467 & nfl             & 6.052 & nfl                 & 5.411 \\
+coronaheights     & 6.374 & fortfunston     & 5.948 & chinabeach          & 5.392 \\
+performer         & 6.374 & bottomofthehill & 5.917 & glenpark            & 5.338 \\
+circus            & 6.371 & slims           & 5.804 & sfsu                & 5.326 \\
+candlestickpark   & 6.285 & westportal      & 5.752 & westportal          & 5.258 \\
+bernalheightspark & 6.158 & bayareadisco[…] & 5.732 & californiapalace[…] & 5.225 \\
 \midrule
 \multicolumn{6}{c}{Lowest discrepancy} \\
 \midrule
-instagramapp  & 0.013 &  &  &  & \\
-squareformat  & 0.013 &  &  &  & \\
-square        & 0.012 &  &  &  & \\
-iphoneography & 0.012 &  &  &  & \\
-sf            & 0.009 &  &  &  & \\
-xproii        & 0.008 &  &  &  & \\
-sierra        & 0.007 &  &  &  & \\
-california    & 0.004 &  &  &  & \\
-rise          & 0.003 &  &  &  & \\
-amaro         & 0.002 &  &  &  & \\
-sanfrancisco  & 0.001 &  &  &  & \\
+instagramapp  & 0.013 & street      & 0.062 & logo        & 0.054 \\
+squareformat  & 0.013 & sign        & 0.062 & friends     & 0.053 \\
+square        & 0.012 & lofi        & 0.061 & sign        & 0.053 \\
+iphoneography & 0.012 & hair        & 0.059 & yellow      & 0.052 \\
+sf            & 0.009 & hipstamatic & 0.059 & bayarea     & 0.051 \\
+xproii        & 0.008 & food        & 0.059 & shozu       & 0.051 \\
+sierra        & 0.007 & motionblur  & 0.057 & party       & 0.050 \\
+california    & 0.004 & large       & 0.056 & mirror      & 0.050 \\
+rise          & 0.003 & 2009        & 0.056 & hipstamatic & 0.050 \\
+amaro         & 0.002 & nashville   & 0.056 & purple      & 0.049 \\
+sanfrancisco  & 0.001 & bayarea     & 0.055 & truck       & 0.048 \\
 \bottomrule
 \end{tabular}
 \caption{Tags with lowest and highest discrepancy for three different grid
-size (TODO).\label{t:disc}}
+size (the abbreviated ones are \textsf{bayareadiscorymuseum} and
+	\textsf{californiapalaceofthelegionofhonor}).\label{t:disc}}
 \end{table}

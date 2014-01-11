@@ -1,0 +1,123 @@
+\begin{frame}[fragile]{Getting the data}
+
+\begin{verbatim}
+"loc" : { "type" : "Point",
+          "coordinates" : [-122.39094, 37.7777]}
+"taken" : ISODate("2013-02-03T15:59:49Z")
+"uid" : "37996593020@N01"
+"tags" : ["geotagged",
+          "giants",
+          "sanfranciscogiants",
+          "gigantes",
+          "worldchampions"]
+
+"title" : "Champions"
+"upload" : ISODate("2013-02-05T18:36:49Z")
+"_id" : 8447225241
+\end{verbatim}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{figure} \includegraphics[height=.7\textheight]{sfbbox-0.png}
+\caption{San Francisco: 780K photos since 2008-01-01 in 19 hours}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{figure} \includegraphics[height=.7\textheight]{cabbox-0.png}
+\caption{Upper California: 594K photos since 2008-01-01 in 12 hours}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{figure} \includegraphics[width=\textwidth]{usbbox-0.png}
+\caption{United States: 436K photos since 2013-06-15 in 18 hours}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{Exploration phase}
+
+Zipf's law holds:
+
+\begin{center} \includegraphics[width=\textwidth]{tagdistrib.pdf} \end{center}
+
+\end{frame}
+
+\begin{frame}
+
+	\begin{scriptsize}
+\begin{longtable}[c]{@{}lll@{}}
+\hline\noalign{\medskip}
+San Francisco & California & USA
+\\\noalign{\medskip}
+\hline\noalign{\medskip}
+sanfrancisco & california & iphoneography
+\\\noalign{\medskip}
+california & unitedstates & square
+\\\noalign{\medskip}
+iphoneography & sanjose & squareformat
+\\\noalign{\medskip}
+square & iphoneography & instagramapp
+\\\noalign{\medskip}
+squareformat & square & unitedstates
+\\\noalign{\medskip}
+instagramapp & eyefi & 2013
+\\\noalign{\medskip}
+unitedstates & squareformat & usa
+\\\noalign{\medskip}
+sf & instagramapp & california
+\\\noalign{\medskip}
+usa & usa & newyork
+\\\noalign{\medskip}
+ca & ca & nyc
+\\\noalign{\medskip}
+san & sacramento & summer
+\\\noalign{\medskip}
+francisco & mountainview & july
+\\\noalign{\medskip}
+goldengatepark & 2011 & normal
+\\\noalign{\medskip}
+2010 & geotagged & washington
+\\\noalign{\medskip}
+iphone & volleyball & canada
+\\\noalign{\medskip}
+\hline
+\end{longtable}
+	\end{scriptsize}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{center} \includegraphics[height=\textheight]{sm.png} \end{center}
+
+\end{frame}
+
+{\setbeamertemplate{navigation symbols}{}
+\begin{frame}[plain]
+        \begin{figure}
+            \begin{tikzpicture}[remember picture,overlay]
+                \node[at=(current page.center)]{\includegraphics[width=.9\paperwidth]{museum.pdf}};
+            \end{tikzpicture}
+            \caption{{\footnotesize Distribution of pairwise distance between photos tagged \enquote{museum}}}
+        \end{figure}
+\end{frame}
+}
+
+{\setbeamertemplate{navigation symbols}{}
+\begin{frame}[plain]
+        \begin{figure}
+            \begin{tikzpicture}[remember picture,overlay]
+                \node[at=(current page.center)]{\includegraphics[width=.9\paperwidth]{street.pdf}};
+            \end{tikzpicture}
+            \caption{{\footnotesize Distribution of pairwise distance between photos tagged \enquote{street}}}
+        \end{figure}
+\end{frame}
+}

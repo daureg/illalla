@@ -1,0 +1,40 @@
+\documentclass[logo=yellowexc,nofoot]{aaltoslides}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+% Comment these out if you don't want a slide with just the
+% part/section/subsection/subsubsection title:
+%\AtBeginPart{\frame{\partpage}}
+%\AtBeginSection{\frame{\sectionpage}}
+%\AtBeginSubsection{\frame{\subsectionpage}}
+%\AtBeginSubsubsection{\frame{\subsubsectionpage}}
+% \AtBeginSection[]{
+%   \begin{frame}{Plan}
+%   \scriptsize \tableofcontents[currentsection, hideothersubsections]
+%   \end{frame} 
+% }
+% \setlength{\parindent}{0pt}
+% \setlength{\parskip}{6pt plus 2pt minus 1pt}
+% \setlength{\emergencystretch}{3em}  % prevent overfull lines
+\usepackage{lastpage}
+\usepackage{longtable}
+\usepackage{csquotes}
+\usepackage{tikz}
+
+\aaltofootertext{Social Map Annotation}{October 26,
+2013}{\arabic{page}/\pageref{LastPage}\ }
+\title{Social Map Annotation}
+\author{Géraud Le Falher}
+% \institute[ICS]{Department of Information and Computer Science\\ Aalto
+% University, School of Science and Technology\\kimmo.jarvinen@tkk.fi}
+\institute{October 26, 2013}
+\date{}
+
+\begin{document}
+\setbeamertemplate{caption}{\insertcaption}
+\aaltotitleframe
+
+\mode<all>
+\input{prez}
+\mode*
+
+\end{document}

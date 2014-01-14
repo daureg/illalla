@@ -22,7 +22,7 @@ disc/*
 !disc/do.sh
 !disc/photos.css
 !disc/Makefile
-papers/
+papers/*.pdf
 freq/
 jquery*
 nantes/

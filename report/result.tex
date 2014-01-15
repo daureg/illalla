@@ -102,10 +102,11 @@ discrepancy by the overlapping area between the query and the tag regions.
 
 \begin{figure}[b]
 \centering
-\vspace{-2.8\baselineskip}
-\includegraphics[height=0.42\textheight]{../adv3/tourist.png}
+\vspace{-1\baselineskip}
+\includegraphics[height=0.40\textheight]{../adv3/tourist.png}
 \caption{The $20$ more discrepant tags are their characteristics
 location.\label{f:cover}}
+\vspace{-1\baselineskip}
 \end{figure}
 
 \subsection{Map covering}
@@ -122,14 +123,15 @@ interest. Even if at first look, it seems to return mostly relevant locations,
 it lacks flexibility and will always yield the same result, regardless of the
 user typology and its preferences.
 
-\begin{figure}
+\newgeometry{hmargin=1.5cm}
+\begin{figure}[p]
         \centering
-        \begin{subfigure}[b]{0.5\textwidth}
+        \begin{subfigure}[b]{0.49\textwidth}
                 \includegraphics[width=\textwidth]{czoo.png}
                 \caption{San Francisco Zoo, where Google Map indeed reports
 the existence of a \enquote{Penguin Island}.}
         \end{subfigure}~
-        \begin{subfigure}[b]{0.5\textwidth}
+        \begin{subfigure}[b]{0.49\textwidth}
                 \includegraphics[width=\textwidth]{cloh.png}
                 \caption{California Palace of the Legion of Honor, a museum
 					with many Auguste Rodin's sculptures.}
@@ -142,3 +144,4 @@ abandoned prison.\label{f:alca}}
         \end{subfigure}
 		\caption{Description of three points of interest in San Francisco.\label{f:loc}}
 \end{figure}
+\restoregeometry

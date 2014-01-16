@@ -71,12 +71,10 @@ def finish(date):
     name = today.strftime(DATE_FORMAT)
     with open(name+'.tex', 'a') as f:
         f.write(log(today))
-    check_call(['sed', '-i', '/class/ s/draft/final/', 'current.tex'])
-    print('pdflatex current.tex && pdflatex current.tex')
-    check_call(['sed', '-i', '/class/ s/final/draft/', 'current.tex'])
+    print('latexmk -pdf -pvc current')
     print('mv current.pdf {}.pdf'.format(name))
-    print('git add {} && git commit -m "write today log" {}.tex'.format(name,
-                                                                        name))
+    print('git add {}.tex && git commit -m "write today log" {}.tex'.format(name,
+                                                                            name))
 
 if __name__ == '__main__':
     date = datetime.datetime.now()

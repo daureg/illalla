@@ -1,3 +1,5 @@
+# Towards Automated Georeferencing of Flickr Photos
+
 Problem: localize photo in and within city given tags
 
 First perform k-medoids (better than k-means?) to identify region

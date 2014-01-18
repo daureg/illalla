@@ -1,3 +1,5 @@
+# Introduction to Probabilistic Topic Models
+
 Topic modeling algorithms are unsupervised statistical methods that analyze the words of the original texts to discover the themes that run through them, how those themes are connected to each other, and how they change over time.
 
 # LDA

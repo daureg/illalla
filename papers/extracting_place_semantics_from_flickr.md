@@ -1,3 +1,5 @@
+# Methods for Extracting Place Semantics from Flickr Tags
+
 tags are unstructured but there is an underlying semantic
 
 define place semantic or query's dominant location (wang 05): Place tags exhibit spatial usage patterns that are significantly geographically localized.

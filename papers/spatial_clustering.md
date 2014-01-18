@@ -1,3 +1,5 @@
+# Conceptualization of Place via Spatial Clustering and Co–occurrence Analysis
+
 “Gruber considered tagging processes in social activities lead to tag ontologies.”
 
 use openstreetmap for visualisation

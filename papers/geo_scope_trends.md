@@ -1,3 +1,5 @@
+# GeoScope: Online Detection of Geo-Correlated Information Trends in Social Networks
+
 “GeoScope is a data streams solution that detects correlations between topics and locations in a sliding window, in addition to analyzing topics and locations independently”.
 
 φ, the dominance of topic tx in location li and ψ, the support of location li for topic tx, are favored statistical significance like χ². To avoid unpopular correlation, report only the locations that are at least θ-frequent.

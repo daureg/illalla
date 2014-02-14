@@ -17,9 +17,8 @@ import logging
 import os
 HINT = "helsinki"
 LOG_FILE = 'photos_{}.log'.format(HINT)
-LOG_PATH = os.path.join(os.environ['TMPDIR'], LOG_FILE)
-print('logging to ' + LOG_PATH)
-logging.basicConfig(filename=LOG_PATH,
+TMPDIR = '/tmp' if 'TMPDIR' not in os.environ else os.environ['TMPDIR']
+logging.basicConfig(filename=os.path.join(TMPDIR, LOG_FILE),
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 
@@ -112,13 +111,25 @@ def parse_title(t):
 def get_human_tags(s):
     """
     >>> get_human_tags(u'iphoneography instagramapp uploaded:by=instagram')
-    [u'iphoneography', u'instagramapp']
+    ([u'iphoneography', u'instagramapp'], None)
+    >>> get_human_tags(u'square {foursquare}:{venue}=4bd1db7f9854d13a8260fa4d')
+    ([u'square'], u'4bd1db7f9854d13a8260fa4d')
+    >>> get_human_tags(u'square foursquare:venue=4bd1db7f9854d13a8260fa4d')
+    ([u'square'], u'4bd1db7f9854d13a8260fa4d')
     """
     if not isinstance(s, unicode) or len(s) == 0:
         return []
     # reg = MACHINE_TAGS
     # return [t.strip() for t in s.split() if not reg.match(t)]
-    return [t for t in s.split() if not ':' in t]
+    tags = []
+    venue = None
+    for t in s.split():
+        if not ':' in t:
+            tags.append(t)
+        else:
+            if venue is None and 'foursquare' in t and 'venue' in t:
+                venue = t.split('=')[-1]
+    return tags, venue
 
 
 def photo_to_dict(p):
@@ -161,7 +172,9 @@ def photo_to_dict(p):
         return None
     title, tags = parse_title(p['title'])
     s['title'] = title
-    s['tags'] = get_human_tags(p['tags'])
+    explicit_tag, venue = get_human_tags(p['tags'])
+    s['tags'] = explicit_tag + tags
+    s['venue'] = venue
     if len(s['tags']) < 1:
         took = 1000*(clock() - start)
         logging.debug('map {} in {:.3f}ms (no tag)'.format(s['_id'], took))
@@ -274,7 +287,7 @@ def split_bbox(bbox):
 
 def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
     """ Queries photos uploaded after 'start_time' in the region defined by
-    'bbox'. If successfull, return all of them in page 'page' along with some
+    'bbox'. If successful, return all of them in page 'page' along with some
     info. Otherwise, return None by default.  If 'need_answer' is true, try
     again at most 'max_tries' times. """
     bbox = '{:.9f},{:.9f},{:.9f},{:.9f}'.format(bbox[0][1], bbox[0][0],

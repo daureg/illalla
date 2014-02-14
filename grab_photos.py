@@ -12,8 +12,14 @@ import re
 from time import sleep, time
 from timeit import default_timer as clock
 from httplib import BadStatusLine
+import cities
 import logging
-logging.basicConfig(filename='grab_photos.log',
+import os
+HINT = "helsinki"
+LOG_FILE = 'photos_{}.log'.format(HINT)
+LOG_PATH = os.path.join(os.environ['TMPDIR'], LOG_FILE)
+print('logging to ' + LOG_PATH)
+logging.basicConfig(filename=LOG_PATH,
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 
@@ -47,7 +53,6 @@ US_BL = (26, -124.1)
 US_TR = (48.6, -66.6)
 NANTES_BL = [47.195, -1.61]
 NANTES_UR = [47.27, -1.5]
-HINT = "ny"
 
 
 def send_request(**args):
@@ -306,17 +311,18 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
 
 if __name__ == '__main__':
     import doctest
-    doctest.testmod()
+    # doctest.testmod()
     START_OF_REQUESTS = time()
     logging.info('initial request')
 
     client = pymongo.MongoClient('localhost', 27017)
-    db = client['nantes']
+    db = client['world']
     photos = db['photos']
     photos.ensure_index([('loc', pymongo.GEOSPHERE),
                          ('tags', pymongo.ASCENDING),
                          ('uid', pymongo.ASCENDING)])
-    bbox = (NANTES_BL, NANTES_UR)
+    CITY = cities.HEL
+    bbox = (CITY[:2], CITY[2:])
     start_time = datetime.datetime(2008, 1, 1)
     total = higher_request(start_time, bbox, photos)
 

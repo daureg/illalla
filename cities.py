@@ -1,7 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
-from more_query import bbox_to_polygon
-from json import dumps
+# from more_query import bbox_to_polygon
+# from json import dumps
 
 
 NYC = [40.583, -74.040, 40.883, -73.767]
@@ -27,6 +27,6 @@ BAR = [41.3253, 2.1004, 41.4669, 2.240]
 US = [NYC, WAS, SAF, ATL, IND, LAN, SEA, HOU, SLO, CHI]
 EU = [LON, PAR, BER, ROM, PRA, MOS, AMS, HEL, STO, BAR]
 
-if __name__ == '__main__':
-    for cities in US+EU:
-        print(dumps(bbox_to_polygon(cities)))
+# if __name__ == '__main__':
+#     for cities in US+EU:
+#         print(dumps(bbox_to_polygon(cities)))

@@ -2,7 +2,11 @@
 # vim: set fileencoding=utf-8
 # from more_query import bbox_to_polygon
 # from json import dumps
+from string import ascii_lowercase as alphabet
 
+
+def short_name(city):
+    return ''.join([c.lower() for c in city if c.lower() in alphabet])
 
 NYC = [40.583, -74.040, 40.883, -73.767]
 WAS = [38.8515, -77.121, 38.9848, -76.902]
@@ -26,6 +30,11 @@ STO = [59.3003, 17.996, 59.3614, 18.162]
 BAR = [41.3253, 2.1004, 41.4669, 2.240]
 US = [NYC, WAS, SAF, ATL, IND, LAN, SEA, HOU, SLO, CHI]
 EU = [LON, PAR, BER, ROM, PRA, MOS, AMS, HEL, STO, BAR]
+NAMES = ['New York', 'Washington', 'San Francisco', 'Atlanta', 'Indianapolis',
+         'Los Angeles', 'Seattle', 'Houston', 'St. Louis', 'Chicago',
+         'London', 'Paris', 'Berlin', 'Rome', 'Prague', 'Moscow', 'Amsterdam',
+         'Helsinki', 'Stockholm', 'Barcelona']
+INDEX = {short_name(city): _id for _id, city in enumerate(NAMES)}
 
 # if __name__ == '__main__':
 #     for cities in US+EU:

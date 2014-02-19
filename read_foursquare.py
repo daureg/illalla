@@ -4,7 +4,9 @@
 specified cities.
 In the following, x refers to the latitude and y to the longitude"""
 import cities
+import urlparse
 import pymongo
+from VenueIdCrawler import VenueIdCrawler
 from collections import namedtuple, defaultdict
 from datetime import datetime
 from numpy import median
@@ -15,6 +17,9 @@ Location = namedtuple('Location', ['type', 'coordinates'])
 CheckIn = namedtuple('CheckIn',
                      ['tid', 'lid', 'uid', 'city', 'loc', 'time'])
 Node = namedtuple('Node', ['val', 'left', 'right'])
+BLACKLIST = ['flic.kr', 'yfrog.com', 'yfrog.us', 'fst.je', 'gowal.la',
+             'myloc.me', 'bkite.com', 'tl.gd', 'j.mp', 'picplz.com', 'bit.ly',
+             'wp.me']
 
 
 def build_tree(bboxes, depth=0, max_depth=2):
@@ -72,9 +77,13 @@ def convert_checkin_for_mongo(checkin):
     return suitable
 
 
-def save_to_mongo(documents, destination):
-    converted = [convert_checkin_for_mongo(p) for p in documents]
-    ids = [checkin['_id'] for checkin in converted]
+def save_to_mongo(documents, destination, venues_getter):
+    urls = [c.lid for c in documents]
+    ids = venues_getter.venue_id_from_urls(urls)
+    converted = []
+    for i, c in enumerate(documents):
+        converted.append(convert_checkin_for_mongo(c))
+        converted[-1]['lid'] = ids[i]
     try:
         destination.insert(converted, continue_on_error=True)
     except pymongo.errors.DuplicateKeyError:
@@ -85,7 +94,9 @@ def save_to_mongo(documents, destination):
 if __name__ == '__main__':
     # import doctest
     # doctest.testmod()
+    from persistent import save_var
 
+    venues_getter = VenueIdCrawler()
     client = pymongo.MongoClient('localhost', 27017)
     db = client['foursquare']
     checkins = db['checkin']
@@ -94,7 +105,7 @@ if __name__ == '__main__':
                            ('city', pymongo.ASCENDING),
                            ('time', pymongo.ASCENDING)])
     import sys
-    infile = 'medium' if len(sys.argv) < 2 else sys.argv[1]
+    infile = 'verysmall' if len(sys.argv) < 2 else sys.argv[1]
     all_cities = cities.US + cities.EU
     cities_names = [cities.short_name(c) for c in cities.NAMES]
     bboxes = [Bbox(city, name) for city, name in zip(all_cities,
@@ -115,12 +126,20 @@ if __name__ == '__main__':
             data = line.strip().split('\t')
             if len(data) is not 7:
                 continue
-            uid, tid, x, y, t, _, lid = data
+            uid, tid, x, y, t, msg, _ = data
             lat, lon = float(x), float(y)
             # city = find_city(lat, lon)
             # assert city == find_town(lat, lon, tree)
             city = find_town(lat, lon, tree)
+            lid = None
             if city is not None:
+                last_word = msg.split()[-1]
+                if last_word.startswith('htt') and len(last_word) < 24:
+                    host = urlparse.urlparse(last_word).netloc
+                    if host in BLACKLIST:
+                        last_word = None
+                    lid = last_word
+            if lid is not None:
                 stats[city] += 1
                 tid, uid = int(tid), int(uid)
                 t = datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
@@ -129,12 +148,13 @@ if __name__ == '__main__':
                 # mongo)
                 # t = timegm(t.utctimetuple())
                 # city = cities.INDEX[city]
-                seen.append(CheckIn(tid, lid, uid, city,
-                                    Location('Point', [lon, lat])._asdict(), t))
+                loc = Location('Point', [lon, lat])._asdict()
+                seen.append(CheckIn(tid, lid, uid, city, loc, t))
                 if len(seen) > 5000:
-                    save_to_mongo(seen, checkins)
+                    save_to_mongo(seen, checkins, venues_getter)
                     seen = []
 
-    save_to_mongo(seen, checkins)
+    save_to_mongo(seen, checkins, venues_getter)
     counts = sorted(stats.iteritems(), key=lambda x: x[1], reverse=True)
     print('\n'.join(['{}: {}'.format(city, count) for city, count in counts]))
+    save_var('venues_id', venues_getter.results)

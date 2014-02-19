@@ -41,11 +41,14 @@ class VenueIdCrawler():
                 self.perform_request()
                 batch = []
         report = 'query {} urls in {:.2f}s, {} and {} errors'
-        fails = [1 for k, v in self.results.items()
+        fails = [k for k, v in self.results.items()
                  if v is None and k is not None]
         print(report.format(len(urls), clock() - start, len(self.errors),
                             len(fails)))
-        return [self.results[u] for u in urls]
+        print(fails)
+        print(self.errors)
+        return [None if u not in self.results else self.results[u]
+                for u in urls]
 
     def prepare_request(self, urls):
         assert len(urls) <= self.pool_size
@@ -72,7 +75,7 @@ class VenueIdCrawler():
     def empty_queue(self):
         _, ok, ko = self.multi.info_read()
         for failed in ko:
-            self.errors.append(failed[1])
+            self.errors.append((failed[0].url, failed[1]))
             self.multi.remove_handle(failed[0])
         for success in ok:
             self.results[success.url] = self.get_venue_id(success)
@@ -83,9 +86,9 @@ class VenueIdCrawler():
             return None
         url = curl_object.getinfo(pycurl.EFFECTIVE_URL)
         id_ = url.split('/')[-1]
-        if len(id_) == 24 and '4' in id_:
-            return id_
-        # we got a vanity url like https://foursquare.com/radiuspizza
+        if len(id_) >= 24 and '4' in id_[:24]:
+            return id_[:24]
+        # we probably got a vanity url like https://foursquare.com/radiuspizza
         buf = cStringIO.StringIO()
         self.one_shot.setopt(pycurl.URL, url)
         self.one_shot.setopt(pycurl.WRITEFUNCTION, buf.write)

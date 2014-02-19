@@ -1,29 +1,16 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 from timeit import default_timer as clock
-from itertools import izip_longest
 import pycurl
 POOL_SIZE = 30
 
 
-def grouper(iterable, n, fillvalue=None):
-    """
-    from http://docs.python.org/2/library/itertools.html#recipes
-    Collect data into fixed-length chunks or blocks
-    >>> list(grouper('ABCDEFG', 3, 'x'))
-    [('A', 'B', 'C'), ('D', 'E', 'F'), ('G', 'x', 'x')]
-    """
-    args = [iter(iterable)] * n
-    return izip_longest(fillvalue=fillvalue, *args)
-
-
 class VenueIdCrawler():
-
     cpool = None
     multi = None
     pool_size = 0
-    remaining = 0
-    results = {}
+    connections = 0
+    results = {None: None}
     errors = []
 
     def __init__(self, pool_size=POOL_SIZE):
@@ -38,27 +25,32 @@ class VenueIdCrawler():
 
     def venue_id_from_url(self, urls):
         start = clock()
-        for batch in grouper(urls, self.pool_size):
-            self.prepare_request(batch)
-            self.perform_request()
+        nb_urls = len(urls)
+        batch = []
+        for i, u in enumerate(urls):
+            if u is not None and u not in self.results:
+                batch.append(u)
+            if len(batch) == self.pool_size or i == nb_urls - 1:
+                self.prepare_request(batch)
+                self.perform_request()
+                batch = []
         report = 'query {} urls in {:.2f}s, {} and {} errors'
-        fails = [1 for v in self.results.values() if v is None]
+        fails = [1 for k, v in self.results.items()
+                 if v is None and k is not None]
         print(report.format(len(urls), clock() - start, len(self.errors),
                             len(fails)))
-        self.remaining = 0
-        return self.results
+        return [self.results[u] for u in urls]
 
     def prepare_request(self, urls):
-        assert len(urls) == self.pool_size
+        assert len(urls) <= self.pool_size
         for i, u in enumerate(urls):
-            if u is not None:
-                self.cpool[i].setopt(pycurl.URL, u)
-                self.cpool[i].url = u
-                self.multi.add_handle(self.cpool[i])
-                self.remaining += 1
+            self.cpool[i].setopt(pycurl.URL, u)
+            self.cpool[i].url = u
+            self.multi.add_handle(self.cpool[i])
+            self.connections += 1
 
     def perform_request(self):
-        while self.remaining > 0:
+        while self.connections > 0:
             status = self.multi.select(0.3)
             if status == -1:  # timeout
                 continue
@@ -66,7 +58,7 @@ class VenueIdCrawler():
                 self.empty_queue()
             performing = True
             while performing:
-                status, self.remaining = self.multi.perform()
+                status, self.connections = self.multi.perform()
                 if status is not pycurl.E_CALL_MULTI_PERFORM:
                     performing = False
         self.empty_queue()
@@ -104,10 +96,24 @@ def venue_id_from_url(c, url):
     return None
 
 if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
     from persistent import load_var
     urls = ['http://4sq.com/1ZNmiJ', 'http://4sq.com/2z5p82',
+            'http://4sq.com/31ZCjK', 'http://4sq.com/3iFEGH',
+            'http://4sq.com/4ADi6k', 'http://4sq.com/4FFBOp',
+            'http://4sq.com/4k1L7c', 'http://4sq.com/5DPD7A',
+            'http://4sq.com/5NbLrk', 'http://4sq.com/67XL9k',
+            'http://4sq.com/75SfNv', 'http://4sq.com/7DAVph',
+            'http://4sq.com/7JaOFa', 'http://4sq.com/7sG6jW',
+            'http://4sq.com/7yoatn', 'http://4sq.com/81eMd8',
+            'http://4sq.com/8bg7q4', 'http://4sq.com/8gFJww',
+            'http://4sq.com/8KuiUi', 'http://4sq.com/9cg9xg',
+            'http://4sq.com/9E7CnF', 'http://4sq.com/9GoW57',
+            'http://4sq.com/9hM2SE', 'http://4sq.com/9qN20H',
+            'http://4sq.com/9yHXf0', 'http://4sq.com/alRmoX',
+            'http://4sq.com/c7m20Y', 'http://4sq.com/cDCxsE',
+            'http://4sq.com/ck4qtA', 'http://4sq.com/cXUN8F',
+            'http://4sq.com/cYesTR', 'http://4sq.com/dlIcOc',
+            'http://4sq.com/dy5um7', 'http://4sq.com/dz96EL',
             'http://4sq.com/31ZCjK', 'http://4sq.com/3iFEGH',
             'http://4sq.com/4ADi6k', 'http://4sq.com/4FFBOp',
             'http://4sq.com/4k1L7c', 'http://4sq.com/5DPD7A',
@@ -136,7 +142,11 @@ if __name__ == '__main__':
     gold = load_var('gold_url')
     start = clock()
     r = VenueIdCrawler()
-    res = r.venue_id_from_url(urls[:len(gold)])
+    query_url = urls[:2*len(gold)]
+    res = r.venue_id_from_url(query_url)
+    res_dict = {u: i for u, i in zip(query_url, res)}
     print('{:.2f}s'.format(clock() - start))
-    shared_items = set(gold.items()) & set(res.items())
+    shared_items = set(gold.items()) & set(res_dict.items())
     print('match with gold: {}/{}'.format(len(shared_items), len(gold)))
+    # for g, m in zip(sorted(gold.items()), sorted(res_dict.items())):
+    #     print(g, m)

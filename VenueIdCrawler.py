@@ -2,11 +2,15 @@
 # vim: set fileencoding=utf-8
 from timeit import default_timer as clock
 import pycurl
+import cStringIO
+import re
 POOL_SIZE = 30
 
 
 class VenueIdCrawler():
     cpool = None
+    one_shot = None
+    claim_id = None
     multi = None
     pool_size = 0
     connections = 0
@@ -16,6 +20,8 @@ class VenueIdCrawler():
     def __init__(self, pool_size=POOL_SIZE):
         assert isinstance(pool_size, int) and pool_size > 0
         self.pool_size = pool_size
+        self.one_shot = pycurl.Curl()
+        self.claim_id = re.compile(r'claim\?vid=([0-9a-f]{24})')
         self.multi = pycurl.CurlMulti()
         self.cpool = [pycurl.Curl() for _ in range(self.pool_size)]
         for c in self.cpool:
@@ -23,7 +29,7 @@ class VenueIdCrawler():
             c.setopt(pycurl.MAXREDIRS, 6)
             c.setopt(pycurl.NOBODY, 1)
 
-    def venue_id_from_url(self, urls):
+    def venue_id_from_urls(self, urls):
         start = clock()
         nb_urls = len(urls)
         batch = []
@@ -69,14 +75,29 @@ class VenueIdCrawler():
             self.errors.append(failed[1])
             self.multi.remove_handle(failed[0])
         for success in ok:
-            self.results[success.url] = VenueIdCrawler.get_venue_id(success)
+            self.results[success.url] = self.get_venue_id(success)
             self.multi.remove_handle(success)
 
-    @staticmethod
-    def get_venue_id(curl_object):
-        if curl_object.getinfo(pycurl.HTTP_CODE) == 200:
-            return curl_object.getinfo(pycurl.EFFECTIVE_URL).split('/')[-1]
-        return None
+    def get_venue_id(self, curl_object):
+        if curl_object.getinfo(pycurl.HTTP_CODE) != 200:
+            return None
+        url = curl_object.getinfo(pycurl.EFFECTIVE_URL)
+        id_ = url.split('/')[-1]
+        if len(id_) == 24 and '4' in id_:
+            return id_
+        # we got a vanity url like https://foursquare.com/radiuspizza
+        buf = cStringIO.StringIO()
+        self.one_shot.setopt(pycurl.URL, url)
+        self.one_shot.setopt(pycurl.WRITEFUNCTION, buf.write)
+        self.one_shot.perform()
+        body = buf.getvalue()
+        del buf
+        if curl_object.getinfo(pycurl.HTTP_CODE) != 200:
+            return None
+        match = self.claim_id.search(body)
+        if match is None:
+            return None
+        return match.group(1)
 
 
 def venue_id_from_url(c, url):
@@ -143,7 +164,7 @@ if __name__ == '__main__':
     start = clock()
     r = VenueIdCrawler()
     query_url = urls[:2*len(gold)]
-    res = r.venue_id_from_url(query_url)
+    res = r.venue_id_from_urls(query_url)
     res_dict = {u: i for u, i in zip(query_url, res)}
     print('{:.2f}s'.format(clock() - start))
     shared_items = set(gold.items()) & set(res_dict.items())

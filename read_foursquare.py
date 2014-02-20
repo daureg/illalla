@@ -17,9 +17,8 @@ Location = namedtuple('Location', ['type', 'coordinates'])
 CheckIn = namedtuple('CheckIn',
                      ['tid', 'lid', 'uid', 'city', 'loc', 'time'])
 Node = namedtuple('Node', ['val', 'left', 'right'])
-BLACKLIST = ['flic.kr', 'yfrog.com', 'yfrog.us', 'fst.je', 'gowal.la',
-             'myloc.me', 'bkite.com', 'tl.gd', 'j.mp', 'picplz.com', 'bit.ly',
-             'wp.me']
+BLACKLIST = ['fst.je', 'gowal.la', 'picplz.com', 'wal.la', 'flic.kr',
+             'myloc.me', 'wp.me', 'yfrog.com', 'j.mp', 'bkite.com', 'untpd.it']
 
 
 def build_tree(bboxes, depth=0, max_depth=2):
@@ -94,9 +93,12 @@ def save_to_mongo(documents, destination, venues_getter):
 if __name__ == '__main__':
     # import doctest
     # doctest.testmod()
-    from persistent import save_var
+    from persistent import save_var, load_var
 
-    venues_getter = VenueIdCrawler()
+    previously = load_var('venues_id_new')
+    success = {k: v for k, v in previously.items() if v is not None}
+    venues_getter = VenueIdCrawler(success)
+
     client = pymongo.MongoClient('localhost', 27017)
     db = client['foursquare']
     checkins = db['checkin']
@@ -139,7 +141,6 @@ if __name__ == '__main__':
                     if host in BLACKLIST:
                         last_word = None
                     lid = last_word
-            if lid is not None:
                 stats[city] += 1
                 tid, uid = int(tid), int(uid)
                 t = datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
@@ -157,4 +158,4 @@ if __name__ == '__main__':
     save_to_mongo(seen, checkins, venues_getter)
     counts = sorted(stats.iteritems(), key=lambda x: x[1], reverse=True)
     print('\n'.join(['{}: {}'.format(city, count) for city, count in counts]))
-    save_var('venues_id', venues_getter.results)
+    save_var('venues_id_new', venues_getter.results)

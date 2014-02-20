@@ -81,6 +81,37 @@ def disc_latex(N=11):
     for v in d[-N:]:
         print(display(v))
 
+
+def venues_activity(checkins, city, limit=None):
+    """Return time pattern of all the venues in 'city', or only the 'limit'
+    most visited."""
+    query = [
+        {'$match': {'city': city, 'lid': {'$ne': None}}},
+        {'$project': {'_id': 0, 'lid': 1, 'time': 1}},
+        {'$group': {'_id': '$lid',
+                    'count': {'$sum': 1}, 'visits': {'$push': '$time'}}},
+    ]
+    if isinstance(limit, int) and limit > 0:
+        query.extend([{'$sort': {'count': -1}}, {'$limit': limit}])
+    res = checkins.aggregate(query)['result']
+    hourly = []
+    weekly = []
+    # monthly pattern may not be that relevant since the dataset does not cover
+    # a whole year
+    monthly = []
+    for venue in res:
+        timing = np.array([(t.hour, t.weekday(), t.month)
+                           for t in venue['visits']])
+        hourly.append(list(np.bincount(timing[:, 0], minlength=24)))
+        weekly.append(list(np.bincount(timing[:, 1], minlength=7)))
+        monthly.append(list(np.bincount(timing[:, 2], minlength=12)))
+    return hourly, weekly, monthly
+
 if __name__ == '__main__':
     # spits_latex_table()
-    disc_latex()
+    # disc_latex()
+    import pymongo
+    client = pymongo.MongoClient('localhost', 27017)
+    DB = client['foursquare']
+    checkins = DB['checkin']
+    hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)

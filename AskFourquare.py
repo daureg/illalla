@@ -4,7 +4,8 @@ from datetime import datetime
 from read_foursquare import Location
 import foursquare
 from collections import namedtuple
-from foursquare_keys import CLIENT_ID, CLIENT_SECRET
+from foursquare_keys import FOURSQUARE_ID as CLIENT_ID
+from foursquare_keys import FOURSQUARE_SECRET as CLIENT_SECRET
 from persistent import load_var, save_var
 
 Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat', 'stats',

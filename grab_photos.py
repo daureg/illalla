@@ -7,7 +7,7 @@ import json
 import urllib
 import urllib2
 import flickr_api as flickr_api
-from flickr_keys import API_KEY
+from flickr_keys import FLICKR_KEY as API_KEY
 import re
 from time import sleep, time
 from timeit import default_timer as clock

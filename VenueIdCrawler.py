@@ -17,7 +17,7 @@ class VenueIdCrawler():
     results = {None: None}
     errors = []
 
-    def __init__(self, pool_size=POOL_SIZE):
+    def __init__(self, pre_computed=None, pool_size=POOL_SIZE):
         assert isinstance(pool_size, int) and pool_size > 0
         self.pool_size = pool_size
         self.one_shot = pycurl.Curl()
@@ -28,6 +28,9 @@ class VenueIdCrawler():
             c.setopt(pycurl.FOLLOWLOCATION, 1)
             c.setopt(pycurl.MAXREDIRS, 6)
             c.setopt(pycurl.NOBODY, 1)
+        if pre_computed is not None:
+            self.results = pre_computed
+            self.results['None'] = None
 
     def venue_id_from_urls(self, urls):
         start = clock()
@@ -89,6 +92,8 @@ class VenueIdCrawler():
         if len(id_) >= 24 and '4' in id_[:24]:
             return id_[:24]
         # we probably got a vanity url like https://foursquare.com/radiuspizza
+        # thus we go there and try to find the link to claim this venue,
+        # because it contains the numerical id.
         buf = cStringIO.StringIO()
         self.one_shot.setopt(pycurl.URL, url)
         self.one_shot.setopt(pycurl.WRITEFUNCTION, buf.write)

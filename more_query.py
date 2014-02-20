@@ -19,6 +19,9 @@ import numpy as np
 from scipy.spatial.distance import pdist
 from operator import itemgetter
 from utils import to_css_hex
+import cities
+CITY = cities.HEL
+CITY_BBOX = (CITY[:2], CITY[2:])
 try:
     from collection import Counter
 except ImportError:
@@ -121,7 +124,7 @@ def tag_location(collection, tag, bbox, start, end, extra_info=None,
 #        query['hint'] = 'sf'
 #    else:
 #        query['loc'] = inside_bbox(bbox)
-    query['hint'] = 'sf'
+    query['hint'] = 'helsinki'
     if tag is not None:
         query['ntags'] = tag
     if user is not None:
@@ -433,26 +436,26 @@ def time_entropy(tag):
 GRID_SIZE = 200
 RECTANGLES, RECT_TO_INDEX, INDEX_TO_RECT = k_split_bbox(SF_BBOX, GRID_SIZE)
 if __name__ == '__main__':
-    from random import shuffle
+    # from random import shuffle
     client = pymongo.MongoClient('localhost', 27017)
-    DB = client['flickr']
+    DB = client['world']
     photos = DB['photos']
     KARTO_CONFIG['bounds']['data'] = [SF_BBOX[1], SF_BBOX[0],
                                       SF_BBOX[3], SF_BBOX[2]]
     start = clock()
-    nb_inter = 19
+    # nb_inter = 19
     # e, KL = sf_entropy(None)
     # tags = get_top_tags(500, 'nsf_tag.dat')
-    tmp = load_var('supported')
-    tags = [v[0] for v in tmp]
-    shuffle(tags)
-    tags = [None] + tags
+    # tmp = load_var('supported')
+    # tags = [v[0] for v in tmp]
+    # shuffle(tags)
+    # tags = [None] + tags
     # sf_entropy(None)
-    p = Pool(4)
-    res = p.map(sf_entropy, tags)
-    p.close()
-    outplot('nentropies_{}.dat'.format(GRID_SIZE), ['H', 'tag'], [r[0] for r in res], tags)
-    outplot('nKentropies_{}.dat'.format(GRID_SIZE), ['D', 'tag'], [r[1] for r in res], tags)
+    # p = Pool(4)
+    # res = p.map(sf_entropy, tags)
+    # p.close()
+    # outplot('nentropies_{}.dat'.format(GRID_SIZE), ['H', 'tag'], [r[0] for r in res], tags)
+    # outplot('nKentropies_{}.dat'.format(GRID_SIZE), ['D', 'tag'], [r[1] for r in res], tags)
     # top_metrics(tags)
     # te = [time_entropy(tag) for tag in tags]
     # t = prettytable.PrettyTable(['tag'] + PERIOD_NAME, sortby='day')
@@ -463,5 +466,7 @@ if __name__ == '__main__':
     # with codecs.open('time_entropy.txt', 'w', 'utf8') as f:
     #     f.write(t.get_string(border=False, left_padding_width=0,
     #                          right_padding_width=2))
+    save_var('helsinki', tag_location(photos, None, CITY_BBOX, FIRST_TIME,
+        LAST_TIME, extra_info=['taken']))
     t = 1000*(clock() - start)
     print('done in {:.3f}ms'.format(t))

@@ -43,13 +43,8 @@ class VenueIdCrawler():
                 self.prepare_request(batch)
                 self.perform_request()
                 batch = []
-        report = 'query {} urls in {:.2f}s, {} and {} errors'
-        fails = [k for k, v in self.results.items()
-                 if v is None and k is not None]
-        print(report.format(len(urls), clock() - start, len(self.errors),
-                            len(fails)))
-        print(fails)
-        print(self.errors)
+        report = 'query {} urls in {:.2f}s, {} (total) errors'
+        print(report.format(len(urls), clock() - start, len(self.errors)))
         return [None if u not in self.results else self.results[u]
                 for u in urls]
 

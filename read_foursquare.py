@@ -96,8 +96,7 @@ if __name__ == '__main__':
     from persistent import save_var, load_var
 
     previously = load_var('venues_id_new')
-    success = {k: v for k, v in previously.items() if v is not None}
-    venues_getter = VenueIdCrawler(success)
+    venues_getter = VenueIdCrawler(previously)
 
     client = pymongo.MongoClient('localhost', 27017)
     db = client['foursquare']
@@ -159,3 +158,4 @@ if __name__ == '__main__':
     counts = sorted(stats.iteritems(), key=lambda x: x[1], reverse=True)
     print('\n'.join(['{}: {}'.format(city, count) for city, count in counts]))
     save_var('venues_id_new', venues_getter.results)
+    save_var('venues_errors', venues_getter.errors)

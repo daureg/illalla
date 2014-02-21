@@ -16,12 +16,13 @@ def to_css_hex(color):
     return r
 
 
-def photos_to_heat_dataset(city):
+def photos_to_heat_dataset(city, precision=4, limit=300):
     photos = load_var(city)
-    points = Counter([(p[0], p[1]) for p in photos])
+    points = Counter([(round(p[0], precision), round(p[1], precision))
+                      for p in photos])
     maxi = points.most_common(1)[0][1]
-    dataset = [{'x': p[0], 'y': p[1], 'count': c}
-               for p, c in points.most_common(200)]
+    dataset = [{'lat': p[1], 'lon': p[0], 'value': c}
+               for p, c in points.most_common(limit)]
     json_dataset = json.dumps({'max': maxi, 'data': dataset})
     with open(city+'.js', 'w') as f:
         f.write('var {} = {}'.format(city, json_dataset))

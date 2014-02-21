@@ -78,10 +78,33 @@ def search_categories(cats, query, field=None):
     return None, None
 
 
+def parse_opening_time(info):
+    """ the relevant fields of info look something like this:
+        {"timeframes":[
+            {"days":"Mon–Wed, Fri",
+            "open":[
+            {"renderedTime":"5:30 AM–Noon",
+             "renderedTime":"2:45 PM–Midnight",
+            }],
+            },
+            {"days":"Thu, Sat–Sun",
+            "open":[
+            { "renderedTime":"8:00 AM–9:00 PM"
+            }],
+            }]
+        }
+        A machine readable version is available, but it would costs another
+        call: https://developer.foursquare.com/docs/responses/hours.html
+        Beyond parsing, the issue is that I don't how to represent that more
+        compactly: maybe by doing some simplification.
+    """
+    return None
+
+
 def venue_profile(client, vid):
     """Return a Venue object from a venue id."""
-    # venue = client.venue(vid)['venue']
-    venue = load_var('venue')['venue']
+    venue = client.venue(vid, params={'locale': 'en'})['venue']
+    # venue = load_var('venue')['venue']
     name = venue['name']
     loc = venue['location']
     loc = Location('Point', [loc['lat'], loc['lng']])
@@ -90,7 +113,7 @@ def venue_profile(client, vid):
     stats = venue['stats'].values()
     hours = None
     if 'hours' in venue:
-        pass
+        hours = parse_opening_time(venue['hours'])
     price = None if 'price' not in venue else venue['price']['tier']
     rating = None if 'rating' not in venue else venue['rating']
     createdAt = datetime.fromtimestamp(venue['createdAt'])
@@ -113,8 +136,6 @@ def venue_profile(client, vid):
 
 
 if __name__ == '__main__':
-    # import doctest
-    # doctest.testmod()
     client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
     # print(venue_profile(client, ''))
-    ft = get_categories()
+    # ft = get_categories()

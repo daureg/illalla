@@ -10,6 +10,7 @@ from VenueIdCrawler import VenueIdCrawler
 from collections import namedtuple, defaultdict
 from datetime import datetime
 from numpy import median
+from bisect import bisect_left
 # from calendar import timegm
 
 Point = namedtuple('Point', ['x', 'y'])
@@ -19,6 +20,7 @@ CheckIn = namedtuple('CheckIn',
 Node = namedtuple('Node', ['val', 'left', 'right'])
 BLACKLIST = ['fst.je', 'gowal.la', 'picplz.com', 'wal.la', 'flic.kr',
              'myloc.me', 'wp.me', 'yfrog.com', 'j.mp', 'bkite.com', 'untpd.it']
+MISSING_ID = []
 
 
 def build_tree(bboxes, depth=0, max_depth=2):
@@ -90,10 +92,16 @@ def save_to_mongo(documents, destination, venues_getter):
         pass
 
 
+def id_must_be_process(_id):
+    i = bisect_left(MISSING_ID, _id)
+    return i != len(MISSING_ID) and MISSING_ID[i] == _id
+
+
 if __name__ == '__main__':
     # import doctest
     # doctest.testmod()
     from persistent import save_var, load_var
+    MISSING_ID = load('tid_diff')
 
     previously = load_var('venues_id_new')
     venues_getter = VenueIdCrawler(previously)
@@ -128,6 +136,8 @@ if __name__ == '__main__':
             if len(data) is not 7:
                 continue
             uid, tid, x, y, t, msg, _ = data
+            if not id_must_be_process(tid):
+                continue
             lat, lon = float(x), float(y)
             # city = find_city(lat, lon)
             # assert city == find_town(lat, lon, tree)

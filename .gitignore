@@ -46,8 +46,7 @@ karto/photos.*
 *.svg
 notes/*.pdf
 notes/*.tex
-flickr_keys*
-foursquare_keys*
+api_keys*
 *.sh[px]
 *.csv
 *.dbf

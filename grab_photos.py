@@ -23,7 +23,6 @@ logging.basicConfig(filename=os.path.join(TMPDIR, LOG_FILE),
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]*)\s*(?P<tags>(?:#\w+\s*)*)$')
-MACHINE_TAGS = re.compile(r'^\w+:\w+')
 BASE_URL = "http://api.flickr.com/services/rest/"
 PER_PAGE = 220
 # According to https://secure.flickr.com/services/developer/api/, one api key
@@ -118,9 +117,7 @@ def get_human_tags(s):
     ([u'square'], u'4bd1db7f9854d13a8260fa4d')
     """
     if not isinstance(s, unicode) or len(s) == 0:
-        return []
-    # reg = MACHINE_TAGS
-    # return [t.strip() for t in s.split() if not reg.match(t)]
+        return [], None
     tags = []
     venue = None
     for t in s.split():

@@ -3,7 +3,9 @@
 	<head>
 		<meta charset="utf-8" />
 		<title>Heatmap</title>
-		<!-- doen not work with leaflet 0.7 -->
+		<!-- use the fix referenced at the end of
+		https://github.com/pa7/heatmap.js/issues/86 to make it work with
+		leaflet 0.7 -->
 		<script src="leaflet-src.js"></script>
 		<script src="../helsinki.js"></script>
 		<script src="tile.stamen.js"></script>
@@ -11,7 +13,7 @@
 		<script src="heatmapjs/src/heatmap-leaflet.js"></script>
 		<script src="heatmapjs/src/QuadTree.js"></script>
 		<link rel="stylesheet" href="leaflet.css" type="text/css" media="screen">
-		<style type="text/css" media="screen">#map {height: 800px;}</style>
+		<style type="text/css" media="screen">#map {height: 700px;}</style>
 	</head>
 <body>
 	<div id="map"></div>

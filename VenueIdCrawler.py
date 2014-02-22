@@ -4,6 +4,11 @@ from timeit import default_timer as clock
 import pycurl
 import cStringIO
 import re
+import logging
+import os
+logging.basicConfig(filename=os.path.expanduser('~/venue.log'),
+                    level=logging.INFO,
+                    format='%(asctime)s [%(levelname)s]: %(message)s')
 POOL_SIZE = 30
 
 
@@ -16,14 +21,19 @@ class VenueIdCrawler():
     connections = 0
     results = {None: None}
     errors = []
+    todo = []
+    use_network = False
 
-    def __init__(self, pre_computed=None, pool_size=POOL_SIZE):
+    def __init__(self, pre_computed=None, use_network=False,
+                 pool_size=POOL_SIZE):
         assert isinstance(pool_size, int) and pool_size > 0
         self.pool_size = pool_size
         self.one_shot = pycurl.Curl()
         self.claim_id = re.compile(r'claim\?vid=([0-9a-f]{24})')
         self.multi = pycurl.CurlMulti()
         self.cpool = [pycurl.Curl() for _ in range(self.pool_size)]
+        self.todo = []
+        self.use_network = use_network
         for c in self.cpool:
             c.setopt(pycurl.FOLLOWLOCATION, 1)
             c.setopt(pycurl.MAXREDIRS, 6)
@@ -36,15 +46,21 @@ class VenueIdCrawler():
         start = clock()
         nb_urls = len(urls)
         batch = []
+        target = batch if use_network else self.todo
         for i, u in enumerate(urls):
             if u is not None and u not in self.results:
-                batch.append(u)
+                target.append(u)
+            if not use_network:
+                continue
             if len(batch) == self.pool_size or i == nb_urls - 1:
+                lstart = clock()
                 self.prepare_request(batch)
                 self.perform_request()
                 batch = []
+                logging.info('batch in {:.2f}s'.format(clock() - lstart))
         report = 'query {} urls in {:.2f}s, {} (total) errors'
-        print(report.format(len(urls), clock() - start, len(self.errors)))
+        logging.info(report.format(len(urls), clock() - start,
+                                   len(self.errors)))
         return [None if u not in self.results else self.results[u]
                 for u in urls]
 

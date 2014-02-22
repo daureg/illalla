@@ -107,6 +107,7 @@ if __name__ == '__main__':
     previously = load_var('t_venues_id_new')
     venues_getter = VenueIdCrawler(previously, True)
 
+    checkins = None
     # client = pymongo.MongoClient('localhost', 27017)
     # db = client['foursquare']
     # checkins = db['checkin']
@@ -169,6 +170,7 @@ if __name__ == '__main__':
     save_to_mongo(seen, checkins, venues_getter)
     counts = sorted(stats.iteritems(), key=lambda x: x[1], reverse=True)
     print('\n'.join(['{}: {}'.format(city, count) for city, count in counts]))
+    print('total:' + str(sum(stats.values())))
     save_var('venues_id_new', venues_getter.results)
     save_var('venues_errors', venues_getter.errors)
     save_var('url_todo', venues_getter.todo)

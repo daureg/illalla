@@ -46,11 +46,11 @@ class VenueIdCrawler():
         start = clock()
         nb_urls = len(urls)
         batch = []
-        target = batch if use_network else self.todo
+        target = batch if self.use_network else self.todo
         for i, u in enumerate(urls):
             if u is not None and u not in self.results:
                 target.append(u)
-            if not use_network:
+            if not self.use_network:
                 continue
             if len(batch) == self.pool_size or i == nb_urls - 1:
                 lstart = clock()

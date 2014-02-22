@@ -29,10 +29,23 @@ var map = new L.Map('map', {
 	// heatmapLayer,
 	]
 });
-helsinki.data.forEach(marker_from_photos);
+// helsinki.data.forEach(marker_from_photos);
 var city = L.polygon([
 		[60.1463, 24.839],
 		[60.242, 24.839],
 		[60.242, 25.02],
 		[60.1463, 25.02]
 ], {fill: false, weight: 3}).addTo(map);
+
+var markers = L.markerClusterGroup();
+
+var nb_points = helsinki_cluster.length;
+for (var i = 0; i < nb_points; i++) {
+	var p = helsinki_cluster[i];
+	var title = p[2].toString();
+	var marker = L.marker(new L.LatLng(p[1], p[0]), { title: title });
+	marker.bindPopup(title);
+	markers.addLayer(marker);
+}
+
+map.addLayer(markers);

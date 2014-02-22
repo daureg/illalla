@@ -26,3 +26,13 @@ def photos_to_heat_dataset(city, precision=4, limit=300):
     json_dataset = json.dumps({'max': maxi, 'data': dataset})
     with open(city+'.js', 'w') as f:
         f.write('var {} = {}'.format(city, json_dataset))
+
+
+def photos_to_cluster_dataset(city, limit=300):
+    from random import uniform
+    noise = lambda: uniform(0, 1e-6)
+    photos = load_var(city)
+    points = [[p[0] + noise(), p[1] + noise(), 'Win!']
+              for p in photos[:limit]]
+    with open(city+'_cluster.js', 'w') as f:
+        f.write('var {}_cluster = {}'.format(city, str(points)))

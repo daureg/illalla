@@ -81,6 +81,7 @@ def convert_checkin_for_mongo(checkin):
 def save_to_mongo(documents, destination, venues_getter):
     urls = [c.lid for c in documents]
     ids = venues_getter.venue_id_from_urls(urls)
+    return
     converted = []
     for i, c in enumerate(documents):
         converted.append(convert_checkin_for_mongo(c))
@@ -101,18 +102,18 @@ if __name__ == '__main__':
     # import doctest
     # doctest.testmod()
     from persistent import save_var, load_var
-    MISSING_ID = load('tid_diff')
+    MISSING_ID = load_var('tid_diff')
 
-    previously = load_var('venues_id_new')
-    venues_getter = VenueIdCrawler(previously)
+    previously = load_var('t_venues_id_new')
+    venues_getter = VenueIdCrawler(previously, True)
 
-    client = pymongo.MongoClient('localhost', 27017)
-    db = client['foursquare']
-    checkins = db['checkin']
-    checkins.ensure_index([('loc', pymongo.GEOSPHERE),
-                           ('lid', pymongo.ASCENDING),
-                           ('city', pymongo.ASCENDING),
-                           ('time', pymongo.ASCENDING)])
+    # client = pymongo.MongoClient('localhost', 27017)
+    # db = client['foursquare']
+    # checkins = db['checkin']
+    # checkins.ensure_index([('loc', pymongo.GEOSPHERE),
+    #                        ('lid', pymongo.ASCENDING),
+    #                        ('city', pymongo.ASCENDING),
+    #                        ('time', pymongo.ASCENDING)])
     import sys
     infile = 'verysmall' if len(sys.argv) < 2 else sys.argv[1]
     all_cities = cities.US + cities.EU
@@ -136,8 +137,8 @@ if __name__ == '__main__':
             if len(data) is not 7:
                 continue
             uid, tid, x, y, t, msg, _ = data
-            if not id_must_be_process(tid):
-                continue
+            # if not id_must_be_process(int(tid)):
+            #     continue
             lat, lon = float(x), float(y)
             # city = find_city(lat, lon)
             # assert city == find_town(lat, lon, tree)
@@ -160,12 +161,14 @@ if __name__ == '__main__':
                 # city = cities.INDEX[city]
                 loc = Location('Point', [lon, lat])._asdict()
                 seen.append(CheckIn(tid, lid, uid, city, loc, t))
-                if len(seen) > 5000:
+                if len(seen) > 1000:
                     save_to_mongo(seen, checkins, venues_getter)
                     seen = []
+                save_var('venues_id_new', venues_getter.results)
 
     save_to_mongo(seen, checkins, venues_getter)
     counts = sorted(stats.iteritems(), key=lambda x: x[1], reverse=True)
     print('\n'.join(['{}: {}'.format(city, count) for city, count in counts]))
     save_var('venues_id_new', venues_getter.results)
     save_var('venues_errors', venues_getter.errors)
+    save_var('url_todo', venues_getter.todo)

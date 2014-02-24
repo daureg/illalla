@@ -111,7 +111,7 @@ class VenueIdCrawler():
         self.one_shot.perform()
         body = buf.getvalue()
         del buf
-        if curl_object.getinfo(pycurl.HTTP_CODE) != 200:
+        if self.one_shot.getinfo(pycurl.HTTP_CODE) != 200:
             return None
         match = self.claim_id.search(body)
         if match is None:

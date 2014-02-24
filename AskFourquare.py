@@ -1,12 +1,15 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
-from datetime import datetime
+from datetime import datetime, timedelta
 from read_foursquare import Location
 import foursquare
 from collections import namedtuple
 from api_keys import FOURSQUARE_ID as CLIENT_ID
 from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
 from persistent import load_var, save_var
+from read_foursquare import obtain_tree, find_town
+CITIES_TREE = obtain_tree()
+ONE_HOUR = timedelta(hours=1)
 
 # https://developer.foursquare.com/docs/responses/venue
 Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat', 'stats',
@@ -29,21 +32,25 @@ class RequestsMonitor():
     def __init__(self, rate=5000):
         self.rate = rate
 
-    def more_allowed(self, just_checking=False):
+    def more_allowed(self, client, just_checking=False):
         if self.window_start is None:
             if not just_checking:
                 self.window_start = datetime.now()
                 self.current_load = 1
-            return True
+            return True, 3600
         else:
-            if (datetime.now() - self.window_start).total_seconds() > 3600:
+            if datetime.now() - self.window_start > ONE_HOUR:
                 self.window_start = datetime.now()
                 self.current_load = 0
 
-        allowed = self.current_load < self.rate
+        remaining = self.rate
+        if isinstance(client.rate_remaining, int):
+            remaining = client.rate_remaining
+        allowed = self.current_load < self.rate and remaining > 0
         if not just_checking and allowed:
             self.current_load += 1
-        return allowed
+        waiting = (self.window_start + ONE_HOUR) - datetime.now()
+        return allowed, waiting.total_seconds()
 
 
 def parse_categories(top_list):

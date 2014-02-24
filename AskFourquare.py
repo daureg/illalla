@@ -20,9 +20,10 @@ Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat', 'stats',
                              'likers', 'city'])
 Categories = namedtuple('Categories', ['id', 'name', 'sub'])
 # https://developer.foursquare.com/docs/responses/user
-User = namedtuple('User', ['id', 'firstName', 'lastName', 'friends', 'gender',
-                           'homeCity', 'tips', 'lists', 'badges',
-                           'mayorships', 'photos', 'checkins'])
+User = namedtuple('User', ['id', 'firstName', 'lastName', 'friends',
+                           'friendsCount', 'gender', 'homeCity', 'tips',
+                           'lists', 'badges', 'mayorships', 'photos',
+                           'checkins'])
 
 
 class RequestsMonitor():
@@ -115,14 +116,16 @@ def parse_opening_time(info):
     return None
 
 
-def venue_profile(client, vid):
-    """Return a Venue object from a venue id."""
-    venue = client.venue(vid, params={'locale': 'en'})['venue']
-    # venue = load_var('venue')['venue']
+def venue_profile(venue):
+    """Return a Venue object from a venue json description."""
+    assert len(venue.keys()) > 1, "don't send top-level object"
+    vid = venue['id']
     name = venue['name']
     loc = venue['location']
-    loc = Location('Point', [loc['lat'], loc['lng']])
-    city = find_town(loc['lat'], loc['lng'], CITIES_TREE)
+    lon, lat = loc['lng'], loc['lat']
+    loc = Location('Point', [lon, lat])._asdict()
+    city = find_town(lat, lon, CITIES_TREE)
+    print(city, lon, lat)
     cats = [c['id'] for c in venue['categories']]
     cat = cats.pop(0)
     stats = [venue['stats'][key]
@@ -146,10 +149,10 @@ def venue_profile(client, vid):
                  city)
 
 
-def user_profile(client, uid):
-    """Return a User object from a User id."""
-    user = client.users(uid)['user']
-    # user = load_var('fs_user')['user']
+def user_profile(user):
+    """Return a User object from a user json description."""
+    assert len(user.keys()) > 1, "don't send top-level object"
+    uid = int(user['id'])
     firstName = user['firstName']
     lastName = user['lastName']
     # only a sample of 10 friends, to get them all, call
@@ -164,8 +167,8 @@ def user_profile(client, uid):
     photos = get_count(user, 'photos')
     checkins = get_count(user, 'checkins')
 
-    return User(uid, firstName, lastName, friends, gender, homeCity, tips,
-                lists, badges, mayorships, photos, checkins), user
+    return User(uid, firstName, lastName, friends, friendsCount, gender,
+                homeCity, tips, lists, badges, mayorships, photos, checkins)
 
 
 def get_count(obj, field):
@@ -184,8 +187,40 @@ def get_list_of(field, obj):
         return [int(u['id']) for g in groups for u in g], count
     return [], 0
 
+
+def gather_all_entities_id(checkins, entity='lid', city=None, limit=None,
+                           chunk_size=foursquare.MAX_MULTI_REQUESTS):
+    query = [
+        {'$match': {'lid': {'$ne': None}}},
+        {'$project': {'_id': 0, entity: 1}},
+        {'$group': {'_id': '$'+entity, 'count': {'$sum': 1}}},
+    ]
+    if isinstance(city, str) and city in cities.SHORT_KEY:
+        query[0]['$match']['city'] = city
+    if isinstance(limit, int) and limit > 0:
+        query.extend([{'$sort': {'count': -1}}, {'$limit': limit}])
+    res = checkins.aggregate(query)['result']
+    batch = []
+    for obj in res:
+        if len(batch) < chunk_size:
+            batch.append(obj['_id'])
+        else:
+            yield batch
+            batch = []
+    yield batch
+
 if __name__ == '__main__':
     client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
+    mongo_client = pymongo.MongoClient('localhost', 27017)
+    db = mongo_client['foursquare']
+    checkins = db['checkin']
     # print(venue_profile(client, ''))
     # ft = get_categories()
-    up, raw = user_profile(client, 2355635)
+    # up = user_profile(client, 2355635)
+    # vids = ['4a2705e6f964a52048891fe3', '4b4ad9dff964a5200b8f26e3',
+    #         '40a55d80f964a52020f31ee3', '4b4ad9dff964c5200']
+    # [client.venues(vid, multi=True) for vid in vids]
+    # answers = list(client.multi())
+    r = gather_all_entities_id(checkins, city='helsinki', limit=50)
+    for b in r:
+        print(b)

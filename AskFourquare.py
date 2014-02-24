@@ -3,6 +3,8 @@
 from datetime import datetime, timedelta
 from read_foursquare import Location
 import foursquare
+import cities
+import pymongo
 from collections import namedtuple
 from api_keys import FOURSQUARE_ID as CLIENT_ID
 from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
@@ -15,7 +17,7 @@ ONE_HOUR = timedelta(hours=1)
 Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat', 'stats',
                              'hours', 'price', 'rating', 'createdAt', 'mayor',
                              'tags', 'shortUrl', 'canonicalUrl', 'likes',
-                             'likers'])
+                             'likers', 'city'])
 Categories = namedtuple('Categories', ['id', 'name', 'sub'])
 # https://developer.foursquare.com/docs/responses/user
 User = namedtuple('User', ['id', 'firstName', 'lastName', 'friends', 'gender',
@@ -120,6 +122,7 @@ def venue_profile(client, vid):
     name = venue['name']
     loc = venue['location']
     loc = Location('Point', [loc['lat'], loc['lng']])
+    city = find_town(loc['lat'], loc['lng'], CITIES_TREE)
     cats = [c['id'] for c in venue['categories']]
     cat = cats.pop(0)
     stats = [venue['stats'][key]
@@ -139,7 +142,8 @@ def venue_profile(client, vid):
     likers, likes = get_list_of('likes', venue)
 
     return Venue(vid, name, loc, cats, cat, stats, hours, price, rating,
-                 createdAt, mayor, tags, shortUrl, canonicalUrl, likes, likers)
+                 createdAt, mayor, tags, shortUrl, canonicalUrl, likes, likers,
+                 city)
 
 
 def user_profile(client, uid):

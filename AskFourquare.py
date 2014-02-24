@@ -4,15 +4,20 @@ from datetime import datetime
 from read_foursquare import Location
 import foursquare
 from collections import namedtuple
-from foursquare_keys import FOURSQUARE_ID as CLIENT_ID
-from foursquare_keys import FOURSQUARE_SECRET as CLIENT_SECRET
+from api_keys import FOURSQUARE_ID as CLIENT_ID
+from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
 from persistent import load_var, save_var
 
+# https://developer.foursquare.com/docs/responses/venue
 Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat', 'stats',
                              'hours', 'price', 'rating', 'createdAt', 'mayor',
                              'tags', 'shortUrl', 'canonicalUrl', 'likes',
                              'likers'])
 Categories = namedtuple('Categories', ['id', 'name', 'sub'])
+# https://developer.foursquare.com/docs/responses/user
+User = namedtuple('User', ['id', 'firstName', 'lastName', 'friends', 'gender',
+                           'homeCity', 'tips', 'lists', 'badges',
+                           'mayorships', 'photos', 'checkins'])
 
 
 class RequestsMonitor():
@@ -110,32 +115,66 @@ def venue_profile(client, vid):
     loc = Location('Point', [loc['lat'], loc['lng']])
     cats = [c['id'] for c in venue['categories']]
     cat = cats.pop(0)
-    stats = venue['stats'].values()
+    stats = [venue['stats'][key]
+             for key in ['checkinsCount', 'usersCount', 'tipCount']]
     hours = None
     if 'hours' in venue:
         hours = parse_opening_time(venue['hours'])
     price = None if 'price' not in venue else venue['price']['tier']
     rating = None if 'rating' not in venue else venue['rating']
     createdAt = datetime.fromtimestamp(venue['createdAt'])
-    mayor = int(venue['mayor']['user']['id'])
+    mayor = None
+    if 'user' in venue['mayor']:
+        mayor = int(venue['mayor']['user']['id'])
     tags = venue['tags']
     shortUrl = venue['shortUrl']
     canonicalUrl = venue['canonicalUrl']
-    likes = venue['likes']
-    likers = None
-    if likes['count'] > 0:
-        groups = [g['items'] for g in likes['groups']
-                  if g['type'] == 'others']
-        likers = [int(u['id']) for g in groups for u in g]
-        likes = likes['count']
-    else:
-        likes = 0
+    likers, likes = get_list_of('likes', venue)
 
     return Venue(vid, name, loc, cats, cat, stats, hours, price, rating,
                  createdAt, mayor, tags, shortUrl, canonicalUrl, likes, likers)
 
 
+def user_profile(client, uid):
+    """Return a User object from a User id."""
+    user = client.users(uid)['user']
+    # user = load_var('fs_user')['user']
+    firstName = user['firstName']
+    lastName = user['lastName']
+    # only a sample of 10 friends, to get them all, call
+    # https://developer.foursquare.com/docs/users/friends.html
+    friends, friendsCount = get_list_of('friends', user)
+    gender = None if user['gender'] == "none" else user['gender']
+    homeCity = None if user['homeCity'] == "" else user['homeCity']
+    tips = get_count(user, 'tips')
+    lists = get_count(user, 'lists')
+    badges = get_count(user, 'badges')
+    mayorships = get_count(user, 'mayorships')
+    photos = get_count(user, 'photos')
+    checkins = get_count(user, 'checkins')
+
+    return User(uid, firstName, lastName, friends, gender, homeCity, tips,
+                lists, badges, mayorships, photos, checkins), user
+
+
+def get_count(obj, field):
+    """If available, return how many item of type 'field' are in 'obj'"""
+    if field in obj and 'count' in obj[field]:
+        return obj[field]['count']
+    return 0
+
+
+def get_list_of(field, obj):
+    """Return a list of id of item of type 'field' within 'obj'"""
+    count = get_count(obj, field)
+    if count > 0 and 'groups' in obj[field]:
+        groups = [g['items'] for g in obj[field]['groups']
+                  if g['type'] == 'others']
+        return [int(u['id']) for g in groups for u in g], count
+    return [], 0
+
 if __name__ == '__main__':
     client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
     # print(venue_profile(client, ''))
     # ft = get_categories()
+    up, raw = user_profile(client, 2355635)

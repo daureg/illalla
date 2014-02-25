@@ -6,6 +6,10 @@ import cStringIO
 import re
 import logging
 import os
+import foursquare
+from api_keys import FOURSQUARE_ID as CLIENT_ID
+from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
+from RequestsMonitor import RequestsMonitor
 logging.basicConfig(filename=os.path.expanduser('~/venue.log'),
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
@@ -23,6 +27,9 @@ class VenueIdCrawler():
     errors = []
     todo = []
     use_network = False
+    client = None
+    limitor = None
+    checkin_url = None
 
     def __init__(self, pre_computed=None, use_network=False,
                  pool_size=POOL_SIZE):
@@ -30,6 +37,7 @@ class VenueIdCrawler():
         self.pool_size = pool_size
         self.one_shot = pycurl.Curl()
         self.claim_id = re.compile(r'claim\?vid=([0-9a-f]{24})')
+        self.checkin_url = re.compile(r'([0-9a-f]{24})\?s=(\w+)')
         self.multi = pycurl.CurlMulti()
         self.cpool = [pycurl.Curl() for _ in range(self.pool_size)]
         self.todo = []
@@ -41,6 +49,8 @@ class VenueIdCrawler():
         if pre_computed is not None:
             self.results = pre_computed
             self.results['None'] = None
+        self.client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
+        self.limitor = RequestsMonitor(500)
 
     def venue_id_from_urls(self, urls):
         start = clock()
@@ -100,8 +110,8 @@ class VenueIdCrawler():
             return None
         url = curl_object.getinfo(pycurl.EFFECTIVE_URL)
         id_ = url.split('/')[-1]
-        if len(id_) >= 24 and '4' in id_[:24]:
-            return id_[:24]
+        if len(id_) >= 24 and '4' in id_[:6]:
+            return self.expand_potential_checkin(id_)
         # we probably got a vanity url like https://foursquare.com/radiuspizza
         # thus we go there and try to find the link to claim this venue,
         # because it contains the numerical id.
@@ -117,6 +127,19 @@ class VenueIdCrawler():
         if match is None:
             return None
         return match.group(1)
+
+    def expand_potential_checkin(self, id_):
+        match = self.checkin_url.search(id_)
+        if match is None:
+            return None
+        checkin, sig = match.group(1, 2)
+        go, _ = self.limitor.more_allowed(self.client)
+        if not go:
+            return id_
+        res = self.client.checkins(checkin, {'signature': sig})
+        if 'checkin' in res:
+            return res['checkin']['venue']['id']
+        return None
 
 
 def venue_id_from_url(c, url):
@@ -179,14 +202,17 @@ if __name__ == '__main__':
             'http://t.co/NN1xkiq', 'http://t.co/T88WGpO',
             'http://t.co/WQn3bFf', 'http://t.co/y8qxjsT',
             'http://t.co/ycbb5kt']
+    checkins_url = ['https://fr.foursquare.com/tommiar/checkin/4d21eac35acaa35d8c03d435?s=plNfJpw51khCMN2yDrSfSl_68lY']
     gold = load_var('gold_url')
     start = clock()
     r = VenueIdCrawler()
     query_url = urls[:2*len(gold)]
+    query_url = checkins_url
     res = r.venue_id_from_urls(query_url)
     res_dict = {u: i for u, i in zip(query_url, res)}
     print('{:.2f}s'.format(clock() - start))
-    shared_items = set(gold.items()) & set(res_dict.items())
-    print('match with gold: {}/{}'.format(len(shared_items), len(gold)))
+    print(res_dict)
+    # shared_items = set(gold.items()) & set(res_dict.items())
+    # print('match with gold: {}/{}'.format(len(shared_items), len(gold)))
     # for g, m in zip(sorted(gold.items()), sorted(res_dict.items())):
     #     print(g, m)

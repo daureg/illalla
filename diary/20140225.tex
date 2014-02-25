@@ -1,0 +1,33 @@
+\section*{Today goals}
+\begin{itemize}
+	\item Write code to handle checkin URL, check how frequent the errors is
+		in new-york. It not too much, use it in the last part of the dataset.
+		Otherwise, it will be better to gather all invalid id, find
+		corresponding tweet, re read dataset to expand short URL and use multi
+		request.
+	\item One way or another, the dataset should be done. Then collect info for
+		venue and user in Helsinki and one US city (indianapolis?).
+\end{itemize}
+
+\section*{Today results}
+\begin{itemize}
+	\item correct checkin: WIP
+	\item dataset: 90\%
+\end{itemize}
+
+\section*{Activity}
+\begin{verbatim}
+start getting venue if from checkin URL
+A	CorrectCheckIn.py
+M	VenueIdCrawler.py
+more robust profile building
+- don't skip some ids when building batch
+- take care of venue without categorie
+- handle foursquare request exception
+- keep track of invalid id
+M	AskFourquare.py
+M	FillDB.py
+move RequestsMonitor to its own file
+M	AskFourquare.py
+A	RequestsMonitor.py
+\end{verbatim}

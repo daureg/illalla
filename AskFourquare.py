@@ -94,9 +94,10 @@ def venue_profile(venue):
     lon, lat = loc['lng'], loc['lat']
     loc = Location('Point', [lon, lat])._asdict()
     city = find_town(lat, lon, CITIES_TREE)
-    print(city, lon, lat)
+    if city is None:
+        print(city, lon, lat)
     cats = [c['id'] for c in venue['categories']]
-    cat = cats.pop(0)
+    cat = None if len(cats) == 0 else cats.pop(0)
     stats = [venue['stats'][key]
              for key in ['checkinsCount', 'usersCount', 'tipCount']]
     hours = None
@@ -169,13 +170,15 @@ def gather_all_entities_id(checkins, entity='lid', city=None, limit=None,
     if isinstance(limit, int) and limit > 0:
         query.extend([{'$sort': {'count': -1}}, {'$limit': limit}])
     res = checkins.aggregate(query)['result']
+    print('{} matched'.format(len(res)))
     batch = []
     for obj in res:
+        _id = obj['_id']
         if len(batch) < chunk_size:
-            batch.append(obj['_id'])
+            batch.append(_id)
         else:
             yield batch
-            batch = []
+            batch = [_id]
     yield batch
 
 if __name__ == '__main__':

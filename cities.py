@@ -34,6 +34,7 @@ NAMES = ['New York', 'Washington', 'San Francisco', 'Atlanta', 'Indianapolis',
          'Los Angeles', 'Seattle', 'Houston', 'St. Louis', 'Chicago',
          'London', 'Paris', 'Berlin', 'Rome', 'Prague', 'Moscow', 'Amsterdam',
          'Helsinki', 'Stockholm', 'Barcelona']
+SHORT_KEY = [short_name(city) for city in NAMES]
 INDEX = {short_name(city): _id for _id, city in enumerate(NAMES)}
 
 # if __name__ == '__main__':

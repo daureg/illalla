@@ -1,0 +1,36 @@
+\section*{Today results}
+\begin{itemize}
+	\item 50\% of reading the dataset is done by combining kosh and triton
+	\item but for the other half, a ``small'' problem may be solve. Some short
+		url link to checkin page like
+		\href{https://fr.foursquare.com/tommiar/checkin/4d21eac35acaa35d8c03d435?s=plNfJpw51khCMN2yDrSfSl\_68lY}{4d21eac35acaa35d8c03d435?s=plNfJpw51khCMN2yDrSfSl\_68lY}.
+		In that case, I assumed that the first part was a venue id but it's
+		not. But it gives enough information to get this id by making a call
+		to the
+		\href{https://developer.foursquare.com/docs/checkins/checkins}{checkin}
+		endpoint (500 calls per hour but hopefully it's not too common).
+	\item code for making request about user and venue and put their profile
+		into mongo.
+\end{itemize}
+
+\section*{Follow up}
+\begin{itemize}
+	\item How to use the collected information (clustering?)
+\end{itemize}
+
+\section*{Activity}
+\begin{verbatim}
+start building users and venues table from tweets information
+M	AskFourquare.py
+A	FillDB.py
+M	cities.py
+add city field to venue object
+M	AskFourquare.py
+M	read_foursquare.py
+more request monitor more robust by using Foursquare HTTP headers
+M	AskFourquare.py
+check the correct Curl object when performing one shot id retrieval
+M	VenueIdCrawler.py
+parse user response (done some factorization along the way)
+M	AskFourquare.py
+\end{verbatim}

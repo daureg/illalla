@@ -98,6 +98,13 @@ def id_must_be_process(_id):
     return i != len(MISSING_ID) and MISSING_ID[i] == _id
 
 
+def obtain_tree():
+    all_cities = cities.US + cities.EU
+    cities_names = [cities.short_name(c) for c in cities.NAMES]
+    bboxes = [Bbox(city, name) for city, name in zip(all_cities,
+                                                     cities_names)]
+    return build_tree(bboxes)
+
 if __name__ == '__main__':
     # import doctest
     # doctest.testmod()
@@ -117,18 +124,14 @@ if __name__ == '__main__':
     #                        ('time', pymongo.ASCENDING)])
     import sys
     infile = 'verysmall' if len(sys.argv) < 2 else sys.argv[1]
-    all_cities = cities.US + cities.EU
-    cities_names = [cities.short_name(c) for c in cities.NAMES]
-    bboxes = [Bbox(city, name) for city, name in zip(all_cities,
-                                                     cities_names)]
-    tree = build_tree(bboxes)
+    tree = obtain_tree()
     stats = defaultdict(lambda: 0)
 
-    def find_city(x, y):
-        for city in bboxes:
-            if city.contains(x, y):
-                return city.name
-        return None
+    # def find_city(x, y):
+    #     for city in bboxes:
+    #         if city.contains(x, y):
+    #             return city.name
+    #     return None
 
     seen = []
     how_many = 0

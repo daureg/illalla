@@ -14,6 +14,11 @@ logging.basicConfig(filename=os.path.expanduser('~/venue.log'),
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 POOL_SIZE = 30
+# If this is set to True after importing the module but before building a
+# VenueIdCrawler and if in addition, use_network is True and full_url is False,
+# then checkin url will be expanded on a individual basis (which is limited to
+# 500 per hour, so it should be done only in specific case)
+CALL_FOURSQUARE = False
 
 
 class VenueIdCrawler():
@@ -29,17 +34,21 @@ class VenueIdCrawler():
     client = None
     limitor = None
     checkin_url = None
+    # if True, return (`checkin id`, `signature`) instead of (wrongly)
+    # truncating by assuming that we get the venue id
+    full_url = False
 
     def __init__(self, pre_computed=None, use_network=False,
-                 pool_size=POOL_SIZE):
+                 pool_size=POOL_SIZE, full_url=False):
         assert isinstance(pool_size, int) and pool_size > 0
         self.pool_size = pool_size
         self.one_shot = pycurl.Curl()
         self.claim_id = re.compile(r'claim\?vid=([0-9a-f]{24})')
-        self.checkin_url = re.compile(r'([0-9a-f]{24})\?s=(\w+)')
+        self.checkin_url = re.compile(r'([0-9a-f]{24})\?s=(\S+)')
         self.multi = pycurl.CurlMulti()
         self.cpool = [pycurl.Curl() for _ in range(self.pool_size)]
         self.use_network = use_network
+        self.full_url = full_url
         for c in self.cpool:
             c.setopt(pycurl.FOLLOWLOCATION, 1)
             c.setopt(pycurl.MAXREDIRS, 6)
@@ -131,13 +140,19 @@ class VenueIdCrawler():
         if match is None:
             return None
         checkin, sig = match.group(1, 2)
+        if self.full_url:
+            return checkin, sig
+        if not CALL_FOURSQUARE:
+            return id_
         go, _ = self.limitor.more_allowed(self.client)
         if not go:
             return id_
         res = self.client.checkins(checkin, {'signature': sig})
-        if 'checkin' in res:
+        if 'checkin' in res and 'venue' in res['checkin']:
+            vid = res['checkin']['venue']['id']
+            print('expand checkin {} to {}'.format((checkin, sig), vid))
             return res['checkin']['venue']['id']
-        return None
+        return id_
 
 
 def venue_id_from_url(c, url):
@@ -200,10 +215,12 @@ if __name__ == '__main__':
             'http://t.co/NN1xkiq', 'http://t.co/T88WGpO',
             'http://t.co/WQn3bFf', 'http://t.co/y8qxjsT',
             'http://t.co/ycbb5kt']
-    checkins_url = ['https://fr.foursquare.com/tommiar/checkin/4d21eac35acaa35d8c03d435?s=plNfJpw51khCMN2yDrSfSl_68lY']
+    CALL_FOURSQUARE = True
+    checkins_url = ['http://foursquare.com/tommiar/checkin/' +
+                    '4d21eac35acaa35d8c03d435?s=plNfJpw51khCMN2yDrSfSl_68lY']
     gold = load_var('gold_url')
     start = clock()
-    r = VenueIdCrawler()
+    r = VenueIdCrawler(use_network=True)
     query_url = urls[:2*len(gold)]
     query_url = checkins_url
     res = r.venue_id_from_urls(query_url)

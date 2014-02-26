@@ -25,7 +25,6 @@ class VenueIdCrawler():
     connections = 0
     results = {None: None}
     errors = []
-    todo = []
     use_network = False
     client = None
     limitor = None
@@ -40,7 +39,6 @@ class VenueIdCrawler():
         self.checkin_url = re.compile(r'([0-9a-f]{24})\?s=(\w+)')
         self.multi = pycurl.CurlMulti()
         self.cpool = [pycurl.Curl() for _ in range(self.pool_size)]
-        self.todo = []
         self.use_network = use_network
         for c in self.cpool:
             c.setopt(pycurl.FOLLOWLOCATION, 1)
@@ -49,28 +47,28 @@ class VenueIdCrawler():
         if pre_computed is not None:
             self.results = pre_computed
             self.results['None'] = None
-        self.client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
-        self.limitor = RequestsMonitor(500)
+        if CALL_FOURSQUARE:
+            self.client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
+            self.limitor = RequestsMonitor(500)
 
     def venue_id_from_urls(self, urls):
         start = clock()
         nb_urls = len(urls)
         batch = []
-        target = batch if self.use_network else self.todo
-        for i, u in enumerate(urls):
-            if u is not None and u not in self.results:
-                target.append(u)
-            if not self.use_network:
-                continue
-            if len(batch) == self.pool_size or i == nb_urls - 1:
-                lstart = clock()
-                self.prepare_request(batch)
-                self.perform_request()
-                batch = []
-                logging.info('batch in {:.2f}s'.format(clock() - lstart))
-        report = 'query {} urls in {:.2f}s, {} (total) errors'
-        logging.info(report.format(len(urls), clock() - start,
-                                   len(self.errors)))
+        if self.use_network:
+            for i, u in enumerate(urls):
+                if u is not None and u not in self.results:
+                    batch.append(u)
+                if len(batch) == self.pool_size or i == nb_urls - 1:
+                    lstart = clock()
+                    self.prepare_request(batch)
+                    self.perform_request()
+                    print('{} urls in {:.2f}s'.format(len(batch),
+                                                      clock() - lstart))
+                    del batch[:]
+            report = 'query {} urls in {:.2f}s, {} (total) errors'
+            logging.info(report.format(len(urls), clock() - start,
+                                       len(self.errors)))
         return [None if u not in self.results else self.results[u]
                 for u in urls]
 

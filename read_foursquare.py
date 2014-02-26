@@ -102,9 +102,9 @@ if __name__ == '__main__':
     # import doctest
     # doctest.testmod()
     from persistent import save_var, load_var
-    MISSING_ID = load_var('tid_diff')
+    # MISSING_ID = load_var('tid_diff')
 
-    previously = load_var('t_venues_id_new')
+    previously = load_var('venues_id_new')
     venues_getter = VenueIdCrawler(previously, True)
 
     checkins = None
@@ -131,6 +131,7 @@ if __name__ == '__main__':
         return None
 
     seen = []
+    how_many = 0
     with open(infile) as f:
         # UserID\tTweetID\tLatitude\tLongitude\tCreatedAt\tText\tPlaceID
         for line in f:
@@ -153,6 +154,7 @@ if __name__ == '__main__':
                         last_word = None
                     lid = last_word
                 stats[city] += 1
+                how_many += 1
                 tid, uid = int(tid), int(uid)
                 t = datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
                 # to have more numerical values (but lid should be a 64bit
@@ -165,12 +167,15 @@ if __name__ == '__main__':
                 if len(seen) > 1000:
                     save_to_mongo(seen, checkins, venues_getter)
                     seen = []
-                save_var('venues_id_new', venues_getter.results)
+                if how_many % 10000 == 0:
+                    print('1000(0) miles more')
+                    save_var('venues_id_new', venues_getter.results)
 
     save_to_mongo(seen, checkins, venues_getter)
     counts = sorted(stats.iteritems(), key=lambda x: x[1], reverse=True)
     print('\n'.join(['{}: {}'.format(city, count) for city, count in counts]))
     print('total:' + str(sum(stats.values())))
+    print('{} failure.'.format(len(venues_getter.errors)))
     save_var('venues_id_new', venues_getter.results)
     save_var('venues_errors', venues_getter.errors)
     save_var('url_todo', venues_getter.todo)

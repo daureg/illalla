@@ -3,7 +3,6 @@
 """Use collected tweet and AskFourquare to fill user and venue table in the
 Database."""
 from time import sleep
-from datetime import datetime
 from threading import Thread
 import foursquare
 import pymongo
@@ -129,14 +128,16 @@ if __name__ == '__main__':
     t.daemon = True
     t.start()
     total_entities = 0
-    for batch in gather_all_entities_id(checkins, DB_FIELD, city='chicago',
+    city = 'chicago'
+    for batch in gather_all_entities_id(checkins, DB_FIELD, city=city,
                                         limit=None):
-            IDS_QUEUE.put(batch)
-            total_entities += len(batch)
+        IDS_QUEUE.put(batch)
+        total_entities += len(batch)
 
     IDS_QUEUE.join()
     ENTITIES_QUEUE.join()
     mongo_insertion()
     from persistent import save_var
     print('{}/{} invalid id'.format(len(INVALID_ID), total_entities))
-    save_var('non_venue_id_{}'.format(hash(datetime.now())), INVALID_ID)
+    region = 'world' if city is None else city
+    save_var('non_venue_id_{}'.format(region), INVALID_ID)

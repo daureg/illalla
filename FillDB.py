@@ -122,14 +122,14 @@ if __name__ == '__main__':
                             ('cat', pymongo.ASCENDING)])
     elif ENTITY_KIND == 'user':
         TABLE.ensure_index([('_id', pymongo.ASCENDING)])
-    t = Thread(target=entities_getter)
+    t = Thread(target=entities_getter, name='Query4SQ')
     t.daemon = True
     t.start()
-    t = Thread(target=entities_putter)
+    t = Thread(target=entities_putter, name='InsertDB')
     t.daemon = True
     t.start()
     total_entities = 0
-    for batch in gather_all_entities_id(checkins, DB_FIELD, city='newyork',
+    for batch in gather_all_entities_id(checkins, DB_FIELD, city='chicago',
                                         limit=None):
             IDS_QUEUE.put(batch)
             total_entities += len(batch)

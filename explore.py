@@ -2,13 +2,14 @@
 # vim: set fileencoding=utf-8
 """Interactive exploration of data file."""
 import codecs
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from math import log
 import scipy.io as sio
 import numpy as np
 import persistent
 from more_query import get_top_tags
 import CommonMongo as cm
+import FSCategories as fsc
 
 
 def increase_coverage(upto=5000):
@@ -108,8 +109,37 @@ def venues_activity(checkins, city, limit=None):
         monthly.append(list(np.bincount(timing[:, 2], minlength=12)))
     return hourly, weekly, monthly
 
+
+def describe_venue(venues, city, depth=2, limit=None):
+    """Gather some statistics about venue, aggregating categories at `depth`
+    level."""
+    query = cm.build_query(city, False, ['cat', 'likes'], limit)
+    group = {'_id': '$cat', 'count': {'$sum': 1}, 'like': {'$sum': '$likes'}}
+    query.extend([{'$group': group}, {'$sort': {'count': -1}}])
+    cats = fsc.get_categories()
+    res = venues.aggregate(query)['result']
+
+    def parenting_cat(place, depth):
+        """Return the category of `place`, without going beyond `depth`"""
+        _, path = fsc.search_categories(cats, place['_id'])
+        if len(path) > depth:
+            return fsc.ID_TO_NAMES[path[depth]]
+        return fsc.ID_TO_NAMES[path[-1]]
+
+    summary = defaultdict(lambda: (0, 0))
+    for venue in res:
+        if venue['_id'] is not None:
+            cat = parenting_cat(venue, depth)
+            count, like = venue['count'], venue['like']
+            summary[cat] = (summary[cat][0] + count, summary[cat][1] + like)
+
+    return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0]))
+
+
 if __name__ == '__main__':
     #pylint: disable=C0103
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
-    hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
+    # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
+    ny_venue = describe_venue(db['venue'], 'newyork')
+    print(ny_venue.items())

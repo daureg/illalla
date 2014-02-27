@@ -45,6 +45,7 @@ class VenueIdCrawler():
         self.one_shot = pycurl.Curl()
         self.claim_id = re.compile(r'claim\?vid=([0-9a-f]{24})')
         self.checkin_url = re.compile(r'([0-9a-f]{24})\?s=(\S+)')
+        self.fs_id = re.compile(r'[0-9a-f]{24}')
         self.multi = pycurl.CurlMulti()
         self.cpool = [pycurl.Curl() for _ in range(self.pool_size)]
         self.use_network = use_network
@@ -53,6 +54,8 @@ class VenueIdCrawler():
             c.setopt(pycurl.FOLLOWLOCATION, 1)
             c.setopt(pycurl.MAXREDIRS, 6)
             c.setopt(pycurl.NOBODY, 1)
+            c.setopt(pycurl.CONNECTTIMEOUT, 10)
+            c.setopt(pycurl.TIMEOUT, 15)
         if pre_computed is not None:
             self.results = pre_computed
             self.results['None'] = None
@@ -117,8 +120,10 @@ class VenueIdCrawler():
             return None
         url = curl_object.getinfo(pycurl.EFFECTIVE_URL)
         id_ = url.split('/')[-1]
-        if len(id_) >= 24 and '4' in id_[:6]:
+        if len(id_) > 24:
             return self.expand_potential_checkin(id_)
+        if self.fs_id.match(id_):
+            return id_
         # we probably got a vanity url like https://foursquare.com/radiuspizza
         # thus we go there and try to find the link to claim this venue,
         # because it contains the numerical id.
@@ -222,12 +227,12 @@ if __name__ == '__main__':
     start = clock()
     r = VenueIdCrawler(use_network=True)
     query_url = urls[:2*len(gold)]
-    query_url = checkins_url
+    # query_url = checkins_url
     res = r.venue_id_from_urls(query_url)
     res_dict = {u: i for u, i in zip(query_url, res)}
     print('{:.2f}s'.format(clock() - start))
-    print(res_dict)
+    # print(res_dict)
     # shared_items = set(gold.items()) & set(res_dict.items())
     # print('match with gold: {}/{}'.format(len(shared_items), len(gold)))
-    # for g, m in zip(sorted(gold.items()), sorted(res_dict.items())):
-    #     print(g, m)
+    for g, m in zip(sorted(gold.items()), sorted(res_dict.items())):
+        print(g, m)

@@ -1,13 +1,15 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+"""Try its best to retrieve a list of all photos taken in a given city and
+insert them with additional information in a mongo database."""
 import datetime
 import calendar
-import pymongo
+import CommonMongo as cm
 import json
 import urllib
 import urllib2
 import flickr_api as flickr_api
-from flickr_keys import FLICKR_KEY as API_KEY
+from api_keys import FLICKR_KEY as API_KEY
 import re
 from time import sleep, time
 from timeit import default_timer as clock
@@ -256,7 +258,7 @@ def save_to_mongo(photos, collection):
     if total > 0:
         try:
             collection.insert(tagged, continue_on_error=True)
-        except pymongo.errors.DuplicateKeyError:
+        except cm.pymongo.errors.DuplicateKeyError:
             # we don't really care, it means that we already have these ones
             logging.info('duplicate')
             pass
@@ -320,18 +322,16 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
 
 
 if __name__ == '__main__':
-    import doctest
+    # import doctest
     # doctest.testmod()
     START_OF_REQUESTS = time()
     logging.info('initial request')
 
-    client = pymongo.MongoClient('localhost', 27017)
-    db = client['world']
-    photos = db['photos']
-    photos.ensure_index([('loc', pymongo.GEOSPHERE),
-                         ('tags', pymongo.ASCENDING),
-                         ('uid', pymongo.ASCENDING)])
-    CITY = cities.HEL
+    photos = cm.connect_to_db('world')[0]['photos']
+    photos.ensure_index([('loc', cm.pymongo.GEOSPHERE),
+                         ('tags', cm.pymongo.ASCENDING),
+                         ('uid', cm.pymongo.ASCENDING)])
+    CITY = cities.BAR
     bbox = (CITY[:2], CITY[2:])
     start_time = datetime.datetime(2008, 1, 1)
     total = higher_request(start_time, bbox, photos)

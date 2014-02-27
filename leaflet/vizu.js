@@ -39,9 +39,9 @@ var city = L.polygon([
 
 var markers = L.markerClusterGroup();
 
-var nb_points = helsinki_cluster.length;
+var nb_points = helsinki_fs.length;
 for (var i = 0; i < nb_points; i++) {
-	var p = helsinki_cluster[i];
+	var p = helsinki_fs[i];
 	var title = p[2].toString();
 	var marker = L.marker(new L.LatLng(p[1], p[0]), { title: title });
 	marker.bindPopup(title);

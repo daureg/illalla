@@ -105,6 +105,17 @@ def obtain_tree():
                                                      cities_names)]
     return build_tree(bboxes)
 
+
+def extract_url_from_msg(msg):
+    last_word = msg.split()[-1]
+    url = None
+    if last_word.startswith('htt') and len(last_word) < 24:
+        host = urlparse.urlparse(last_word).netloc
+        if host in BLACKLIST:
+            last_word = None
+        url = last_word
+    return url
+
 if __name__ == '__main__':
     # import doctest
     # doctest.testmod()
@@ -150,12 +161,7 @@ if __name__ == '__main__':
             city = find_town(lat, lon, tree)
             lid = None
             if city is not None:
-                last_word = msg.split()[-1]
-                if last_word.startswith('htt') and len(last_word) < 24:
-                    host = urlparse.urlparse(last_word).netloc
-                    if host in BLACKLIST:
-                        last_word = None
-                    lid = last_word
+                lid = extract_url_from_msg(msg)
                 stats[city] += 1
                 how_many += 1
                 tid, uid = int(tid), int(uid)

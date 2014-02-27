@@ -2,26 +2,30 @@
 # vim: set fileencoding=utf-8
 """Interactive exploration of data file."""
 import codecs
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from math import log
 import scipy.io as sio
 import numpy as np
 import persistent
 from more_query import get_top_tags
+import CommonMongo as cm
+import FSCategories as fsc
 
 
-def increase_coverage(N=5000):
+def increase_coverage(upto=5000):
+    """Save `upto` unprocessed San Francisco tags"""
     sup = persistent.load_var('supported')
-    more = get_top_tags(N, 'nsf_tag.dat')
+    more = get_top_tags(upto, 'nsf_tag.dat')
     already = [v[0] for v in sup]
     addition = set(more).difference(set(already))
     persistent.save_var('addition', addition)
 
 
 def read_entropies(grid=200, div=False):
+    """Return a sorted dict of (tag, entropy or KL divergence)"""
     filename = 'n{}entropies_{}.dat'.format('K' if div else '', grid)
-    with codecs.open(filename, 'r', 'utf8') as f:
-        lines = [i.strip().split() for i in f.readlines()[1:]]
+    with codecs.open(filename, 'r', 'utf8') as entropy:
+        lines = [i.strip().split() for i in entropy.readlines()[1:]]
     entropies = sorted([(tag, float(val)) for val, tag in lines
                         if tag != '_background' and float(val) > 1e-5],
                        key=lambda x: x[1])
@@ -59,8 +63,9 @@ def spits_latex_table(N=10):
                           k[4][i][0], k[4][i][1]/get_max_KL(20)))
 
 
-def get_max_KL(n=200):
-    filename = 'freq_{}__background.mat'.format(n)
+def get_max_KL(grid=200):
+    """Return maximum KL divergence with size `grid`."""
+    filename = 'freq_{}__background.mat'.format(grid)
     count = sio.loadmat(filename).values()[0]
     return -log(np.min(count[count > 0])/float(np.sum(count)))
 
@@ -85,14 +90,11 @@ def disc_latex(N=11):
 def venues_activity(checkins, city, limit=None):
     """Return time pattern of all the venues in 'city', or only the 'limit'
     most visited."""
-    query = [
-        {'$match': {'city': city, 'lid': {'$ne': None}}},
-        {'$project': {'_id': 0, 'lid': 1, 'time': 1}},
-        {'$group': {'_id': '$lid',
-                    'count': {'$sum': 1}, 'visits': {'$push': '$time'}}},
-    ]
+    query = cm.build_query(city, True, ['lid', 'time'], limit)
+    group = {'_id': '$lid', 'count': {'$sum': 1}, 'visits': {'$push': '$time'}}
+    query.insert(2, {'$group': group})
     if isinstance(limit, int) and limit > 0:
-        query.extend([{'$sort': {'count': -1}}, {'$limit': limit}])
+        query.insert(-1, {'$sort': {'count': -1}})
     res = checkins.aggregate(query)['result']
     hourly = []
     weekly = []
@@ -107,11 +109,37 @@ def venues_activity(checkins, city, limit=None):
         monthly.append(list(np.bincount(timing[:, 2], minlength=12)))
     return hourly, weekly, monthly
 
+
+def describe_venue(venues, city, depth=2, limit=None):
+    """Gather some statistics about venue, aggregating categories at `depth`
+    level."""
+    query = cm.build_query(city, False, ['cat', 'likes'], limit)
+    group = {'_id': '$cat', 'count': {'$sum': 1}, 'like': {'$sum': '$likes'}}
+    query.extend([{'$group': group}, {'$sort': {'count': -1}}])
+    cats = fsc.get_categories()
+    res = venues.aggregate(query)['result']
+
+    def parenting_cat(place, depth):
+        """Return the category of `place`, without going beyond `depth`"""
+        _, path = fsc.search_categories(cats, place['_id'])
+        if len(path) > depth:
+            return fsc.ID_TO_NAMES[path[depth]]
+        return fsc.ID_TO_NAMES[path[-1]]
+
+    summary = defaultdict(lambda: (0, 0))
+    for venue in res:
+        if venue['_id'] is not None:
+            cat = parenting_cat(venue, depth)
+            count, like = venue['count'], venue['like']
+            summary[cat] = (summary[cat][0] + count, summary[cat][1] + like)
+
+    return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0]))
+
+
 if __name__ == '__main__':
-    # spits_latex_table()
-    # disc_latex()
-    import pymongo
-    client = pymongo.MongoClient('localhost', 27017)
-    DB = client['foursquare']
-    checkins = DB['checkin']
-    hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
+    #pylint: disable=C0103
+    db, client = cm.connect_to_db('foursquare')
+    checkins = db['checkin']
+    # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
+    ny_venue = describe_venue(db['venue'], 'newyork')
+    print(ny_venue.items())

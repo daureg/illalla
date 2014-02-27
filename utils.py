@@ -3,6 +3,12 @@
 from collections import Counter
 from persistent import load_var
 import json
+from random import uniform
+import CommonMongo as cm
+
+
+def noise():
+    return uniform(0, 1e-6)
 
 
 def to_css_hex(color):
@@ -29,10 +35,27 @@ def photos_to_heat_dataset(city, precision=4, limit=300):
 
 
 def photos_to_cluster_dataset(city, limit=300):
-    from random import uniform
-    noise = lambda: uniform(0, 1e-6)
     photos = load_var(city)
     points = [[p[0] + noise(), p[1] + noise(), 'Win!']
               for p in photos[:limit]]
     with open(city+'_cluster.js', 'w') as f:
         f.write('var {}_cluster = {}'.format(city, str(points)))
+
+
+def output_checkins(city):
+    """Write a JS array of all checkins in `city` with their hour."""
+    checkins = cm.connect_to_db('foursquare')[0]['checkin']
+    query = cm.build_query(city, venue=False, fields=['loc', 'time'])
+    res = checkins.aggregate(query)['result']
+
+    def format_checkin(checkin):
+        """Extract location (plus jitter) and hour from checkin"""
+        lng, lat = checkin['loc']['coordinates']
+        hour = checkin['time'].hour
+        return [lng + noise(), lat + noise(), hour]
+
+    formated = [str(format_checkin(c)) for c in res]
+    with open(city + '_fs.js', 'w') as output:
+        output.write('var helsinki_fs = [\n')
+        output.write(',\n'.join(formated))
+        output.write('];')

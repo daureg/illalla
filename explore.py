@@ -8,6 +8,7 @@ import scipy.io as sio
 import numpy as np
 import persistent
 from more_query import get_top_tags
+import CommonMongo as cm
 
 
 def increase_coverage(upto=5000):
@@ -88,14 +89,11 @@ def disc_latex(N=11):
 def venues_activity(checkins, city, limit=None):
     """Return time pattern of all the venues in 'city', or only the 'limit'
     most visited."""
-    query = [
-        {'$match': {'city': city, 'lid': {'$ne': None}}},
-        {'$project': {'_id': 0, 'lid': 1, 'time': 1}},
-        {'$group': {'_id': '$lid',
-                    'count': {'$sum': 1}, 'visits': {'$push': '$time'}}},
-    ]
+    query = cm.build_query(city, True, ['lid', 'time'], limit)
+    group = {'_id': '$lid', 'count': {'$sum': 1}, 'visits': {'$push': '$time'}}
+    query.insert(2, {'$group': group})
     if isinstance(limit, int) and limit > 0:
-        query.extend([{'$sort': {'count': -1}}, {'$limit': limit}])
+        query.insert(-1, {'$sort': {'count': -1}})
     res = checkins.aggregate(query)['result']
     hourly = []
     weekly = []
@@ -111,10 +109,7 @@ def venues_activity(checkins, city, limit=None):
     return hourly, weekly, monthly
 
 if __name__ == '__main__':
-    # spits_latex_table()
-    # disc_latex()
-    import pymongo
-    client = pymongo.MongoClient('localhost', 27017)
-    DB = client['foursquare']
-    checkins = DB['checkin']
+    #pylint: disable=C0103
+    db, client = cm.connect_to_db('foursquare')
+    checkins = db['checkin']
     hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)

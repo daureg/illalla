@@ -8,7 +8,6 @@ import pymongo
 from collections import namedtuple
 from api_keys import FOURSQUARE_ID as CLIENT_ID
 from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
-from persistent import load_var, save_var
 from read_foursquare import obtain_tree, find_town
 CITIES_TREE = obtain_tree()
 
@@ -17,49 +16,11 @@ Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat', 'stats',
                              'hours', 'price', 'rating', 'createdAt', 'mayor',
                              'tags', 'shortUrl', 'canonicalUrl', 'likes',
                              'likers', 'city'])
-Categories = namedtuple('Categories', ['id', 'name', 'sub'])
 # https://developer.foursquare.com/docs/responses/user
 User = namedtuple('User', ['id', 'firstName', 'lastName', 'friends',
                            'friendsCount', 'gender', 'homeCity', 'tips',
                            'lists', 'badges', 'mayorships', 'photos',
                            'checkins'])
-
-
-def parse_categories(top_list):
-    if len(top_list) == 0:
-        return []
-    res = []
-    for c in top_list:
-        subs = []
-        if isinstance(c, dict) and 'categories' in c:
-            subs = parse_categories(c['categories'])
-        res.append(Categories(c['id'], c['shortName'], subs))
-    return res
-
-
-def get_categories(client=None):
-    """Return categories list from disk or from Foursquare website using
-    client"""
-    if client is None:
-        return load_var('categories')['categories']
-    raw_cats = client.categories()['categories']
-    cats = Categories('0', '_', parse_categories(raw_cats))
-    save_var('categories', cats)
-    return cats
-
-
-def search_categories(cats, query, field=None):
-    """Return a category matching query (either name or id) and its path inside
-    cats."""
-    if field is None:
-        field = 0 if '4' in query else 1
-    if cats[field] == query:
-        return cats, [query]
-    for c in cats.sub:
-        found, path = search_categories(c, query, field)
-        if found is not None:
-            return found, [cats[field]] + path
-    return None, None
 
 
 def parse_opening_time(info):
@@ -187,7 +148,6 @@ if __name__ == '__main__':
     db = mongo_client['foursquare']
     checkins = db['checkin']
     # print(venue_profile(client, ''))
-    # ft = get_categories()
     # up = user_profile(client, 2355635)
     # vids = ['4a2705e6f964a52048891fe3', '4b4ad9dff964a5200b8f26e3',
     #         '40a55d80f964a52020f31ee3', '4b4ad9dff964c5200']

@@ -2,28 +2,20 @@
 # vim: set fileencoding=utf-8
 from timeit import default_timer as clock
 import pycurl
-import cStringIO
+import cStringIO as cs
 import re
 import logging
 import os
-import foursquare
-from api_keys import FOURSQUARE_ID as CLIENT_ID
-from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
-from RequestsMonitor import RequestsMonitor
+import urlparse
 logging.basicConfig(filename=os.path.expanduser('~/venue.log'),
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 POOL_SIZE = 30
-# If this is set to True after importing the module but before building a
-# VenueIdCrawler and if in addition, use_network is True and full_url is False,
-# then checkin url will be expanded on a individual basis (which is limited to
-# 500 per hour, so it should be done only in specific case)
-CALL_FOURSQUARE = False
 
 
 class VenueIdCrawler():
     cpool = None
-    one_shot = None
+    bpool = None
     claim_id = None
     multi = None
     pool_size = 0
@@ -31,37 +23,31 @@ class VenueIdCrawler():
     results = {None: None}
     errors = []
     use_network = False
-    client = None
-    limitor = None
     checkin_url = None
-    # if True, return (`checkin id`, `signature`) instead of (wrongly)
-    # truncating by assuming that we get the venue id
-    full_url = False
 
-    def __init__(self, pre_computed=None, use_network=False,
-                 pool_size=POOL_SIZE, full_url=False):
+    def __init__(self, pre_computed=None, use_network=True,
+                 pool_size=POOL_SIZE):
         assert isinstance(pool_size, int) and pool_size > 0
         self.pool_size = pool_size
-        self.one_shot = pycurl.Curl()
         self.claim_id = re.compile(r'claim\?vid=([0-9a-f]{24})')
         self.checkin_url = re.compile(r'([0-9a-f]{24})\?s=(\S+)')
         self.fs_id = re.compile(r'[0-9a-f]{24}')
+        venue_url = r'venueName"><a href="/v/[^/]+/([0-9a-f]{24})'
+        self.venue_url = re.compile(venue_url)
         self.multi = pycurl.CurlMulti()
         self.cpool = [pycurl.Curl() for _ in range(self.pool_size)]
+        self.bpool = [cs.StringIO() for _ in range(self.pool_size)]
         self.use_network = use_network
-        self.full_url = full_url
-        for c in self.cpool:
+        for i, c in enumerate(self.cpool):
+            c.buf = self.bpool[i]
             c.setopt(pycurl.FOLLOWLOCATION, 1)
             c.setopt(pycurl.MAXREDIRS, 6)
-            c.setopt(pycurl.NOBODY, 1)
-            c.setopt(pycurl.CONNECTTIMEOUT, 10)
-            c.setopt(pycurl.TIMEOUT, 15)
+            c.setopt(pycurl.WRITEFUNCTION, c.buf.write)
+            c.setopt(pycurl.CONNECTTIMEOUT, 8)
+            c.setopt(pycurl.TIMEOUT, 14)
         if pre_computed is not None:
             self.results = pre_computed
             self.results['None'] = None
-        if CALL_FOURSQUARE:
-            self.client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
-            self.limitor = RequestsMonitor(500)
 
     def venue_id_from_urls(self, urls):
         start = clock()
@@ -72,11 +58,8 @@ class VenueIdCrawler():
                 if u is not None and u not in self.results:
                     batch.append(u)
                 if len(batch) == self.pool_size or i == nb_urls - 1:
-                    lstart = clock()
                     self.prepare_request(batch)
                     self.perform_request()
-                    print('{} urls in {:.2f}s'.format(len(batch),
-                                                      clock() - lstart))
                     del batch[:]
             report = 'query {} urls in {:.2f}s, {} (total) errors'
             logging.info(report.format(len(urls), clock() - start,
@@ -119,45 +102,20 @@ class VenueIdCrawler():
         if curl_object.getinfo(pycurl.HTTP_CODE) != 200:
             return None
         url = curl_object.getinfo(pycurl.EFFECTIVE_URL)
+        domain = urlparse.urlparse(url).netloc
+        if 'foursquare' not in domain:
+            return None
         id_ = url.split('/')[-1]
-        if len(id_) > 24:
-            return self.expand_potential_checkin(id_)
-        if self.fs_id.match(id_):
+        if len(id_) == 24 and self.fs_id.match(id_):
             return id_
+        if len(id_) == 54 and self.checkin_url.match(id_):
+            match = self.venue_url.search(curl_object.buf.getvalue())
+            return None if not match else match.group(1)
         # we probably got a vanity url like https://foursquare.com/radiuspizza
-        # thus we go there and try to find the link to claim this venue,
-        # because it contains the numerical id.
-        buf = cStringIO.StringIO()
-        self.one_shot.setopt(pycurl.URL, url)
-        self.one_shot.setopt(pycurl.WRITEFUNCTION, buf.write)
-        self.one_shot.perform()
-        body = buf.getvalue()
-        del buf
-        if self.one_shot.getinfo(pycurl.HTTP_CODE) != 200:
-            return None
-        match = self.claim_id.search(body)
-        if match is None:
-            return None
-        return match.group(1)
-
-    def expand_potential_checkin(self, id_):
-        match = self.checkin_url.search(id_)
-        if match is None:
-            return None
-        checkin, sig = match.group(1, 2)
-        if self.full_url:
-            return checkin, sig
-        if not CALL_FOURSQUARE:
-            return id_
-        go, _ = self.limitor.more_allowed(self.client)
-        if not go:
-            return id_
-        res = self.client.checkins(checkin, {'signature': sig})
-        if 'checkin' in res and 'venue' in res['checkin']:
-            vid = res['checkin']['venue']['id']
-            print('expand checkin {} to {}'.format((checkin, sig), vid))
-            return res['checkin']['venue']['id']
-        return id_
+        # thus we look at its content and try to find the link to claim this
+        # venue, because it contains the numerical id.
+        match = self.claim_id.search(curl_object.buf.getvalue())
+        return None if not match else match.group(1)
 
 
 def venue_id_from_url(c, url):
@@ -176,63 +134,39 @@ def venue_id_from_url(c, url):
         return c.getinfo(pycurl.EFFECTIVE_URL).split('/')[-1]
     return None
 
+TEST_DATA = {
+    # # non 200 code
+    'http://bit.ly/9d0NTH': None,
+    'http://bit.ly/bFMzkX': None,
+    'http://bit.ly/bqKggn': None,
+    'http://bit.ly/bCiLRc': None,
+    # non 4SQ page
+    'http://nie.mn/fhgQ79': None,
+    'http://nyti.ms/aXIS2O': None,
+    'http://nyti.ms/coIHaC': None,
+    # check in page
+    'http://4sq.com/h2UIDl': '45ca42e1f964a5207a421fe3',
+    'http://4sq.com/gNlqGb': '46cf28b9f964a520454a1fe3',
+    'http://4sq.com/eISsW0': '4c73269df3279c74f15eb12d',
+    'http://4sq.com/fLc5gJ': '3fd66200f964a52072e61ee3',
+    'http://4sq.com/eCaKGm': '4d1759fd25cda143c24876d6',
+    # venue page
+    'http://4sq.com/ccIVP3': '4e57dbd3227131507c9381df',
+    'http://4sq.com/9nNdot': '4a270788f964a520268e1fe3',
+    'http://4sq.com/b6jdBy': '4b819c57f964a5208ab230e3',
+    'http://4sq.com/7z3PQ9': '4af2c6f1f964a52075e821e3',
+    'http://4sq.com/d8fVOz': '4b50d2b3f964a520bd3327e3',
+    # vanity url
+    'http://4sq.com/8dwV1O': '4a8212dcf964a5207cf81fe3',
+    # non venue 4SQ page
+    'http://goo.gl/WLoshz': None
+}
+
 if __name__ == '__main__':
-    from persistent import load_var
-    urls = ['http://4sq.com/1ZNmiJ', 'http://4sq.com/2z5p82',
-            'http://4sq.com/31ZCjK', 'http://4sq.com/3iFEGH',
-            'http://4sq.com/4ADi6k', 'http://4sq.com/4FFBOp',
-            'http://4sq.com/4k1L7c', 'http://4sq.com/5DPD7A',
-            'http://4sq.com/5NbLrk', 'http://4sq.com/67XL9k',
-            'http://4sq.com/75SfNv', 'http://4sq.com/7DAVph',
-            'http://4sq.com/7JaOFa', 'http://4sq.com/7sG6jW',
-            'http://4sq.com/7yoatn', 'http://4sq.com/81eMd8',
-            'http://4sq.com/8bg7q4', 'http://4sq.com/8gFJww',
-            'http://4sq.com/8KuiUi', 'http://4sq.com/9cg9xg',
-            'http://4sq.com/9E7CnF', 'http://4sq.com/9GoW57',
-            'http://4sq.com/9hM2SE', 'http://4sq.com/9qN20H',
-            'http://4sq.com/9yHXf0', 'http://4sq.com/alRmoX',
-            'http://4sq.com/c7m20Y', 'http://4sq.com/cDCxsE',
-            'http://4sq.com/ck4qtA', 'http://4sq.com/cXUN8F',
-            'http://4sq.com/cYesTR', 'http://4sq.com/dlIcOc',
-            'http://4sq.com/dy5um7', 'http://4sq.com/dz96EL',
-            'http://4sq.com/31ZCjK', 'http://4sq.com/3iFEGH',
-            'http://4sq.com/4ADi6k', 'http://4sq.com/4FFBOp',
-            'http://4sq.com/4k1L7c', 'http://4sq.com/5DPD7A',
-            'http://4sq.com/5NbLrk', 'http://4sq.com/67XL9k',
-            'http://4sq.com/75SfNv', 'http://4sq.com/7DAVph',
-            'http://4sq.com/7JaOFa', 'http://4sq.com/7sG6jW',
-            'http://4sq.com/7yoatn', 'http://4sq.com/81eMd8',
-            'http://4sq.com/8bg7q4', 'http://4sq.com/8gFJww',
-            'http://4sq.com/8KuiUi', 'http://4sq.com/9cg9xg',
-            'http://4sq.com/9E7CnF', 'http://4sq.com/9GoW57',
-            'http://4sq.com/9hM2SE', 'http://4sq.com/9qN20H',
-            'http://4sq.com/9yHXf0', 'http://4sq.com/alRmoX',
-            'http://4sq.com/c7m20Y', 'http://4sq.com/cDCxsE',
-            'http://4sq.com/ck4qtA', 'http://4sq.com/cXUN8F',
-            'http://4sq.com/cYesTR', 'http://4sq.com/dlIcOc',
-            'http://4sq.com/dy5um7', 'http://4sq.com/dz96EL',
-            'http://t.co/3kGBr2l', 'http://t.co/90Fh8ks',
-            'http://t.co/9COjxhy', 'http://t.co/axfykVI',
-            'http://t.co/djzPO2S', 'http://t.co/gFaEd0N',
-            'http://t.co/HEAq94l', 'http://t.co/Hl8jVOi',
-            'http://t.co/iQ6yeYi', 'http://t.co/MkpAVDb',
-            'http://t.co/Mu61K9b', 'http://t.co/n4kqQR0',
-            'http://t.co/NN1xkiq', 'http://t.co/T88WGpO',
-            'http://t.co/WQn3bFf', 'http://t.co/y8qxjsT',
-            'http://t.co/ycbb5kt']
-    CALL_FOURSQUARE = True
-    checkins_url = ['http://foursquare.com/tommiar/checkin/' +
-                    '4d21eac35acaa35d8c03d435?s=plNfJpw51khCMN2yDrSfSl_68lY']
-    gold = load_var('gold_url')
-    start = clock()
-    r = VenueIdCrawler(use_network=True)
-    query_url = urls[:2*len(gold)]
-    # query_url = checkins_url
+    r = VenueIdCrawler()
+    query_url = TEST_DATA.keys()
     res = r.venue_id_from_urls(query_url)
     res_dict = {u: i for u, i in zip(query_url, res)}
-    print('{:.2f}s'.format(clock() - start))
-    # print(res_dict)
-    # shared_items = set(gold.items()) & set(res_dict.items())
-    # print('match with gold: {}/{}'.format(len(shared_items), len(gold)))
-    for g, m in zip(sorted(gold.items()), sorted(res_dict.items())):
+    print('correct: {}/{}'.format(len(res), len(TEST_DATA)))
+    for g, m in zip(sorted(TEST_DATA.items()), sorted(res_dict.items())):
         print(g, m)

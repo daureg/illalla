@@ -10,18 +10,20 @@ import persistent
 from more_query import get_top_tags
 
 
-def increase_coverage(N=5000):
+def increase_coverage(upto=5000):
+    """Save `upto` unprocessed San Francisco tags"""
     sup = persistent.load_var('supported')
-    more = get_top_tags(N, 'nsf_tag.dat')
+    more = get_top_tags(upto, 'nsf_tag.dat')
     already = [v[0] for v in sup]
     addition = set(more).difference(set(already))
     persistent.save_var('addition', addition)
 
 
 def read_entropies(grid=200, div=False):
+    """Return a sorted dict of (tag, entropy or KL divergence)"""
     filename = 'n{}entropies_{}.dat'.format('K' if div else '', grid)
-    with codecs.open(filename, 'r', 'utf8') as f:
-        lines = [i.strip().split() for i in f.readlines()[1:]]
+    with codecs.open(filename, 'r', 'utf8') as entropy:
+        lines = [i.strip().split() for i in entropy.readlines()[1:]]
     entropies = sorted([(tag, float(val)) for val, tag in lines
                         if tag != '_background' and float(val) > 1e-5],
                        key=lambda x: x[1])
@@ -59,8 +61,9 @@ def spits_latex_table(N=10):
                           k[4][i][0], k[4][i][1]/get_max_KL(20)))
 
 
-def get_max_KL(n=200):
-    filename = 'freq_{}__background.mat'.format(n)
+def get_max_KL(grid=200):
+    """Return maximum KL divergence with size `grid`."""
+    filename = 'freq_{}__background.mat'.format(grid)
     count = sio.loadmat(filename).values()[0]
     return -log(np.min(count[count > 0])/float(np.sum(count)))
 

@@ -18,7 +18,8 @@ def build_query(city=None, venue=True, fields=None, limit=None):
     checkin that includes `venue` id or to only `limit` of them. It also
     includes extra attributes defined by `fields`."""
     match = {}
-    if isinstance(city, str) and city in cities.SHORT_KEY:
+    if isinstance(city, str):
+        assert city in cities.SHORT_KEY
         match['city'] = city
     if venue:
         match['lid'] = {'$ne': None}

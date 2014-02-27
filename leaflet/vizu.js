@@ -3,12 +3,14 @@
 function linerp(oa, ob, x, na, nb) {
 	return na + (x - oa)*(nb -na)/(ob - oa);
 }
+var myIcon = L.divIcon({className: 'photo'});
 function marker_from_photos(photos) {
 	var count = photos.value.toString();
-	var clamped = linerp(Math.log(5), Math.log(268), Math.log(count), .1, 1);
+	var clamped = linerp(Math.log(5), Math.log(268), Math.log(count), 0.1, 1);
 	L.marker([photos.lat, photos.lon],
-			{title: count, riseOnHover: true, opacity: clamped})
-		.bindPopup(count)
+			{title: count, riseOnHover: true, opacity: clamped,
+				icon: L.divIcon({className: 'photo', html: count})})
+		// .bindPopup(count)
 		.addTo(map);
 }
 var OpenStreetMap_HOT = L.tileLayer('http://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
@@ -25,11 +27,11 @@ var map = new L.Map('map', {
 	zoom: 12,
 	layers: [
 	// Stamen_Watercolor,
-	OpenStreetMap_HOT,
+	OpenStreetMap_Mapnik,
 	// heatmapLayer,
 	]
 });
-// helsinki.data.forEach(marker_from_photos);
+helsinki.data.forEach(marker_from_photos);
 var city = L.polygon([
 		[60.1463, 24.839],
 		[60.242, 24.839],
@@ -37,6 +39,7 @@ var city = L.polygon([
 		[60.1463, 25.02]
 ], {fill: false, weight: 3}).addTo(map);
 
+/* CLUSTERING
 var markers = L.markerClusterGroup();
 
 var nb_points = helsinki_fs.length;
@@ -49,3 +52,4 @@ for (var i = 0; i < nb_points; i++) {
 }
 
 map.addLayer(markers);
+*/

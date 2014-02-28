@@ -4,7 +4,7 @@
 from collections import namedtuple
 import persistent as p
 import string
-Categories = namedtuple('Categories', ['id', 'name', 'depth', 'sub'])
+Category = namedtuple('Category', ['id', 'name', 'depth', 'sub'])
 import bidict
 CAT_TO_ID = bidict.bidict({'Venue': '0'})
 ID_TO_INDEX = bidict.bidict({'0': 0})
@@ -19,9 +19,9 @@ def parse_categories(top_list, depth=0):
         subs = []
         if isinstance(cat, dict) and 'categories' in cat:
             subs = parse_categories(cat['categories'], depth+1)
-        id_, name = str(cat['id']), unicode(cat['shortName'])
+        id_, name = str(cat['id']), unicode(cat['name'])
         CAT_TO_ID[name] = id_
-        res.append(Categories(id_, name, depth+1, subs))
+        res.append(Category(id_, name, depth+1, subs))
     return res
 
 
@@ -31,8 +31,10 @@ def get_categories(client=None):
     if client is None:
         raw_cats = p.load_var('raw_categories')['categories']
     else:
-        raw_cats = client.categories()['categories']
-    cats = Categories('0', 'Venue', 0, parse_categories(raw_cats))
+        raw_cats = client.venues.categories()
+        p.save_var('raw_categories', raw_cats)
+        raw_cats = raw_cats['categories']
+    cats = Category('0', 'Venue', 0, parse_categories(raw_cats))
     # pylint: disable=E1101
     id_index = [(id_, idx)
                 for idx, id_ in enumerate(sorted(CAT_TO_ID.values()))]

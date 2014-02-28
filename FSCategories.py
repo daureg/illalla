@@ -32,7 +32,7 @@ def get_categories(client=None):
         raw_cats = p.load_var('raw_categories')['categories']
     else:
         raw_cats = client.categories()['categories']
-    cats = Categories('0', 'Place', 0, parse_categories(raw_cats))
+    cats = Categories('0', 'Venue', 0, parse_categories(raw_cats))
     return cats
 
 

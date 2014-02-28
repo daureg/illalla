@@ -18,7 +18,8 @@ from read_foursquare import obtain_tree, find_town
 CITIES_TREE = obtain_tree()
 
 # https://developer.foursquare.com/docs/responses/venue
-Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat', 'stats',
+Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat',
+                             'checkinsCount', 'usersCount', 'tipCount',
                              'hours', 'price', 'rating', 'createdAt', 'mayor',
                              'tags', 'shortUrl', 'canonicalUrl', 'likes',
                              'likers', 'city'])
@@ -65,8 +66,9 @@ def venue_profile(venue):
         print(city, lon, lat)
     cats = [c['id'] for c in venue['categories']]
     cat = None if len(cats) == 0 else cats.pop(0)
-    stats = [venue['stats'][key]
-             for key in ['checkinsCount', 'usersCount', 'tipCount']]
+    checkinsCount = venue['stats']['checkinsCount']
+    usersCount = venue['stats']['usersCount']
+    tipCount = venue['stats']['tipCount']
     hours = None
     if 'hours' in venue:
         hours = parse_opening_time(venue['hours'])
@@ -76,14 +78,14 @@ def venue_profile(venue):
     mayor = None
     if 'user' in venue['mayor']:
         mayor = int(venue['mayor']['user']['id'])
-    tags = venue['tags']
+    tags = list(set([t.strip() for t in venue['tags']]))
     shortUrl = venue['shortUrl']
     canonicalUrl = venue['canonicalUrl']
     likers, likes = get_list_of('likes', venue)
 
-    return Venue(vid, name, loc, cats, cat, stats, hours, price, rating,
-                 createdAt, mayor, tags, shortUrl, canonicalUrl, likes, likers,
-                 city)
+    return Venue(vid, name, loc, cats, cat, checkinsCount, usersCount,
+                 tipCount, hours, price, rating, createdAt, mayor, tags,
+                 shortUrl, canonicalUrl, likes, likers, city)
 
 
 def user_profile(user):

@@ -72,6 +72,7 @@ class VenueIdCrawler():
         for i, u in enumerate(urls):
             self.cpool[i].setopt(pycurl.URL, u)
             self.cpool[i].url = u
+            self.cpool[i].buf.truncate(0)
             self.multi.add_handle(self.cpool[i])
             self.connections += 1
 

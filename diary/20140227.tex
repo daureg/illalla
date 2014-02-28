@@ -1,0 +1,44 @@
+\section*{Today results}
+\begin{itemize}
+	\item Get Flickr photos from Facebook.
+	\item Rewrote \texttt{VenueIdCrawler} to be more correct (previously, it
+		considered almost every url as checkin because of \texttt{len(id\_) >=
+		24} instead of of \texttt{len(id\_) > 24}. Now it should be good, but
+		the whole dataset need to be re scanned (for at least the third time
+		so hopefully the last one).
+	\item Work a bit on categories and what information I can get about
+		venues.
+\end{itemize}
+
+\section*{Activity}
+\begin{verbatim}
+Simplify Venue Crawler
+- add realistic test url
+- fetch content of page to return venue id in most cases
+M	VenueIdCrawler.py
+add timeout to connection and don't discard real venue id
+M	VenueIdCrawler.py
+only allow request to 20 cities
+M	CommonMongo.py
+add depth to categories and compute basic statistics
+M	FSCategories.py
+M	explore.py
+try to plot dots instead of markers
+M	leaflet/map.html
+M	leaflet/vizu.js
+move venue categories handling to their own file
+M	AskFourquare.py
+A	FSCategories.py
+use common mongo
+M	explore.py
+try to comply with pylint
+M	explore.py
+use CommonMongo for Barcelona
+M	grab_photos.py
+plot foursquare checkin
+M	leaflet/map.html
+M	leaflet/vizu.js
+M	utils.py
+useful mongo idiom
+A	CommonMongo.py
+\end{verbatim}

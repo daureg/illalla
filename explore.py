@@ -123,8 +123,8 @@ def describe_venue(venues, city, depth=2, limit=None):
         """Return the category of `place`, without going beyond `depth`"""
         _, path = fsc.search_categories(cats, place['_id'])
         if len(path) > depth:
-            return fsc.ID_TO_NAMES[path[depth]]
-        return fsc.ID_TO_NAMES[path[-1]]
+            return fsc.CAT_TO_ID[:path[depth]]
+        return fsc.CAT_TO_ID[:path[-1]]
 
     summary = defaultdict(lambda: (0, 0))
     for venue in res:

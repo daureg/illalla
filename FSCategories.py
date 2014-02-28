@@ -5,8 +5,9 @@ from collections import namedtuple
 import persistent as p
 import string
 Categories = namedtuple('Categories', ['id', 'name', 'depth', 'sub'])
-NAMES_TO_ID = {'Place': '0'}
-ID_TO_NAMES = {'0': 'Place'}
+import bidict
+CAT_TO_ID = bidict.bidict({'Venue': '0'})
+ID_TO_INDEX = bidict.bidict({'0': 0})
 
 
 def parse_categories(top_list, depth=0):
@@ -19,8 +20,7 @@ def parse_categories(top_list, depth=0):
         if isinstance(cat, dict) and 'categories' in cat:
             subs = parse_categories(cat['categories'], depth+1)
         id_, name = str(cat['id']), unicode(cat['shortName'])
-        NAMES_TO_ID[name] = id_
-        ID_TO_NAMES[id_] = name
+        CAT_TO_ID[name] = id_
         res.append(Categories(id_, name, depth+1, subs))
     return res
 
@@ -33,6 +33,10 @@ def get_categories(client=None):
     else:
         raw_cats = client.categories()['categories']
     cats = Categories('0', 'Venue', 0, parse_categories(raw_cats))
+    # pylint: disable=E1101
+    id_index = [(id_, idx)
+                for idx, id_ in enumerate(sorted(CAT_TO_ID.values()))]
+    ID_TO_INDEX.update(id_index)
     return cats
 
 

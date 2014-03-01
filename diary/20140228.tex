@@ -1,0 +1,56 @@
+\section*{Today results}
+\begin{itemize}
+	\item Finish processing the dataset:
+		\begin{table}[ht]
+			\centering
+			\begin{tabular}{lll}
+				\toprule
+				city         & total checkins     & with venue\\
+				\midrule
+				newyork      & \numprint{609353}  & \numprint{407960} \\
+				losangeles   & \numprint{258838}  & \numprint{164801} \\
+				chicago      & \numprint{201155}  & \numprint{133497} \\
+				sanfrancisco & \numprint{190448}  & \numprint{103988} \\
+				washington   & \numprint{119654}  & \numprint{75406} \\
+				london       & \numprint{141784}  & \numprint{72311} \\
+				seattle      & \numprint{84342}   & \numprint{51341} \\
+				houston      & \numprint{62768}   & \numprint{40568} \\
+				atlanta      & \numprint{61958}   & \numprint{40554} \\
+				amsterdam    & \numprint{67971}   & \numprint{35321} \\
+				paris        & \numprint{53642}   & \numprint{32943} \\
+				indianapolis & \numprint{47546}   & \numprint{30757} \\
+				barcelona    & \numprint{37146}   & \numprint{21376} \\
+				moscow       & \numprint{46598}   & \numprint{17562} \\
+				stlouis      & \numprint{26239}   & \numprint{16791} \\
+				berlin       & \numprint{35727}   & \numprint{15056} \\
+				stockholm    & \numprint{53241}   & \numprint{10441} \\
+				rome         & \numprint{14022}   & \numprint{9357} \\
+				helsinki     & \numprint{9357}    & \numprint{6678} \\
+				prague       & \numprint{11960}   & \numprint{4721} \\
+				total        & \numprint{2133749} & \numprint{1291429}\\
+				\bottomrule
+			\end{tabular}
+			\caption{Checkins count\label{tab:full_cities}}
+		\end{table}
+	\item Method to find similar venues according to Foursquare and rework
+		Categories.
+\end{itemize}
+
+\section*{Activity}
+\begin{verbatim}
+use full name of categories and get up live version from Foursquare
+M    FSCategories.py
+use bidict for categories, ids and indexes mapping
+from https://bitbucket.org/jab/bidict/src
+M    .gitignore
+M    FSCategories.py
+M    explore.py
+in venue_profile, strip tags and separate checkin, user and tip count
+M    AskFourquare.py
+“Place” is already a foursquare category
+M    FSCategories.py
+Find similar venues within same city
+M    AskFourquare.py
+delete previous page content
+M    VenueIdCrawler.py
+\end{verbatim}

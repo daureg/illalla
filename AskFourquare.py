@@ -59,11 +59,19 @@ def venue_profile(venue):
     vid = venue['id']
     name = venue['name']
     loc = venue['location']
-    lon, lat = loc['lng'], loc['lat']
-    loc = Location('Point', [lon, lat])._asdict()
-    city = find_town(lat, lon, CITIES_TREE)
+    try:
+        lon, lat = loc['lng'], loc['lat']
+        loc = Location('Point', [lon, lat])._asdict()
+        city = find_town(lat, lon, CITIES_TREE)
+    except KeyError:
+        print(vid, loc)
+        # Because loc is 2dsphere index, one cannot insert document with no
+        # location. I could have use 2d index (because I will use only flat
+        # geometry but then there are limitation on compound index:
+        # http://docs.mongodb.org/manual/applications/geospatial-indexes/
+        return None
     if city is None:
-        print(city, lon, lat)
+        print("can't match {}".format(venue['location']))
     cats = [c['id'] for c in venue['categories']]
     cat = None if len(cats) == 0 else cats.pop(0)
     checkinsCount = venue['stats']['checkinsCount']

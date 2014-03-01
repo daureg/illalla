@@ -6,8 +6,8 @@ import persistent as p
 import string
 Category = namedtuple('Category', ['id', 'name', 'depth', 'sub'])
 import bidict
-CAT_TO_ID = bidict.bidict({'Venue': '0'})
-ID_TO_INDEX = bidict.bidict({'0': 0})
+CAT_TO_ID = bidict.bidict({None: '0', 'Venue': '1'})
+ID_TO_INDEX = bidict.bidict({None: 0, '0': 0, '1': 1})
 
 
 def parse_categories(top_list, depth=0):
@@ -34,10 +34,11 @@ def get_categories(client=None):
         raw_cats = client.venues.categories()
         p.save_var('raw_categories', raw_cats)
         raw_cats = raw_cats['categories']
-    cats = Category('0', 'Venue', 0, parse_categories(raw_cats))
+    cats = Category('1', 'Venue', 0, parse_categories(raw_cats))
     # pylint: disable=E1101
-    id_index = [(id_, idx)
-                for idx, id_ in enumerate(sorted(CAT_TO_ID.values()))]
+    id_index = [(id_, idx + 100)
+                for idx, id_ in enumerate(sorted(CAT_TO_ID.values()))
+                if id_ not in ['0', '1']]
     ID_TO_INDEX.update(id_index)
     return cats
 

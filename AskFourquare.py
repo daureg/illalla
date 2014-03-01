@@ -22,7 +22,7 @@ Venue = namedtuple('Venue', ['id', 'name', 'loc', 'cats', 'cat',
                              'checkinsCount', 'usersCount', 'tipCount',
                              'hours', 'price', 'rating', 'createdAt', 'mayor',
                              'tags', 'shortUrl', 'canonicalUrl', 'likes',
-                             'likers', 'city'])
+                             'likers', 'city', 'closed'])
 # https://developer.foursquare.com/docs/responses/user
 User = namedtuple('User', ['id', 'firstName', 'lastName', 'friends',
                            'friendsCount', 'gender', 'homeCity', 'tips',
@@ -90,10 +90,11 @@ def venue_profile(venue):
     shortUrl = venue['shortUrl']
     canonicalUrl = venue['canonicalUrl']
     likers, likes = get_list_of('likes', venue)
+    closed = None if not 'closed' in venue else venue['closed']
 
     return Venue(vid, name, loc, cats, cat, checkinsCount, usersCount,
                  tipCount, hours, price, rating, createdAt, mayor, tags,
-                 shortUrl, canonicalUrl, likes, likers, city)
+                 shortUrl, canonicalUrl, likes, likers, city, closed)
 
 
 def user_profile(user):

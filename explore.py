@@ -5,6 +5,7 @@ import codecs
 from collections import OrderedDict, defaultdict
 from math import log
 import scipy.io as sio
+import scipy.spatial as spatial
 import numpy as np
 import persistent
 from more_query import get_top_tags
@@ -136,10 +137,26 @@ def describe_venue(venues, city, depth=2, limit=None):
     return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0]))
 
 
+def venues_surrounding(venues, city):
+    """Return a scipy backed 2-d tree of all venues in `city` with their
+    categories."""
+    assert city in cm.cities.SHORT_KEY, 'not a valid city'
+    res = list(venues.find({'city': city}, {'cat': 1, 'loc.coordinates': 1}))
+    indexing = fsc.bidict.bidict()
+    places = np.zeros((len(res), 3))  # pylint: disable=E1101
+    for pos, venue in enumerate(res):
+        numeric_category = fsc.ID_TO_INDEX[venue['cat']]
+        lng, lat = venue['loc']['coordinates']
+        places[pos, :] = (lng, lat, numeric_category)
+        indexing[pos] = venue['_id']
+    return spatial.KDTree(places[:, :2]), indexing  # pylint: disable=E1101
+
+
 if __name__ == '__main__':
     #pylint: disable=C0103
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
     # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
-    ny_venue = describe_venue(db['venue'], 'newyork')
-    print(ny_venue.items())
+    # ny_venue = describe_venue(db['venue'], 'newyork')
+    # print(ny_venue.items())
+    tree, mapping = venues_surrounding(db['venue'], 'losangeles')

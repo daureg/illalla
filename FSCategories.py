@@ -63,6 +63,9 @@ def choose_type(query):
         return 0
     return 1
 
+
+CATS = globals()['get_categories']()
+
 if __name__ == '__main__':
     #pylint: disable=C0103
     ft = get_categories()

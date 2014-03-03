@@ -6,6 +6,7 @@ from time import sleep
 from threading import Thread
 import foursquare
 import CommonMongo as cm
+import Chunker
 from Queue import Queue
 from api_keys import FOURSQUARE_ID as CLIENT_ID
 from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
@@ -108,7 +109,6 @@ def mongo_insertion():
     del TO_BE_INSERTED[:]
 
 if __name__ == '__main__':
-    import sys
     REQ = getattr(CLIENT, REQ)
     db = cm.connect_to_db('foursquare')[0]
     checkins = db['checkin']
@@ -126,8 +126,14 @@ if __name__ == '__main__':
     total_entities = 0
     city = None if len(sys.argv) < 2 else sys.argv[1]
     assert not city or city in cm.cities.SHORT_KEY, 'choose a valid city'
-    for batch in gather_all_entities_id(checkins, DB_FIELD, city=city,
-                                        limit=None):
+    chunker = Chunker.Chunker(foursquare.MAX_MULTI_REQUESTS)
+    previous = [e['_id'] for e in TABLE.find({'city': city})]
+    latent = gather_all_entities_id(checkins, DB_FIELD, city=city, limit=None)
+    print('but already {} {} in DB.'.format(len(previous), ENTITY_KIND))
+    new_ones = set(latent).difference(set(previous))
+    print('So only {} new ones.'.format(len(new_ones)))
+    for batch in chunker(new_ones):
+        print(batch)
         IDS_QUEUE.put(batch)
         total_entities += len(batch)
 
@@ -137,4 +143,4 @@ if __name__ == '__main__':
     from persistent import save_var
     print('{}/{} invalid id'.format(len(INVALID_ID), total_entities))
     region = city or 'world'
-    save_var('non_venue_id_{}'.format(region), INVALID_ID)
+    save_var('non_{}_id_{}'.format(ENTITY_KIND, region), INVALID_ID)

@@ -81,7 +81,6 @@ def convert_checkin_for_mongo(checkin):
 def save_to_mongo(documents, destination, venues_getter):
     urls = [c.lid for c in documents]
     ids = venues_getter.venue_id_from_urls(urls)
-    return
     converted = []
     for i, c in enumerate(documents):
         converted.append(convert_checkin_for_mongo(c))
@@ -117,22 +116,22 @@ def extract_url_from_msg(msg):
     return url
 
 if __name__ == '__main__':
-    # import doctest
-    # doctest.testmod()
     from persistent import save_var, load_var
-    MISSING_ID = load_var('tid_diff')
 
-    previously = load_var('t_venues_id_new')
-    venues_getter = VenueIdCrawler(previously, True)
+    try:
+        previously = load_var('avenues_id_new_kosh')
+    except IOError:
+        previously = None
+    venues_getter = VenueIdCrawler(previously, use_network=False)
 
     checkins = None
-    # client = pymongo.MongoClient('localhost', 27017)
-    # db = client['foursquare']
-    # checkins = db['checkin']
-    # checkins.ensure_index([('loc', pymongo.GEOSPHERE),
-    #                        ('lid', pymongo.ASCENDING),
-    #                        ('city', pymongo.ASCENDING),
-    #                        ('time', pymongo.ASCENDING)])
+    client = pymongo.MongoClient('localhost', 27017)
+    db = client['foursquare']
+    checkins = db['checkin']
+    checkins.ensure_index([('loc', pymongo.GEOSPHERE),
+                           ('lid', pymongo.ASCENDING),
+                           ('city', pymongo.ASCENDING),
+                           ('time', pymongo.ASCENDING)])
     import sys
     infile = 'verysmall' if len(sys.argv) < 2 else sys.argv[1]
     tree = obtain_tree()
@@ -145,6 +144,7 @@ if __name__ == '__main__':
     #     return None
 
     seen = []
+    how_many = 0
     with open(infile) as f:
         # UserID\tTweetID\tLatitude\tLongitude\tCreatedAt\tText\tPlaceID
         for line in f:
@@ -162,6 +162,7 @@ if __name__ == '__main__':
             if city is not None:
                 lid = extract_url_from_msg(msg)
                 stats[city] += 1
+                how_many += 1
                 tid, uid = int(tid), int(uid)
                 t = datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
                 # to have more numerical values (but lid should be a 64bit
@@ -171,15 +172,17 @@ if __name__ == '__main__':
                 # city = cities.INDEX[city]
                 loc = Location('Point', [lon, lat])._asdict()
                 seen.append(CheckIn(tid, lid, uid, city, loc, t))
-                if len(seen) > 1000:
+                if len(seen) > 2000:
                     save_to_mongo(seen, checkins, venues_getter)
                     seen = []
-                save_var('venues_id_new', venues_getter.results)
+                if how_many % 10000 == 0:
+                    print('1000(0) miles more')
+                    save_var('avenues_id_new_triton', venues_getter.results)
+                    save_var('avenues_errors_triton', venues_getter.errors)
 
     save_to_mongo(seen, checkins, venues_getter)
     counts = sorted(stats.iteritems(), key=lambda x: x[1], reverse=True)
     print('\n'.join(['{}: {}'.format(city, count) for city, count in counts]))
     print('total:' + str(sum(stats.values())))
-    save_var('venues_id_new', venues_getter.results)
-    save_var('venues_errors', venues_getter.errors)
-    save_var('url_todo', venues_getter.todo)
+    save_var('avenues_id_new_triton', venues_getter.results)
+    save_var('avenues_errors_triton', venues_getter.errors)

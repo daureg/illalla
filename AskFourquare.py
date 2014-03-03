@@ -136,10 +136,8 @@ def get_list_of(field, obj):
     return [], 0
 
 
-def gather_all_entities_id(checkins, entity='lid', city=None, limit=None,
-                           chunk_size=foursquare.MAX_MULTI_REQUESTS):
-    """Return at most `limit` `entity` ids within `city` by group of
-    `chunk_size`."""
+def gather_all_entities_id(checkins, entity='lid', city=None, limit=None):
+    """Return at most `limit` `entity` ids within `city`."""
     assert entity in ['lid', 'uid'], 'what are you looking for?'
     query = [
         {'$match': {'lid': {'$ne': None}}},
@@ -152,15 +150,7 @@ def gather_all_entities_id(checkins, entity='lid', city=None, limit=None,
         query.extend([{'$sort': {'count': -1}}, {'$limit': limit}])
     res = checkins.aggregate(query)['result']
     print('{} matched'.format(len(res)))
-    batch = []
-    for obj in res:
-        _id = obj['_id']
-        if len(batch) < chunk_size:
-            batch.append(_id)
-        else:
-            yield batch
-            batch = [_id]
-    yield batch
+    return [e['_id'] for e in res]
 
 
 def similar_venues(vid, venue_db=None, client=None):
@@ -206,14 +196,14 @@ if __name__ == '__main__':
     #         '40a55d80f964a52020f31ee3', '4b4ad9dff964c5200']
     # [client.venues(vid, multi=True) for vid in vids]
     # answers = list(client.multi())
-    # r = gather_all_entities_id(checkins, city='helsinki', limit=50)
-    # for b in r:
-    #     print(b)
-    svids = ['4c4787646c379521a121cfb5', '43222200f964a5209a271fe3',
-             '4b218c2ef964a520a83d24e3']
-    gold = [[], ['4bbd0fbb8ec3d13acea01b28', '451d2412f964a5208a3a1fe3'],
-            ['4d72a2a9ec07548190588cbf', '4a736a23f964a52062dc1fe3',
-             '4f2d3e99e4b056f83aecdc88', '4aa7b5e4f964a520064d20e3',
-             '4b2a2b72f964a520bca524e3']]
-    for query, response in zip(svids, gold):
-        print(similar_venues(query, client=client), response)
+    r = gather_all_entities_id(checkins, city='helsinki', limit=50)
+    for b in r:
+        print(b)
+    # svids = ['4c4787646c379521a121cfb5', '43222200f964a5209a271fe3',
+    #          '4b218c2ef964a520a83d24e3']
+    # gold = [[], ['4bbd0fbb8ec3d13acea01b28', '451d2412f964a5208a3a1fe3'],
+    #         ['4d72a2a9ec07548190588cbf', '4a736a23f964a52062dc1fe3',
+    #          '4f2d3e99e4b056f83aecdc88', '4aa7b5e4f964a520064d20e3',
+    #          '4b2a2b72f964a520bca524e3']]
+    # for query, response in zip(svids, gold):
+    #     print(similar_venues(query, client=client), response)

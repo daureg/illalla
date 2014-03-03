@@ -2,7 +2,10 @@
 # vim: set fileencoding=utf-8
 # from more_query import bbox_to_polygon
 # from json import dumps
+"""A list of cities with related information: bounding box, name, local
+Euclidean projection."""
 from string import ascii_lowercase as alphabet
+import LocalCartesian as lc
 
 
 def short_name(city):
@@ -36,7 +39,27 @@ NAMES = ['New York', 'Washington', 'San Francisco', 'Atlanta', 'Indianapolis',
          'Helsinki', 'Stockholm', 'Barcelona']
 SHORT_KEY = [short_name(city) for city in NAMES]
 INDEX = {short_name(city): _id for _id, city in enumerate(NAMES)}
+middle = lambda bbox: (.5*(bbox[0] + bbox[2]), (.5*(bbox[1] + bbox[3])))
+GEO_TO_2D = {name: lc.LocalCartesian(*middle(city)).forward
+             for name, city in zip(SHORT_KEY, US+EU)}
 
-# if __name__ == '__main__':
+
+if __name__ == '__main__':
+    from random import uniform
+    from geographiclib.geodesic import Geodesic
+    EARTH = Geodesic.WGS84
+    city = HOU
+    name = 'houston'
+    place = lambda: (uniform(city[0], city[2]), uniform(city[1], city[3]))
+    for i in range(20):
+        p1 = place()
+        p2 = place()
+        local_diff = GEO_TO_2D[name](p1) - GEO_TO_2D[name](p2)
+        estimated_dst = lc.numpy.linalg.norm(local_diff[:2])
+        estimated_dst_f = lc.numpy.linalg.norm(local_diff)
+        real_dst = EARTH.Inverse(p1[0], p1[1], p2[0], p2[1])['s12']
+        variation = 100*(estimated_dst-real_dst)/real_dst
+        variation_f = 100*(estimated_dst_f-real_dst)/real_dst
+        print('variation: {:.7f}% vs {:.7f}%'.format(variation, variation_f))
 #     for cities in US+EU:
 #         print(dumps(bbox_to_polygon(cities)))

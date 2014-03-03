@@ -21,3 +21,5 @@ Depends on:
 -  [foursquare](https://github.com/mLewisLogic/foursquare)
 
 -  [pycurl](http://pycurl.sourceforge.net/)
+
+-  [GeographicLib](http://geographiclib.sourceforge.net/) python binding

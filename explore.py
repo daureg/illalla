@@ -2,7 +2,7 @@
 # vim: set fileencoding=utf-8
 """Interactive exploration of data file."""
 import codecs
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, namedtuple
 from math import log
 import scipy.io as sio
 import scipy.spatial as spatial
@@ -11,6 +11,7 @@ import persistent
 from more_query import get_top_tags
 import CommonMongo as cm
 import FSCategories as fsc
+Surrounding = namedtuple('Surrounding', ['tree', 'venues', 'id_to_index'])
 
 
 def increase_coverage(upto=5000):
@@ -137,19 +138,35 @@ def describe_venue(venues, city, depth=2, limit=None):
     return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0]))
 
 
-def venues_surrounding(venues, city):
+def build_surrounding(venues, city):
     """Return a scipy backed 2-d tree of all venues in `city` with their
     categories."""
     assert city in cm.cities.SHORT_KEY, 'not a valid city'
-    res = list(venues.find({'city': city}, {'cat': 1, 'loc.coordinates': 1}))
+    res = list(venues.find({'city': city, 'likes': {'$gt': 0},
+                            'checkinsCount': {'$gte': 10}},
+                           {'cat': 1, 'loc.coordinates': 1}))
     indexing = fsc.bidict.bidict()
     places = np.zeros((len(res), 3))  # pylint: disable=E1101
     for pos, venue in enumerate(res):
         numeric_category = fsc.ID_TO_INDEX[venue['cat']]
         lng, lat = venue['loc']['coordinates']
-        places[pos, :] = (lng, lat, numeric_category)
+        local_coord = cm.cities.GEO_TO_2D[city]([lat, lng])
+        places[pos, :] = (local_coord[0], local_coord[1], numeric_category)
         indexing[pos] = venue['_id']
-    return spatial.KDTree(places[:, :2]), indexing  # pylint: disable=E1101
+    # pylint: disable=E1101
+    return Surrounding(spatial.KDTree(places[:, :2]), places, indexing)
+
+
+def query_surrounding(surrounding, venue_id, radius=150):
+    """Return the venues in `surrounding` closer than `radius` from
+    `venue_id`."""
+    from_index = lambda idx: surrounding.id_to_index[idx]
+    to_index = lambda vid: surrounding.id_to_index[:vid]
+    queried_index = to_index(venue_id)
+    full_venue = surrounding.venues[queried_index]
+    position = full_venue[:2]
+    neighbors = surrounding.tree.query_ball_point(position, radius)
+    return [from_index(i) for i in neighbors if i is not queried_index]
 
 
 if __name__ == '__main__':
@@ -159,4 +176,6 @@ if __name__ == '__main__':
     # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
     # ny_venue = describe_venue(db['venue'], 'newyork')
     # print(ny_venue.items())
-    tree, mapping = venues_surrounding(db['venue'], 'losangeles')
+    cats = fsc.get_categories()
+    surround = build_surrounding(db['venue'], 'helsinki')
+    print(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 200))

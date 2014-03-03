@@ -8,8 +8,9 @@ from string import ascii_lowercase as alphabet
 import LocalCartesian as lc
 
 
-def short_name(city):
-    return ''.join([c.lower() for c in city if c.lower() in alphabet])
+def short_name(long_name):
+    """Return normalized name of city"""
+    return ''.join([c.lower() for c in long_name if c.lower() in alphabet])
 
 NYC = [40.583, -74.040, 40.883, -73.767]
 WAS = [38.8515, -77.121, 38.9848, -76.902]

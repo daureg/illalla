@@ -169,6 +169,15 @@ def query_surrounding(surrounding, venue_id, radius=150):
     return [from_index(i) for i in neighbors if i is not queried_index]
 
 
+def alt_surrounding(venues_db, venue_id, radius=150):
+    position = venues_db.find_one({'_id': venue_id}, {'loc': 1})['loc']
+    ball = {'$geometry': position, '$maxDistance': radius}
+    neighbors = venues_db.find({'city': 'helsinki', 'loc': {'$near': ball},
+                                'likes': {'$gt': 0},
+                                'checkinsCount': {'$gte': 10}},
+                               {'cat': 1, 'time': 1})
+    return [v['_id'] for v in neighbors if v['_id'] != venue_id]
+
 if __name__ == '__main__':
     #pylint: disable=C0103
     db, client = cm.connect_to_db('foursquare')
@@ -176,6 +185,7 @@ if __name__ == '__main__':
     # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
     # ny_venue = describe_venue(db['venue'], 'newyork')
     # print(ny_venue.items())
-    cats = fsc.get_categories()
     surround = build_surrounding(db['venue'], 'helsinki')
-    print(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 200))
+    a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
+    b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
+    print(b-a)

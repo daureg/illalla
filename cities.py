@@ -6,6 +6,7 @@
 Euclidean projection."""
 from string import ascii_lowercase as alphabet
 import LocalCartesian as lc
+import pytz
 
 
 def short_name(long_name):
@@ -38,7 +39,15 @@ NAMES = ['New York', 'Washington', 'San Francisco', 'Atlanta', 'Indianapolis',
          'Los Angeles', 'Seattle', 'Houston', 'St. Louis', 'Chicago',
          'London', 'Paris', 'Berlin', 'Rome', 'Prague', 'Moscow', 'Amsterdam',
          'Helsinki', 'Stockholm', 'Barcelona']
+_TIMEZONES = ['America/New_York', 'America/New_York', 'America/Los_Angeles',
+              'America/New_York', 'America/Indiana/Indianapolis',
+              'America/Los_Angeles', 'America/Los_Angeles', 'America/Chicago',
+              'America/Chicago', 'America/Chicago', 'Europe/London',
+              'Europe/Paris', 'Europe/Berlin', 'Europe/Rome', 'Europe/Prague',
+              'Europe/Moscow', 'Europe/Amsterdam', 'Europe/Helsinki',
+              'Europe/Stockholm', 'Europe/Madrid']
 SHORT_KEY = [short_name(city) for city in NAMES]
+TZ = {city: pytz.timezone(tz) for tz, city in zip(_TIMEZONES, SHORT_KEY)}
 INDEX = {short_name(city): _id for _id, city in enumerate(NAMES)}
 middle = lambda bbox: (.5*(bbox[0] + bbox[2]), (.5*(bbox[1] + bbox[3])))
 GEO_TO_2D = {name: lc.LocalCartesian(*middle(city)).forward

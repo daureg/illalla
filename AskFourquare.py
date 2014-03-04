@@ -7,6 +7,7 @@ import cities
 import CommonMongo as cm
 import pycurl
 import cStringIO as cs
+from utils import get_nested
 from lxml import etree
 PARSER = etree.HTMLParser()
 # thanks Google Chrome (although this is rather fragile)
@@ -101,8 +102,10 @@ def user_profile(user):
     """Return a User object from a user json description."""
     assert len(user.keys()) > 1, "don't send top-level object"
     uid = int(user['id'])
-    firstName = user['firstName']
-    lastName = user['lastName']
+    firstName = user.get('firstName', None)
+    lastName = user.get('lastName', None)
+    if not firstName or not lastName:
+        print('missing info for {}'.format(uid))
     # only a sample of 10 friends, to get them all, call
     # https://developer.foursquare.com/docs/users/friends.html
     friends, friendsCount = get_list_of('friends', user)
@@ -121,9 +124,7 @@ def user_profile(user):
 
 def get_count(obj, field):
     """If available, return how many item of type 'field' are in 'obj'"""
-    if field in obj and 'count' in obj[field]:
-        return obj[field]['count']
-    return 0
+    return get_nested(obj, [field, 'count'], 0)
 
 
 def get_list_of(field, obj):

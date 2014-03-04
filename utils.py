@@ -74,6 +74,12 @@ def get_nested(dico, fields, default=None):
     'city'
     >>> get_nested({'loc': {'type': 'city'}}, ['loc', 'lat']) is None
     True
+    >>> get_nested({'loc': {'type': None}}, ['loc', 'type']) is None
+    True
+    >>> get_nested({'l': {'t': {'a': 'h'}}}, ['l', 't', 'a'])
+    'h'
+    >>> get_nested({'l': {'t': None}}, ['l', 't', 'a'], 0)
+    0
     >>> get_nested({'names': {'symbols': 'euro'}}, ['names', 'urls'], [])
     []
     """
@@ -82,6 +88,8 @@ def get_nested(dico, fields, default=None):
     current = dico
     is_last_field = lambda i: i == len(fields) - 1
     for index, field in enumerate(fields):
+        if not hasattr(current, 'get'):
+            return default if is_last_field(index) else current
         current = current.get(field, default if is_last_field(index) else {})
     return current
 

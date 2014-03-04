@@ -6,6 +6,7 @@ from lxml import etree
 PARSER = etree.HTMLParser()
 XPATH_GET_SCRIPT = '//*[@id="container"]/script'
 import VenueIdCrawler as vc
+import pytz
 from datetime import datetime, timedelta
 from utils import get_nested
 
@@ -66,7 +67,12 @@ class CheckinCrawler(vc.VenueIdCrawler):
         offset = get_nested(checkin, 'timeZoneOffset', 0)
         if None in [uid, vid, time]:
             return None
-        time = datetime.fromtimestamp(time) + timedelta(minutes=offset)
+        time = datetime.fromtimestamp(time, tz=pytz.utc)
+        # by doing this, the date is no more UTC. So why not put the correct
+        # timezone? Because in that case, pymongo will convert to UTC at
+        # insertion. Yet I want local time, but without doing the conversion
+        # when the result comes back from the DB.
+        time += timedelta(minutes=offset)
         return cid + '?s=' + sig, int(uid), str(vid), time
 
 if __name__ == '__main__':

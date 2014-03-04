@@ -1,12 +1,14 @@
 ﻿#! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Retrieve checkins tweets"""
+from timeit import default_timer as clock
 import TwitterAPI as twitter
 from api_keys import TWITTER_CONSUMER_KEY as consumer_key
 from api_keys import TWITTER_CONSUMER_SECRET as consumer_secret
 from api_keys import TWITTER_ACCESS_TOKEN as access_token
 from api_keys import TWITTER_ACCESS_SECRET as access_secret
 import read_foursquare as rf
+import CheckinCrawler as cc
 CITIES_TREE = rf.obtain_tree()
 from utils import get_nested
 import cities
@@ -14,6 +16,8 @@ import locale
 locale.setlocale(locale.LC_ALL, 'C')  # to parse date
 UTC_DATE = '%a %b %d %X +0000 %Y'
 UTC_TZ = cities.pytz.utc
+FullCheckIn = rf.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city',
+                                            'loc', 'time', 'tid'])
 
 
 def parse_tweet(tweet):
@@ -30,7 +34,7 @@ def parse_tweet(tweet):
     city = rf.find_town(lat, lon, CITIES_TREE)
     if not (city and city in cities.SHORT_KEY):
         return None
-    id_ = get_nested(tweet, 'id_str')
+    tid = get_nested(tweet, 'id_str')
     urls = get_nested(tweet, ['entities', 'urls'], [])
     # short url of the checkin that need to be expand, either using bitly API
     # or by VenueIdCrawler. Once we get the full URL, we still need to request
@@ -43,12 +47,27 @@ def parse_tweet(tweet):
         time = rf.datetime.strptime(tweet['created_at'], UTC_DATE)
         time = time.replace(tzinfo=UTC_TZ)
         time = cities.TZ[city].normalize(time.astimezone(cities.TZ[city]))
-        #TODO remove tz info once we got local time
+        time = time.replace(tzinfo=None)
     except ValueError:
         print('time: {}'.format(tweet['created_at']))
         time = None
-    return rf.CheckIn(id_, lid, uid, city, loc, time)
+    return FullCheckIn('', lid, uid, city, loc, time, tid)
 
+
+def post_process(crawler, checkins):
+    infos = crawler.checkins_from_url([c.lid for c in checkins])
+    to_insert = []
+    for checkin, info in zip(checkins, infos):
+        if info:
+            converted = checkin._asdict()
+            id_, uid, vid, time = info
+            del converted['id']
+            converted['_id'] = id_
+            converted['uid'] = uid
+            converted['lid'] = vid
+            converted['time'] = time
+            to_insert.append(converted)
+    return to_insert
 
 if __name__ == '__main__':
     #pylint: disable=C0103

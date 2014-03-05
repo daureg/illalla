@@ -168,7 +168,7 @@ def similar_venues(vid, venue_db=None, client=None):
             return None
     answer = venue_db.find_one({'_id': vid})
     if not answer:
-        print(vid + ' is not a existing venue id')
+        print(vid + ' is not an existing venue id')
         return None
 
     buf = cs.StringIO()

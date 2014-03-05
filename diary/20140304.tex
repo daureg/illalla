@@ -13,7 +13,13 @@
 \begin{itemize}
 	\item profile
 	\item I thought user id were wrong but in fact they are from twitter. Is
-		it worth to convert them (use many calls).
+		it worth to convert them (use many calls)? Actually, it's the same for
+		place id, they refer to
+		\href{https://dev.twitter.com/docs/platform-objects/places}{Twitter
+		Places} but I can't find a direct way to find the corresponding
+		Foursquare venue. Maybe I could go through the dataset, update all
+		checkins with its \texttt{tw\_place} and then use know venue to
+		correct unknow one if they match.
 \end{itemize}
 
 \section*{Activity}

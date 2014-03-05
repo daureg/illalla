@@ -129,13 +129,19 @@ def describe_venue(venues, city, depth=2, limit=None):
         return fsc.CAT_TO_ID[:path[-1]]
 
     summary = defaultdict(lambda: (0, 0))
+    nb_venues = 0
     for venue in res:
         if venue['_id'] is not None:
             cat = parenting_cat(venue, depth)
             count, like = venue['count'], venue['like']
+            nb_venues += count
             summary[cat] = (summary[cat][0] + count, summary[cat][1] + like)
 
-    return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0]))
+    for cat, stat in summary.iteritems():
+        count, like = stat
+        summary[cat] = (100.0*count/nb_venues, count, like)
+    return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0],
+                              reverse=True))
 
 
 def build_surrounding(venues, city):
@@ -179,13 +185,20 @@ def alt_surrounding(venues_db, venue_id, radius=150):
     return [v['_id'] for v in neighbors if v['_id'] != venue_id]
 
 if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
     #pylint: disable=C0103
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
+    city = 'paris'
     # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
-    # ny_venue = describe_venue(db['venue'], 'newyork')
-    # print(ny_venue.items())
-    surround = build_surrounding(db['venue'], 'helsinki')
-    a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
-    b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
-    print(b-a)
+    ny_venue = describe_venue(db['venue'], city, 2)
+    print(ny_venue.items())
+    stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)
+    with codecs.open(city + '_cat.dat', 'w', 'utf8') as report:
+        report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
+                                 for k, v in ny_venue.items()]))
+    # surround = build_surrounding(db['venue'], 'helsinki')
+    # a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
+    # b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
+    # print(b-a)

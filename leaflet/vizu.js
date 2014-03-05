@@ -22,34 +22,29 @@ var OpenStreetMap_Mapnik = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x
 var heatmapLayer = L.TileLayer.heatMap({radius: {value: 10}, opacity: 0.8});
 // heatmapLayer.setData(helsinki.data);
 var Stamen_Watercolor = new L.StamenTileLayer("watercolor");
-var map = new L.Map('map', {
-	center: new L.LatLng(60.194, 24.93),
-	zoom: 12,
-	layers: [
-	// Stamen_Watercolor,
-	OpenStreetMap_Mapnik,
-	// heatmapLayer,
-	]
-});
-helsinki.data.forEach(marker_from_photos);
-var city = L.polygon([
-		[60.1463, 24.839],
-		[60.242, 24.839],
-		[60.242, 25.02],
-		[60.1463, 25.02]
-], {fill: false, weight: 3}).addTo(map);
+var center = new L.LatLng(60.194, 24.93);
+var bbox = [[60.1463, 24.839], [60.242, 24.839], [60.242, 25.02], [60.1463, 25.02]];
+function create_map(div_id, center, main_layer, bbox) {
+	var map = new L.Map(div_id, {zoom: 12, center: center, layers: [main_layer]});
+	L.polygon(bbox, {fill: false, weight: 3}).addTo(map);
+	return map;
+}
+var mapc = create_map('mapc', center, OpenStreetMap_Mapnik, bbox);
+var mapp = create_map('mapp', center, OpenStreetMap_HOT, bbox);
+// helsinki.data.forEach(marker_from_photos);
 
-/* CLUSTERING
-var markers = L.markerClusterGroup();
-
-var nb_points = helsinki_fs.length;
-for (var i = 0; i < nb_points; i++) {
-	var p = helsinki_fs[i];
-	var title = p[2].toString();
-	var marker = L.marker(new L.LatLng(p[1], p[0]), { title: title });
-	marker.bindPopup(title);
-	markers.addLayer(marker);
+function get_cluster(data) {
+	var checkins = L.markerClusterGroup();
+	var nb_points = data.length;
+	for (var i = 0; i < nb_points; i++) {
+		var p = data[i];
+		var title = p[2].toString();
+		var marker = L.marker(new L.LatLng(p[1], p[0]), { title: title });
+		marker.bindPopup(title);
+		checkins.addLayer(marker);
+	}
+	return checkins;
 }
 
-map.addLayer(markers);
-*/
+mapc.addLayer(get_cluster(helsinki_fs));
+mapp.addLayer(get_cluster(helsinki_cluster));

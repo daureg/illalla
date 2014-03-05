@@ -20,7 +20,9 @@
 		<link rel="stylesheet" href="cluster/MarkerCluster.css" type="text/css" media="screen">
 		<link rel="stylesheet" href="cluster/screen.css" type="text/css" media="screen">
 		<style type="text/css" media="screen">
-		#map {height: 700px;}
+		* {margin: 0; padding: 0;}
+		.map {height: 700px; width: 49.8%; border: 1px solid white;}
+		#mapc {float: left;} #mapp {float: right;}
 		.photo {
 			text-align:center;
 			vertical-align:middle;
@@ -34,7 +36,8 @@
 		</style>
 	</head>
 <body>
-	<div id="map"></div>
+	<div id="mapc" class="map" title="Foursquare checkins"></div>
+	<div id="mapp" class="map" title="Flickr photos"></div>
 	<script src="vizu.js" type="text/javascript" charset="utf-8"></script>
 </body>
 </html>

@@ -18,7 +18,9 @@ code.html
 *_log.py
 diary/aaltologo.sty
 diary/current.tex
+diary/*.tex
 diary/*.pdf
+papers/biblio_thesis.*
 disc/*
 !disc/all*
 !disc/do.sh

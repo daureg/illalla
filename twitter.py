@@ -15,7 +15,6 @@ import cities
 import locale
 locale.setlocale(locale.LC_ALL, 'C')  # to parse date
 UTC_DATE = '%a %b %d %X +0000 %Y'
-UTC_TZ = cities.pytz.utc
 FullCheckIn = rf.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city',
                                             'loc', 'time', 'tid'])
 
@@ -45,12 +44,10 @@ def parse_tweet(tweet):
     uid = get_nested(tweet, ['user', 'id_str'])
     try:
         time = rf.datetime.strptime(tweet['created_at'], UTC_DATE)
-        time = time.replace(tzinfo=UTC_TZ)
-        time = cities.TZ[city].normalize(time.astimezone(cities.TZ[city]))
-        time = time.replace(tzinfo=None)
+        time = cities.utc_to_local(city, time)
     except ValueError:
         print('time: {}'.format(tweet['created_at']))
-        time = None
+        return None
     return FullCheckIn('', lid, uid, city, loc, time, tid)
 
 

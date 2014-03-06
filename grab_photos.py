@@ -322,8 +322,8 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
 
 
 if __name__ == '__main__':
-    # import doctest
-    # doctest.testmod()
+    import sys
+    global HINT
     START_OF_REQUESTS = time()
     logging.info('initial request')
 
@@ -331,7 +331,10 @@ if __name__ == '__main__':
     photos.ensure_index([('loc', cm.pymongo.GEOSPHERE),
                          ('tags', cm.pymongo.ASCENDING),
                          ('uid', cm.pymongo.ASCENDING)])
-    CITY = cities.BAR
+    city = None if len(sys.argv) < 2 else sys.argv[1]
+    assert city and city in cm.cities.SHORT_KEY, 'choose a valid city'
+    CITY = (cities.US + cities.EU)[cities.INDEX[city]]
+    HINT = city
     bbox = (CITY[:2], CITY[2:])
     start_time = datetime.datetime(2008, 1, 1)
     total = higher_request(start_time, bbox, photos)

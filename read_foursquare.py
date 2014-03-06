@@ -16,7 +16,7 @@ from bisect import bisect_left
 Point = namedtuple('Point', ['x', 'y'])
 Location = namedtuple('Location', ['type', 'coordinates'])
 CheckIn = namedtuple('CheckIn',
-                     ['tid', 'lid', 'uid', 'city', 'loc', 'time'])
+                     ['tid', 'lid', 'uid', 'city', 'loc', 'time', 'place'])
 Node = namedtuple('Node', ['val', 'left', 'right'])
 BLACKLIST = ['fst.je', 'gowal.la', 'picplz.com', 'wal.la', 'flic.kr',
              'myloc.me', 'wp.me', 'yfrog.com', 'j.mp', 'bkite.com', 'untpd.it']
@@ -92,6 +92,16 @@ def save_to_mongo(documents, destination, venues_getter):
         pass
 
 
+def update_time_and_place(documents, destination):
+    for checkin in documents:
+        _id, time, place = checkin
+        try:
+            destination.update({'_id': _id},
+                               {'$set': {'time': time, 'place': place}})
+        except pymongo.errors.OperationFailure as err:
+            print(err, err.coderr)
+
+
 def id_must_be_process(_id):
     i = bisect_left(MISSING_ID, _id)
     return i != len(MISSING_ID) and MISSING_ID[i] == _id
@@ -151,7 +161,7 @@ if __name__ == '__main__':
             data = line.strip().split('\t')
             if len(data) is not 7:
                 continue
-            uid, tid, x, y, t, msg, _ = data
+            uid, tid, x, y, t, msg, place = data
             # if not id_must_be_process(int(tid)):
             #     continue
             lat, lon = float(x), float(y)
@@ -165,24 +175,28 @@ if __name__ == '__main__':
                 how_many += 1
                 tid, uid = int(tid), int(uid)
                 t = datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
+                t = cities.utc_to_local(city, t)
                 # to have more numerical values (but lid should be a 64bit
                 # unsigned integer which seems to be quite complicated in
                 # mongo)
                 # t = timegm(t.utctimetuple())
                 # city = cities.INDEX[city]
                 loc = Location('Point', [lon, lat])._asdict()
-                seen.append(CheckIn(tid, lid, uid, city, loc, t))
+                # seen.append(CheckIn(tid, lid, uid, city, loc, t, place))
+                seen.append((tid, t, place))
                 if len(seen) > 2000:
-                    save_to_mongo(seen, checkins, venues_getter)
+                    # save_to_mongo(seen, checkins, venues_getter)
+                    update_time_and_place(seen, checkins)
                     seen = []
                 if how_many % 10000 == 0:
                     print('1000(0) miles more')
-                    save_var('avenues_id_new_triton', venues_getter.results)
-                    save_var('avenues_errors_triton', venues_getter.errors)
+                    # save_var('avenues_id_new_triton', venues_getter.results)
+                    # save_var('avenues_errors_triton', venues_getter.errors)
 
-    save_to_mongo(seen, checkins, venues_getter)
+    # save_to_mongo(seen, checkins, venues_getter)
+    update_time_and_place(seen, checkins)
     counts = sorted(stats.iteritems(), key=lambda x: x[1], reverse=True)
     print('\n'.join(['{}: {}'.format(city, count) for city, count in counts]))
     print('total:' + str(sum(stats.values())))
-    save_var('avenues_id_new_triton', venues_getter.results)
-    save_var('avenues_errors_triton', venues_getter.errors)
+    # save_var('avenues_id_new_triton', venues_getter.results)
+    # save_var('avenues_errors_triton', venues_getter.errors)

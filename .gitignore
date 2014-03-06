@@ -1,4 +1,8 @@
 bidict.py
+papers/mk_summary.sh
+raw_categories
+classicthesis/*
+vizicities
 leaflet/*
 adv1/*
 !adv1/prez.tex
@@ -18,7 +22,9 @@ code.html
 *_log.py
 diary/aaltologo.sty
 diary/current.tex
+diary/*.tex
 diary/*.pdf
+papers/biblio_thesis.*
 disc/*
 !disc/all*
 !disc/do.sh
@@ -29,6 +35,7 @@ freq/
 jquery*
 nantes/
 japng.jar
+report/report.bib
 report/*.tex
 report/*.pdf
 topone.js

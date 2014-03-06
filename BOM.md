@@ -6,3 +6,4 @@ supported | original version of tag_support | 11.11.13 | extract_dataset.support
 user_status | user and tourist status in SF | 31.10.13 | more_query.get_user_status(with_count=False) | dict id:bool
 user_status_full | user and (photo count, tourist status) in SF | 3.11.13 | more_query.get_user_status(with_count=True) | dict id:(int,bool)
 time_entropy.ods/txt | tags and their time entropy in SF | 7.11.13 | more_query.time_entropy() | plain text
+raw_categories | categories answer from Foursquare | 28.02.14 | FSCategories.get_categories() | json dict

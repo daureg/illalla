@@ -11,12 +11,12 @@ except locale.Error:
     locale.setlocale(locale.LC_ALL, '')
 
 
-def ordered(counts, cities):
+def ordered(counts, cities, threshold=10):
     """Return `counts` ordered by cities."""
     as_dict = {v['_id']: v['count'] for v in counts}
     count = [as_dict.get(city, 0) for city in cities]
     fmt = lambda v: locale.format('%d', v, grouping=True)
-    return [fmt(c) if c > 10 else '' for c in count]
+    return [fmt(c) if c > threshold else '' for c in count]
 
 
 if __name__ == '__main__':
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     t.add_column('with venues', ordered(located['result'], order), 'r')
     t.add_column('photos', ordered(flickr['result'], order), 'r')
     t.add_column('venues', ordered(venue['result'], order), 'r')
-    t.add_column('new checkins', ordered(newest['result'], order), 'r')
+    t.add_column('new checkins', ordered(newest['result'], order, 0), 'r')
     table = str(t)
     line_size = len(table)/(len(order)+4)
     start = table.find('\n')+1

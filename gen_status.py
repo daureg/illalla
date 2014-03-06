@@ -50,7 +50,7 @@ if __name__ == '__main__':
                                {'$group': {'_id': '$hint',
                                            'count': {'$sum': 1}}}])
     t.add_column('city', [cm.cities.FULLNAMES[n] for n in order], 'l')
-    t.add_column('ICWS checkins', ordered(checkin, order), 'r')
+    t.add_column('ICWSM checkins', ordered(checkin, order), 'r')
     t.add_column('with venues', ordered(located['result'], order), 'r')
     t.add_column('photos', ordered(flickr['result'], order), 'r')
     t.add_column('venues', ordered(venue['result'], order), 'r')

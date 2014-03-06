@@ -8,6 +8,7 @@ from string import ascii_lowercase as alphabet
 import LocalCartesian as lc
 from datetime import datetime as dt
 import pytz
+import bidict
 
 
 def short_name(long_name):
@@ -49,6 +50,7 @@ _TIMEZONES = ['America/New_York', 'America/New_York', 'America/Los_Angeles',
               'Europe/Stockholm', 'Europe/Madrid']
 UTC_TZ = pytz.utc
 SHORT_KEY = [short_name(city) for city in NAMES]
+FULLNAMES = bidict.bidict(zip(SHORT_KEY, NAMES))
 get_tz = lambda tz: pytz.timezone(tz).localize(dt.utcnow()).tzinfo
 TZ = {city: get_tz(tz) for tz, city in zip(_TIMEZONES, SHORT_KEY)}
 INDEX = {short_name(city): _id for _id, city in enumerate(NAMES)}

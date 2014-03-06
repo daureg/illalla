@@ -5,10 +5,15 @@
 """A list of cities with related information: bounding box, name, local
 Euclidean projection."""
 from string import ascii_lowercase as alphabet
+from api_keys import FLICKR_KEY as key
 import LocalCartesian as lc
 from datetime import datetime as dt
 import pytz
 import bidict
+
+
+def photos_request(bbox):
+    print('curl "http://api.flickr.com/services/rest/?min_upload_date=1199145600&format=json&min_taken_date=1990-07-18+17%3A00%3A00&nojsoncallback=1&method=flickr.photos.search&extras=date_upload%2Cdate_taken%2Cgeo%2Ctags&bbox={}%2C{}%2C{}%2C{}&content_type=1&media=photos&per_page=1&page=1&accuracy=16&api_key={}"'.format(bbox[1], bbox[0], bbox[3], bbox[2], key))
 
 
 def short_name(long_name):
@@ -91,7 +96,10 @@ if __name__ == '__main__':
     city = HOU
     name = 'houston'
     place = lambda: (uniform(city[0], city[2]), uniform(city[1], city[3]))
-    for i in range(1000):
+    photos_request(PRA)
+    photos_request(ROM)
+    photos_request(SLO)
+    for i in range(0):
         year, month, hour = randint(2007, 2014), randint(1, 12), randint(0, 23)
         date = dt(year, month, 25, hour, 45)
         city = choice(SHORT_KEY)

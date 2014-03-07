@@ -12,6 +12,10 @@ def noise():
 
 
 def to_css_hex(color):
+    """
+    >>> to_css_hex([1, 0, 1, .7])
+    '#ff00ff'
+    """
     r = '#'
     for i in color[:-1]:
         c = hex(int(255*i))[2:]
@@ -59,3 +63,36 @@ def output_checkins(city):
         output.write('var helsinki_fs = [\n')
         output.write(',\n'.join(formated))
         output.write('];')
+
+
+def get_nested(dico, fields, default=None):
+    """If the key hierarchy of `fields` exists in `dico`, return its value,
+    otherwise `default`.
+    >>> get_nested({'loc': {'type': 'city'}}, ['loc', 'type'])
+    'city'
+    >>> get_nested({'type': 'city'}, 'type')
+    'city'
+    >>> get_nested({'loc': {'type': 'city'}}, ['loc', 'lat']) is None
+    True
+    >>> get_nested({'loc': {'type': None}}, ['loc', 'type']) is None
+    True
+    >>> get_nested({'l': {'t': {'a': 'h'}}}, ['l', 't', 'a'])
+    'h'
+    >>> get_nested({'l': {'t': None}}, ['l', 't', 'a'], 0)
+    0
+    >>> get_nested({'names': {'symbols': 'euro'}}, ['names', 'urls'], [])
+    []
+    """
+    if not hasattr(fields, '__iter__'):
+        return dico.get(fields, default)
+    current = dico
+    is_last_field = lambda i: i == len(fields) - 1
+    for index, field in enumerate(fields):
+        if not hasattr(current, 'get'):
+            return default if is_last_field(index) else current
+        current = current.get(field, default if is_last_field(index) else {})
+    return current
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

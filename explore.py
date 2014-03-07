@@ -2,14 +2,16 @@
 # vim: set fileencoding=utf-8
 """Interactive exploration of data file."""
 import codecs
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, namedtuple
 from math import log
 import scipy.io as sio
+import scipy.spatial as spatial
 import numpy as np
 import persistent
 from more_query import get_top_tags
 import CommonMongo as cm
 import FSCategories as fsc
+Surrounding = namedtuple('Surrounding', ['tree', 'venues', 'id_to_index'])
 
 
 def increase_coverage(upto=5000):
@@ -123,23 +125,80 @@ def describe_venue(venues, city, depth=2, limit=None):
         """Return the category of `place`, without going beyond `depth`"""
         _, path = fsc.search_categories(cats, place['_id'])
         if len(path) > depth:
-            return fsc.ID_TO_NAMES[path[depth]]
-        return fsc.ID_TO_NAMES[path[-1]]
+            return fsc.CAT_TO_ID[:path[depth]]
+        return fsc.CAT_TO_ID[:path[-1]]
 
     summary = defaultdict(lambda: (0, 0))
+    nb_venues = 0
     for venue in res:
         if venue['_id'] is not None:
             cat = parenting_cat(venue, depth)
             count, like = venue['count'], venue['like']
+            nb_venues += count
             summary[cat] = (summary[cat][0] + count, summary[cat][1] + like)
 
-    return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0]))
+    for cat, stat in summary.iteritems():
+        count, like = stat
+        summary[cat] = (100.0*count/nb_venues, count, like)
+    return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0],
+                              reverse=True))
 
+
+def build_surrounding(venues, city):
+    """Return a scipy backed 2-d tree of all venues in `city` with their
+    categories."""
+    assert city in cm.cities.SHORT_KEY, 'not a valid city'
+    res = list(venues.find({'city': city, 'likes': {'$gt': 0},
+                            'checkinsCount': {'$gte': 10}},
+                           {'cat': 1, 'loc.coordinates': 1}))
+    indexing = fsc.bidict.bidict()
+    places = np.zeros((len(res), 3))  # pylint: disable=E1101
+    for pos, venue in enumerate(res):
+        numeric_category = fsc.ID_TO_INDEX[venue['cat']]
+        lng, lat = venue['loc']['coordinates']
+        local_coord = cm.cities.GEO_TO_2D[city]([lat, lng])
+        places[pos, :] = (local_coord[0], local_coord[1], numeric_category)
+        indexing[pos] = venue['_id']
+    # pylint: disable=E1101
+    return Surrounding(spatial.KDTree(places[:, :2]), places, indexing)
+
+
+def query_surrounding(surrounding, venue_id, radius=150):
+    """Return the venues in `surrounding` closer than `radius` from
+    `venue_id`."""
+    from_index = lambda idx: surrounding.id_to_index[idx]
+    to_index = lambda vid: surrounding.id_to_index[:vid]
+    queried_index = to_index(venue_id)
+    full_venue = surrounding.venues[queried_index]
+    position = full_venue[:2]
+    neighbors = surrounding.tree.query_ball_point(position, radius)
+    return [from_index(i) for i in neighbors if i is not queried_index]
+
+
+def alt_surrounding(venues_db, venue_id, radius=150):
+    position = venues_db.find_one({'_id': venue_id}, {'loc': 1})['loc']
+    ball = {'$geometry': position, '$maxDistance': radius}
+    neighbors = venues_db.find({'city': 'helsinki', 'loc': {'$near': ball},
+                                'likes': {'$gt': 0},
+                                'checkinsCount': {'$gte': 10}},
+                               {'cat': 1, 'time': 1})
+    return [v['_id'] for v in neighbors if v['_id'] != venue_id]
 
 if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
     #pylint: disable=C0103
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
+    city = 'paris'
     # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
-    ny_venue = describe_venue(db['venue'], 'newyork')
+    ny_venue = describe_venue(db['venue'], city, 2)
     print(ny_venue.items())
+    stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)
+    with codecs.open(city + '_cat.dat', 'w', 'utf8') as report:
+        report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
+                                 for k, v in ny_venue.items()]))
+    # surround = build_surrounding(db['venue'], 'helsinki')
+    # a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
+    # b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
+    # print(b-a)

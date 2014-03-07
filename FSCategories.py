@@ -4,9 +4,10 @@
 from collections import namedtuple
 import persistent as p
 import string
-Categories = namedtuple('Categories', ['id', 'name', 'depth', 'sub'])
-NAMES_TO_ID = {'Place': '0'}
-ID_TO_NAMES = {'0': 'Place'}
+Category = namedtuple('Category', ['id', 'name', 'depth', 'sub'])
+import bidict
+CAT_TO_ID = bidict.bidict({None: '0', 'Venue': '1'})
+ID_TO_INDEX = bidict.bidict({None: 0, '0': 0, '1': 1})
 
 
 def parse_categories(top_list, depth=0):
@@ -18,10 +19,9 @@ def parse_categories(top_list, depth=0):
         subs = []
         if isinstance(cat, dict) and 'categories' in cat:
             subs = parse_categories(cat['categories'], depth+1)
-        id_, name = str(cat['id']), unicode(cat['shortName'])
-        NAMES_TO_ID[name] = id_
-        ID_TO_NAMES[id_] = name
-        res.append(Categories(id_, name, depth+1, subs))
+        id_, name = str(cat['id']), unicode(cat['name'])
+        CAT_TO_ID[name] = id_
+        res.append(Category(id_, name, depth+1, subs))
     return res
 
 
@@ -31,8 +31,15 @@ def get_categories(client=None):
     if client is None:
         raw_cats = p.load_var('raw_categories')['categories']
     else:
-        raw_cats = client.categories()['categories']
-    cats = Categories('0', 'Place', 0, parse_categories(raw_cats))
+        raw_cats = client.venues.categories()
+        p.save_var('raw_categories', raw_cats)
+        raw_cats = raw_cats['categories']
+    cats = Category('1', 'Venue', 0, parse_categories(raw_cats))
+    # pylint: disable=E1101
+    id_index = [(id_, idx + 100)
+                for idx, id_ in enumerate(sorted(CAT_TO_ID.values()))
+                if id_ not in ['0', '1']]
+    ID_TO_INDEX.update(id_index)
     return cats
 
 
@@ -55,6 +62,9 @@ def choose_type(query):
     if query[0] in string.digits:
         return 0
     return 1
+
+
+CATS = globals()['get_categories']()
 
 if __name__ == '__main__':
     #pylint: disable=C0103

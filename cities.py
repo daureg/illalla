@@ -2,11 +2,23 @@
 # vim: set fileencoding=utf-8
 # from more_query import bbox_to_polygon
 # from json import dumps
+"""A list of cities with related information: bounding box, name, local
+Euclidean projection."""
 from string import ascii_lowercase as alphabet
+from api_keys import FLICKR_KEY as key
+import LocalCartesian as lc
+from datetime import datetime as dt
+import pytz
+import bidict
 
 
-def short_name(city):
-    return ''.join([c.lower() for c in city if c.lower() in alphabet])
+def photos_request(bbox):
+    print('curl "http://api.flickr.com/services/rest/?min_upload_date=1199145600&format=json&min_taken_date=1990-07-18+17%3A00%3A00&nojsoncallback=1&method=flickr.photos.search&extras=date_upload%2Cdate_taken%2Cgeo%2Ctags&bbox={}%2C{}%2C{}%2C{}&content_type=1&media=photos&per_page=1&page=1&accuracy=16&api_key={}"'.format(bbox[1], bbox[0], bbox[3], bbox[2], key))
+
+
+def short_name(long_name):
+    """Return normalized name of city"""
+    return ''.join([c.lower() for c in long_name if c.lower() in alphabet])
 
 NYC = [40.583, -74.040, 40.883, -73.767]
 WAS = [38.8515, -77.121, 38.9848, -76.902]
@@ -34,9 +46,75 @@ NAMES = ['New York', 'Washington', 'San Francisco', 'Atlanta', 'Indianapolis',
          'Los Angeles', 'Seattle', 'Houston', 'St. Louis', 'Chicago',
          'London', 'Paris', 'Berlin', 'Rome', 'Prague', 'Moscow', 'Amsterdam',
          'Helsinki', 'Stockholm', 'Barcelona']
+_TIMEZONES = ['America/New_York', 'America/New_York', 'America/Los_Angeles',
+              'America/New_York', 'America/Indiana/Indianapolis',
+              'America/Los_Angeles', 'America/Los_Angeles', 'America/Chicago',
+              'America/Chicago', 'America/Chicago', 'Europe/London',
+              'Europe/Paris', 'Europe/Berlin', 'Europe/Rome', 'Europe/Prague',
+              'Europe/Moscow', 'Europe/Amsterdam', 'Europe/Helsinki',
+              'Europe/Stockholm', 'Europe/Madrid']
+UTC_TZ = pytz.utc
 SHORT_KEY = [short_name(city) for city in NAMES]
+FULLNAMES = bidict.bidict(zip(SHORT_KEY, NAMES))
+get_tz = lambda tz: pytz.timezone(tz).localize(dt.utcnow()).tzinfo
+TZ = {city: get_tz(tz) for tz, city in zip(_TIMEZONES, SHORT_KEY)}
 INDEX = {short_name(city): _id for _id, city in enumerate(NAMES)}
+middle = lambda bbox: (.5*(bbox[0] + bbox[2]), (.5*(bbox[1] + bbox[3])))
+GEO_TO_2D = {name: lc.LocalCartesian(*middle(city)).forward
+             for name, city in zip(SHORT_KEY, US+EU)}
 
-# if __name__ == '__main__':
+
+def utc_to_local(city, time):
+    """Takes `time`, which represents a datetime in UTC (maybe implicitely) and
+    return the naive datetime representing local time in `city`.
+    >>> utc_to_local('newyork', dt(2009, 7, 25, 12, 45))
+    datetime.datetime(2009, 7, 25, 8, 45)
+    >>> utc_to_local('newyork', dt(2009, 2, 25, 12, 45))
+    datetime.datetime(2009, 2, 25, 7, 45)
+    """
+    time = time.replace(tzinfo=UTC_TZ)
+    time = TZ[city].normalize(time.astimezone(TZ[city]))
+    return time.replace(tzinfo=None)
+
+
+def local_to_utc(city, time):
+    """Do the converse of utc_to_local.
+    >>> local_to_utc('newyork', dt(2009, 7, 25, 8, 45))
+    datetime.datetime(2009, 7, 25, 12, 45)
+    >>> local_to_utc('newyork', dt(2009, 2, 25, 7, 45))
+    datetime.datetime(2009, 2, 25, 12, 45)
+    """
+    time = time.replace(tzinfo=None)
+    return time - TZ[city].utcoffset(time, True)
+
+if __name__ == '__main__':
+    from random import uniform, choice, randint
+    from geographiclib.geodesic import Geodesic
+    import doctest
+    doctest.testmod()
+    EARTH = Geodesic.WGS84
+    city = HOU
+    name = 'houston'
+    place = lambda: (uniform(city[0], city[2]), uniform(city[1], city[3]))
+    photos_request(PRA)
+    photos_request(ROM)
+    photos_request(SLO)
+    for i in range(0):
+        year, month, hour = randint(2007, 2014), randint(1, 12), randint(0, 23)
+        date = dt(year, month, 25, hour, 45)
+        city = choice(SHORT_KEY)
+        if local_to_utc(city, utc_to_local(city, date)) != date:
+            print(city, date)
+
+    for i in range(0):
+        p1 = place()
+        p2 = place()
+        local_diff = GEO_TO_2D[name](p1) - GEO_TO_2D[name](p2)
+        estimated_dst = lc.numpy.linalg.norm(local_diff[:2])
+        estimated_dst_f = lc.numpy.linalg.norm(local_diff)
+        real_dst = EARTH.Inverse(p1[0], p1[1], p2[0], p2[1])['s12']
+        variation = 100*(estimated_dst-real_dst)/real_dst
+        variation_f = 100*(estimated_dst_f-real_dst)/real_dst
+        print('variation: {:.7f}% vs {:.7f}%'.format(variation, variation_f))
 #     for cities in US+EU:
 #         print(dumps(bbox_to_polygon(cities)))

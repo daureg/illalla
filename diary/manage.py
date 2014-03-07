@@ -1,7 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 from dateutil.parser import parse
-from subprocess import check_output, check_call
+from subprocess import check_output
 from shutil import copy
 import datetime
 import sys
@@ -10,6 +10,7 @@ import isoweek
 DATE_FORMAT = '%Y%m%d'
 START = """\documentclass[a4paper,oneside,draft,
 notitlepage,11pt,svgnames]{scrreprt}
+\\newcommand{\workingDate}{\\today}
 \input{preambule}
 \\begin{document}
 """
@@ -30,6 +31,7 @@ def create(date):
     with open('current.tex', 'w') as f:
         f.write(content)
     copy('content.tex', filename)
+    print('gvim {}'.format(filename))
 
 
 def week(date):
@@ -55,7 +57,7 @@ def log(date):
     log = check_output(cmd.format(str(since)),
                        shell=True).strip()+"\n\end{verbatim}"
     print(log)
-    return log
+    return log.replace('\t', '    ')
 
 
 def since(date):
@@ -73,8 +75,6 @@ def finish(date):
         f.write(log(today))
     print('latexmk -pdf -pvc current')
     print('mv current.pdf {}.pdf'.format(name))
-    print('git add {}.tex && git commit -m "write today log" {}.tex'.format(name,
-                                                                            name))
 
 if __name__ == '__main__':
     date = datetime.datetime.now()

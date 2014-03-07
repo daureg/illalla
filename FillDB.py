@@ -5,7 +5,8 @@ Database."""
 from time import sleep
 from threading import Thread
 import foursquare
-import pymongo
+import CommonMongo as cm
+import Chunker
 from Queue import Queue
 from api_keys import FOURSQUARE_ID as CLIENT_ID
 from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
@@ -55,7 +56,7 @@ def entities_getter():
         try:
             answers = list(CLIENT.multi())
         except foursquare.ParamError as e:
-            print(str(e))
+            print(e)
             invalid = str(e).split('/')[-1].replace(' ', '+')
             answers = individual_query(batch, invalid)
 
@@ -92,7 +93,7 @@ def entities_putter():
         entity = ENTITIES_QUEUE.get()
         if entity is not None:
             TO_BE_INSERTED.append(convert_entity_for_mongo(entity))
-        if len(TO_BE_INSERTED) >= 100:
+        if len(TO_BE_INSERTED) >= 400:
             mongo_insertion()
         ENTITIES_QUEUE.task_done()
 
@@ -101,26 +102,21 @@ def mongo_insertion():
     global TO_BE_INSERTED
     try:
         TABLE.insert(TO_BE_INSERTED, continue_on_error=True)
-    except pymongo.errors.DuplicateKeyError:
+    except cm.pymongo.errors.DuplicateKeyError:
         pass
-    except pymongo.errors.OperationFailure as e:
-        print(e.error)
-    TO_BE_INSERTED = []
+    except cm.pymongo.errors.OperationFailure as e:
+        print(e, e.code)
+    del TO_BE_INSERTED[:]
 
 if __name__ == '__main__':
     REQ = getattr(CLIENT, REQ)
-    mongo_client = pymongo.MongoClient('localhost', 27017)
-    db = mongo_client['foursquare']
+    db = cm.connect_to_db('foursquare')[0]
     checkins = db['checkin']
     TABLE = db[ENTITY_KIND]
     if ENTITY_KIND == 'venue':
-        TABLE.ensure_index([('loc', pymongo.GEOSPHERE),
-                            ('_id', pymongo.ASCENDING),
-                            ('city', pymongo.ASCENDING),
-                            ('tags', pymongo.ASCENDING),
-                            ('cat', pymongo.ASCENDING)])
-    elif ENTITY_KIND == 'user':
-        TABLE.ensure_index([('_id', pymongo.ASCENDING)])
+        TABLE.ensure_index([('loc', cm.pymongo.GEOSPHERE),
+                            ('city', cm.pymongo.ASCENDING),
+                            ('cat', cm.pymongo.ASCENDING)])
     t = Thread(target=entities_getter, name='Query4SQ')
     t.daemon = True
     t.start()
@@ -128,9 +124,16 @@ if __name__ == '__main__':
     t.daemon = True
     t.start()
     total_entities = 0
-    city = 'chicago'
-    for batch in gather_all_entities_id(checkins, DB_FIELD, city=city,
-                                        limit=None):
+    city = None if len(sys.argv) < 2 else sys.argv[1]
+    assert not city or city in cm.cities.SHORT_KEY, 'choose a valid city'
+    chunker = Chunker.Chunker(foursquare.MAX_MULTI_REQUESTS)
+    previous = [e['_id'] for e in TABLE.find({'city': city})]
+    latent = gather_all_entities_id(checkins, DB_FIELD, city=city, limit=None)
+    print('but already {} {} in DB.'.format(len(previous), ENTITY_KIND))
+    new_ones = set(latent).difference(set(previous))
+    print('So only {} new ones.'.format(len(new_ones)))
+    for batch in chunker(new_ones):
+        print(batch)
         IDS_QUEUE.put(batch)
         total_entities += len(batch)
 
@@ -139,5 +142,5 @@ if __name__ == '__main__':
     mongo_insertion()
     from persistent import save_var
     print('{}/{} invalid id'.format(len(INVALID_ID), total_entities))
-    region = 'world' if city is None else city
-    save_var('non_venue_id_{}'.format(region), INVALID_ID)
+    region = city or 'world'
+    save_var('non_{}_id_{}'.format(ENTITY_KIND, region), INVALID_ID)

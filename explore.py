@@ -11,6 +11,8 @@ import persistent
 from more_query import get_top_tags
 import CommonMongo as cm
 import FSCategories as fsc
+import AskFourquare as af
+from utils import answer_to_dict, geodesic_distance
 Surrounding = namedtuple('Surrounding', ['tree', 'venues', 'id_to_index'])
 
 
@@ -74,7 +76,6 @@ def get_max_KL(grid=200):
 
 def disc_latex(N=11):
     line = u'{} & {:.3f} & {} & {:.3f} & {} & {:.3f} \\\\'
-    import persistent
     from rank_disc import top_discrepancy
     t = [persistent.load_var('disc/all'),
          persistent.load_var('disc/all_80'),
@@ -184,6 +185,28 @@ def alt_surrounding(venues_db, venue_id, radius=150):
                                {'cat': 1, 'time': 1})
     return [v['_id'] for v in neighbors if v['_id'] != venue_id]
 
+
+def collect_similars(venues_db, client, city):
+    """Find similars venues for 100 location in city, save the result in DB and
+    return matching venues that were already in DB."""
+    from random import sample
+    venues = answer_to_dict(venues_db.find({'city': city}, {'loc': 1}))
+    chosen = sample(venues.items(), 10)
+    distances = []
+    for vid, loc in chosen:
+        similars = af.similar_venues(vid, client=client)
+        if similars is None:
+            continue
+        else:
+            print(vid, similars)
+        venues_db.update({'_id': vid}, {'$set': {'similars': similars}})
+        matching = answer_to_dict(venues_db.find({'_id': {'$in': similars}},
+                                                 {'loc': 1}))
+        distances.append([geodesic_distance(loc, sloc)
+                          for sloc in matching.itervalues()])
+    return chosen, distances
+
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
@@ -202,3 +225,5 @@ if __name__ == '__main__':
     # a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
     # b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
     # print(b-a)
+    fsclient = af.foursquare.Foursquare(af.CLIENT_ID, af.CLIENT_SECRET)
+    c, d = collect_similars(db.venue, fsclient, 'helsinki')

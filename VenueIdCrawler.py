@@ -70,6 +70,7 @@ class VenueIdCrawler(object):
     def prepare_request(self, urls):
         assert len(urls) <= self.pool_size
         for i, u in enumerate(urls):
+            u = str(u)
             self.cpool[i].url = u
             self.cpool[i].buf.truncate(0)
             try:
@@ -155,6 +156,10 @@ TEST_DATA = {
     'http://4sq.com/eISsW0': '4c73269df3279c74f15eb12d',
     'http://4sq.com/fLc5gJ': '3fd66200f964a52072e61ee3',
     'http://4sq.com/eCaKGm': '4d1759fd25cda143c24876d6',
+    'http://4sq.com/1fUl5jB': '4b3b5b13f964a520d97225e3',
+    'http://4sq.com/1n6608z': '4e5b759eb0fbdca30a171b16',
+    u'http://4sq.com/1h1Ii5S': '4bbcab08a0a0c9b654971a0f',
+    u'http://4sq.com/1qjygUa': '49bb36fcf964a520dc531fe3',
     # venue page
     'http://4sq.com/ccIVP3': '4e57dbd3227131507c9381df',
     'http://4sq.com/9nNdot': '4a270788f964a520268e1fe3',

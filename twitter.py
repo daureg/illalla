@@ -48,8 +48,8 @@ def parse_tweet(tweet):
     # or by VenueIdCrawler. Once we get the full URL, we still need to request
     # 4SQ (500 per hours) to get info (or look at page body, which contains the
     # full checkin in a javascript field)
-    lid = [url['expanded_url'] for url in urls
-           if '4sq.com' in url['expanded_url']][0]
+    lid = str([url['expanded_url'] for url in urls
+               if '4sq.com' in url['expanded_url']][0])
     uid = get_nested(tweet, ['user', 'id_str'])
     msg = get_nested(tweet, 'text')
     try:

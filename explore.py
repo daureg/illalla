@@ -6,12 +6,16 @@ from collections import OrderedDict, defaultdict, namedtuple
 from math import log
 import scipy.io as sio
 import scipy.spatial as spatial
+import scipy.cluster.vq as cluster
 import numpy as np
 import persistent
 from more_query import get_top_tags
 import CommonMongo as cm
 import FSCategories as fsc
 Surrounding = namedtuple('Surrounding', ['tree', 'venues', 'id_to_index'])
+from utils import human_day, answer_to_dict
+import enum
+Entity = enum.Enum('Entity', 'checkin venue user photo')
 
 
 def increase_coverage(upto=5000):
@@ -89,6 +93,91 @@ def disc_latex(N=11):
         print(display(v))
 
 
+def get_visits(mongo, entity, city=None, ball=None):
+    """Return a sequence of timestamps of `entity` (venue or photo) within
+    `city` or `ball` = ((lng, lat), radius) by querying a `mongo` client."""
+    operation, time = choose_query_type(mongo, entity)
+    location = get_spatial_query(entity, city, ball)
+    return query_for_visits(operation, location, time, mongo, city)
+
+
+def choose_query_type(mongo, entity):
+    """Return appropriate db operation and time field name."""
+    if entity == Entity.venue:
+        return mongo.foursquare.checkin.aggregate, 'time'
+    elif entity == Entity.photo:
+        return mongo.world.photos.find, 'taken'
+    else:
+        raise ValueError('choose venue or photo')
+
+
+def get_spatial_query(kind, city, ball):
+    """Return appropriate mongo geographical query operator."""
+    if city and city in cm.cities.SHORT_KEY:
+        return {('city' if kind == Entity.venue else 'hint'): city,
+                'lid': {'$ne': None}}
+    elif ball and len(ball) == 2:
+        center, radius = ball
+        center = {'type': 'Point', 'coordinates': list(center)}
+        ball = {'$geometry': center, '$maxDistance': radius}
+        return {'loc': {'$near': ball}}
+    else:
+        raise ValueError('choose city or ball')
+
+
+def query_for_visits(operation, location, time, mongo, city):
+    """Return a dict resulting of the call of `operation` with `location` and
+    `time` arguments."""
+    if 'find' in str(operation.im_func):
+        return answer_to_dict(operation(location, {time: 1}))
+    from itertools import chain
+    # $near is not supported in aggregate $match
+    if 'loc' in location:
+        ids = mongo.foursquare.venue.find({'city': city,
+                                           'loc': location['loc']}, {'_id': 1})
+        ids = [v['_id'] for v in ids]
+        location['lid'] = {'$in': ids}
+        del location['loc']
+    match = {'$match': location}
+    project = {'$project': {'time': '$'+time, 'lid': 1, '_id': 0}}
+    group = {'$group': {'_id': '$lid', 'visits': {'$push': '$time'}}}
+    query = [match, project, group]
+    return answer_to_dict(chain(operation(query)['result']))
+
+
+def collapse(values, chunk_size):
+    """Return sum of `values` by piece of `chunk_size`.
+    >>> collapse(range(6), 3)
+    [3, 12]"""
+    assert len(values) % chunk_size == 0, 'there will be leftovers'
+    return [sum(values[i:i+chunk_size])
+            for i in range(0, len(values), chunk_size)]
+
+
+def aggregate_visits(visits):
+    """Transform a list of visits into hourly and daily pattern."""
+    # pylint: disable=E1101
+    histo = lambda dim, size: np.bincount(timing[:, dim], minlength=size)
+    timing = np.array([(v.hour, human_day(v), v.month) for v in visits])
+    return collapse(histo(0, 24), 3), histo(1, 7)
+
+
+def to_frequency(data):
+    """Take a list of lists and return the corresponding frequency matrix."""
+    #TODO handle division by 0
+    # pylint: disable=E1101
+    totals = np.sum(data, 1)
+    nb_lines = len(data[0])
+    return data/np.tile(np.array([totals], dtype=np.float).T, (1, nb_lines))
+
+
+def clusterize(patterns):
+    """try to find the best k by running k means on pattern."""
+    whitened = cluster.whiten(patterns)
+    distorsion = [cluster.kmeans(whitened, i)[1] for i in range(2, 8)]
+    return distorsion
+
+
 def venues_activity(checkins, city, limit=None):
     """Return time pattern of all the venues in 'city', or only the 'limit'
     most visited."""
@@ -100,16 +189,11 @@ def venues_activity(checkins, city, limit=None):
     res = checkins.aggregate(query)['result']
     hourly = []
     weekly = []
-    # monthly pattern may not be that relevant since the dataset does not cover
-    # a whole year
-    monthly = []
     for venue in res:
-        timing = np.array([(t.hour, t.weekday(), t.month)
-                           for t in venue['visits']])
-        hourly.append(list(np.bincount(timing[:, 0], minlength=24)))
-        weekly.append(list(np.bincount(timing[:, 1], minlength=7)))
-        monthly.append(list(np.bincount(timing[:, 2], minlength=12)))
-    return hourly, weekly, monthly
+        hour, day = aggregate_visits(venue['visits'])
+        hourly.append(hour)
+        weekly.append(day)
+    return hourly, weekly
 
 
 def describe_venue(venues, city, depth=2, limit=None):
@@ -191,14 +275,15 @@ if __name__ == '__main__':
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
     city = 'paris'
-    # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
-    ny_venue = describe_venue(db['venue'], city, 2)
-    print(ny_venue.items())
-    stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)
-    with codecs.open(city + '_cat.dat', 'w', 'utf8') as report:
-        report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
-                                 for k, v in ny_venue.items()]))
+    hourly, weekly = venues_activity(checkins, 'newyork', 15)
+    # ny_venue = describe_venue(db['venue'], city, 2)
+    # print(ny_venue.items())
+    # stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)
+    # with codecs.open(city + '_cat.dat', 'w', 'utf8') as report:
+    #     report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
+    #                              for k, v in ny_venue.items()]))
     # surround = build_surrounding(db['venue'], 'helsinki')
     # a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
     # b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
     # print(b-a)
+    # r = get_visits(client, Entity.venue, ball=((25, 60.23), 900))

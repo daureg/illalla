@@ -93,6 +93,16 @@ def get_nested(dico, fields, default=None):
         current = current.get(field, default if is_last_field(index) else {})
     return current
 
+
+def human_day(time, new_day=4):
+    """Return weekday of `time`, but using `new_day` hour as separator instead
+    of midnight."""
+    hour, day = time.hour, time.weekday()
+    if hour < new_day:
+        day = (day - 1) % 7
+    return day
+
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

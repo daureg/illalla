@@ -70,9 +70,13 @@ class VenueIdCrawler(object):
     def prepare_request(self, urls):
         assert len(urls) <= self.pool_size
         for i, u in enumerate(urls):
-            self.cpool[i].setopt(pycurl.URL, u)
             self.cpool[i].url = u
             self.cpool[i].buf.truncate(0)
+            try:
+                self.cpool[i].setopt(pycurl.URL, u)
+            except TypeError:
+                logging.error('curl fail at ' + str(u))
+                continue
             self.multi.add_handle(self.cpool[i])
             self.connections += 1
 

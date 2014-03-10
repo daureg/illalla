@@ -22,8 +22,9 @@ locale.setlocale(locale.LC_ALL, 'C')  # to parse date
 UTC_DATE = '%a %b %d %X +0000 %Y'
 FullCheckIn = rf.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
                                             'time', 'tid', 'tuid', 'msg'])
-CHECKINS_QUEUE = Queue(4*cc.vc.POOL_SIZE)
-GETTING_MORE_TWEETS = True
+# the size of mongo bulk insert, in multiple of pool size
+INSERT_SIZE = 10
+CHECKINS_QUEUE = Queue((INSERT_SIZE+3)*cc.vc.POOL_SIZE)
 NUM_VALID = 0
 
 
@@ -47,8 +48,8 @@ def parse_tweet(tweet):
     # or by VenueIdCrawler. Once we get the full URL, we still need to request
     # 4SQ (500 per hours) to get info (or look at page body, which contains the
     # full checkin in a javascript field)
-    lid = [url['expanded_url'] for url in urls
-           if '4sq.com' in url['expanded_url']][0]
+    lid = str([url['expanded_url'] for url in urls
+               if '4sq.com' in url['expanded_url']][0])
     uid = get_nested(tweet, ['user', 'id_str'])
     msg = get_nested(tweet, 'text')
     try:
@@ -66,6 +67,7 @@ def post_process(checkins):
     infos = CRAWLER.checkins_from_url([c.lid for c in checkins])
     to_insert = []
     for checkin, info in zip(checkins, infos):
+        CHECKINS_QUEUE.task_done()
         if info:
             converted = checkin._asdict()
             id_, uid, vid, time = info
@@ -81,11 +83,14 @@ def post_process(checkins):
 def insert_checkins():
     """batch insert checkins into DB."""
     waiting_for_crawling = []
-    while GETTING_MORE_TWEETS:
+    while True:
         checkin = CHECKINS_QUEUE.get()
-        assert checkin
+        if not checkin:
+            # receive None, signaling end of the time allowed
+            CHECKINS_QUEUE.task_done()
+            break
         waiting_for_crawling.append(checkin)
-        if len(waiting_for_crawling) == CRAWLER.pool_size:
+        if len(waiting_for_crawling) == INSERT_SIZE*CRAWLER.pool_size:
             perform_insertion(post_process(waiting_for_crawling))
             del waiting_for_crawling[:]
     perform_insertion(post_process(waiting_for_crawling))
@@ -93,11 +98,13 @@ def insert_checkins():
 
 def perform_insertion(complete):
     """Insert `complete` checkins into the DB."""
+    if not complete:
+        return
+    global NUM_VALID
     try:
         DB.checkin.insert(complete, continue_on_error=True)
         print('insert {}'.format(len(complete)))
-        for _ in complete:
-            CHECKINS_QUEUE.task_done()
+        NUM_VALID += len(complete)
     except cm.pymongo.errors.DuplicateKeyError:
         pass
     except cm.pymongo.errors.OperationFailure as err:
@@ -109,20 +116,25 @@ if __name__ == '__main__':
                              access_token, access_secret)
     req = api.request('statuses/filter', {'track': '4sq com'})
     nb_tweets = 0
+    nb_cand = 0
     valid_checkins = []
     t = Thread(target=insert_checkins, name='InsertCheckins')
     t.daemon = True
     t.start()
     start = clock()
-    end = start + 9*60*90
+    end = start + 13*60*60
+    new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
     for item in req.get_iterator():
         candidate = parse_tweet(item)
         nb_tweets += 1
         if candidate:
             CHECKINS_QUEUE.put_nowait(candidate)
-            NUM_VALID += 1
+            nb_cand += 1
+            if nb_cand % 10 == 0:
+                cc.vc.logging.info(new_tweet.format(candidate.tid, nb_cand,
+                                                    nb_tweets, end - clock()))
             if clock() >= end:
-                GETTING_MORE_TWEETS = False
+                CHECKINS_QUEUE.put_nowait(None)
                 break
     CHECKINS_QUEUE.join()
     report = 'insert {} valid checkins in {:.2f}s (out of {}).'

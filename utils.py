@@ -5,6 +5,8 @@ from persistent import load_var
 import json
 from random import uniform
 import CommonMongo as cm
+from geographiclib.geodesic import Geodesic
+EARTH = Geodesic.WGS84
 
 
 def noise():
@@ -92,6 +94,39 @@ def get_nested(dico, fields, default=None):
             return default if is_last_field(index) else current
         current = current.get(field, default if is_last_field(index) else {})
     return current
+
+
+def human_day(time, new_day=4):
+    """Return weekday of `time`, but using `new_day` hour as separator instead
+    of midnight."""
+    hour, day = time.hour, time.weekday()
+    if hour < new_day:
+        day = (day - 1) % 7
+    return day
+
+
+def geodesic_distance(point_1, point_2):
+    """Return the distance in meters between two JSON Points."""
+    assert 'coordinates' in point_1 and 'coordinates' in point_2
+    p1_lon, p1_lat = point_1['coordinates']
+    p2_lon, p2_lat = point_2['coordinates']
+    return EARTH.Inverse(p1_lat, p1_lon, p2_lat, p2_lon)['s12']
+
+
+def answer_to_dict(cursor, default=None):
+    """Take a `cursor` resulting from a mongo find query and return a
+    dictionary id: value (provided that there is only one other field) (or
+    `default`)."""
+    try:
+        first = cursor.next()
+    except StopIteration:
+        return {}
+    keys = first.keys()
+    assert '_id' in keys and len(keys) == 2
+    field_name = keys[(keys.index('_id') + 1) % 2]
+    res = {first['_id']: first.get(field_name, default)}
+    res.update({v['_id']: v.get(field_name, default) for v in cursor})
+    return res
 
 if __name__ == '__main__':
     import doctest

@@ -1,4 +1,5 @@
 bidict
+enum34
 fiona
 flickr_api
 foursquare

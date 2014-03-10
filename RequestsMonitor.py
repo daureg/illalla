@@ -25,7 +25,7 @@ class RequestsMonitor():
                 self.current_load = 0
 
         remaining = self.rate
-        if isinstance(client.rate_remaining, int):
+        if hasattr(client, 'rate_remaining'):
             remaining = client.rate_remaining
         allowed = self.current_load < self.rate and remaining > 0
         if not just_checking and allowed:

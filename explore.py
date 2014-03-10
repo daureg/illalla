@@ -94,8 +94,9 @@ def disc_latex(N=11):
 
 
 def get_visits(mongo, entity, city=None, ball=None):
-    """Return a sequence of timestamps of `entity` (venue or photo) within
-    `city` or `ball` = ((lng, lat), radius) by querying a `mongo` client."""
+    """Return a sequence of [timestamp] for each `entity` (venue or photo)
+    within `city` or `ball` = ((lng, lat), radius) by querying a `mongo`
+    client."""
     operation, time = choose_query_type(mongo, entity)
     location = get_spatial_query(entity, city, ball)
     return query_for_visits(operation, location, time, mongo, city)
@@ -148,17 +149,18 @@ def query_for_visits(operation, location, time, mongo, city):
 def collapse(values, chunk_size):
     """Return sum of `values` by piece of `chunk_size`.
     >>> collapse(range(6), 3)
-    [3, 12]"""
+    array([ 3, 12])"""
     assert len(values) % chunk_size == 0, 'there will be leftovers'
-    return [sum(values[i:i+chunk_size])
-            for i in range(0, len(values), chunk_size)]
+    # pylint: disable=E1101
+    return np.array([sum(values[i:i+chunk_size])
+                     for i in range(0, len(values), chunk_size)])
 
 
 def aggregate_visits(visits):
     """Transform a list of visits into hourly and daily pattern."""
     # pylint: disable=E1101
     histo = lambda dim, size: np.bincount(timing[:, dim], minlength=size)
-    timing = np.array([(v.hour, human_day(v), v.month) for v in visits])
+    timing = np.array([(v.hour, human_day(v)) for v in visits])
     return collapse(histo(0, 24), 3), histo(1, 7)
 
 
@@ -166,6 +168,8 @@ def to_frequency(data):
     """Take a list of lists and return the corresponding frequency matrix."""
     #TODO handle division by 0
     # pylint: disable=E1101
+    if hasattr(data, 'shape') and len(data.shape) == 1:
+        return data / np.sum(data, dtype=np.float)
     totals = np.sum(data, 1)
     nb_lines = len(data[0])
     return data/np.tile(np.array([totals], dtype=np.float).T, (1, nb_lines))
@@ -174,7 +178,7 @@ def to_frequency(data):
 def clusterize(patterns):
     """try to find the best k by running k means on pattern."""
     whitened = cluster.whiten(patterns)
-    distorsion = [cluster.kmeans(whitened, i)[1] for i in range(2, 8)]
+    distorsion = [cluster.kmeans(whitened, i) for i in range(2, 24)]
     return distorsion
 
 
@@ -202,7 +206,6 @@ def describe_venue(venues, city, depth=2, limit=None):
     query = cm.build_query(city, False, ['cat', 'likes'], limit)
     group = {'_id': '$cat', 'count': {'$sum': 1}, 'like': {'$sum': '$likes'}}
     query.extend([{'$group': group}, {'$sort': {'count': -1}}])
-    cats = fsc.get_categories()
     res = venues.aggregate(query)['result']
 
     def parenting_cat(place, depth):
@@ -274,8 +277,9 @@ def collect_similars(venues_db, client, city):
     return matching venues that were already in DB."""
     from random import sample
     venues = answer_to_dict(venues_db.find({'city': city}, {'loc': 1}))
-    chosen = sample(venues.items(), 10)
+    chosen = sample(venues.items(), 500)
     distances = []
+    all_match = []
     for vid, loc in chosen:
         similars = af.similar_venues(vid, client=client)
         if similars is None:
@@ -285,9 +289,10 @@ def collect_similars(venues_db, client, city):
         venues_db.update({'_id': vid}, {'$set': {'similars': similars}})
         matching = answer_to_dict(venues_db.find({'_id': {'$in': similars}},
                                                  {'loc': 1}))
+        all_match.append(matching)
         distances.append([geodesic_distance(loc, sloc)
                           for sloc in matching.itervalues()])
-    return chosen, distances
+    return chosen, distances, all_match
 
 
 if __name__ == '__main__':
@@ -297,7 +302,7 @@ if __name__ == '__main__':
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
     city = 'paris'
-    hourly, weekly = venues_activity(checkins, 'newyork', 15)
+    # hourly, weekly = venues_activity(checkins, 'newyork', 15)
     # ny_venue = describe_venue(db['venue'], city, 2)
     # print(ny_venue.items())
     # stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)
@@ -308,6 +313,24 @@ if __name__ == '__main__':
     # a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
     # b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
     # print(b-a)
-    fsclient = af.foursquare.Foursquare(af.CLIENT_ID, af.CLIENT_SECRET)
-    c, d = collect_similars(db.venue, fsclient, 'helsinki')
-    r = get_visits(client, Entity.venue, ball=((25, 60.23), 900))
+    # fsclient = af.foursquare.Foursquare(af.CLIENT_ID, af.CLIENT_SECRET)
+    # c, d, m = collect_similars(db.venue, fsclient, city)
+    paris_venue_visits = get_visits(client, Entity.venue, city)
+    getvenue = lambda i: db.venue.find_one({'_id': i},
+                                           {'canonicalUrl': 1, 'similars': 1})
+    sig = {k: to_frequency(aggregate_visits(v)[0])
+           for k, v in paris_venue_visits.iteritems() if len(v) > 5}
+    sval = np.array(sig.values())
+    legend = 'v^<>s*xo'
+    kd = clusterize(sval)
+    distorsion = [t[1] for t in kd]
+    plot(np.diff(distorsion), '+')
+    [plot(kd[8][0][i, :], m+'-', ms=14) for i, m in zip(range(8), legend)]
+    ak, kl = cluster.kmeans2(sval, 8, 20, minit='points')
+    np.bincount(kl)
+    getclass = lambda c: {v[0]: v[1] for v, k in zip(sig.iteritems(), kl) if k == c}
+    [plot(ak[i, :], m+'-', ms=14) for i, m in zip(range(8), legend)]
+    distance = lambda a, b: np.dot(a-b, a-b)
+    comp_disto = lambda ak, kl: sum([distance(ak[kl[i]], v) for i, v in enumerate(sval)])
+    disto = [comp_disto(*cluster.kmeans2(sval, k, 20, minit='points'))
+             for k in range(2, 15)]

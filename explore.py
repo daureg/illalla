@@ -94,8 +94,9 @@ def disc_latex(N=11):
 
 
 def get_visits(mongo, entity, city=None, ball=None):
-    """Return a sequence of timestamps of `entity` (venue or photo) within
-    `city` or `ball` = ((lng, lat), radius) by querying a `mongo` client."""
+    """Return a sequence of [timestamp] for each `entity` (venue or photo)
+    within `city` or `ball` = ((lng, lat), radius) by querying a `mongo`
+    client."""
     operation, time = choose_query_type(mongo, entity)
     location = get_spatial_query(entity, city, ball)
     return query_for_visits(operation, location, time, mongo, city)
@@ -148,17 +149,18 @@ def query_for_visits(operation, location, time, mongo, city):
 def collapse(values, chunk_size):
     """Return sum of `values` by piece of `chunk_size`.
     >>> collapse(range(6), 3)
-    [3, 12]"""
+    array([ 3, 12])"""
     assert len(values) % chunk_size == 0, 'there will be leftovers'
-    return [sum(values[i:i+chunk_size])
-            for i in range(0, len(values), chunk_size)]
+    # pylint: disable=E1101
+    return np.array([sum(values[i:i+chunk_size])
+                     for i in range(0, len(values), chunk_size)])
 
 
 def aggregate_visits(visits):
     """Transform a list of visits into hourly and daily pattern."""
     # pylint: disable=E1101
     histo = lambda dim, size: np.bincount(timing[:, dim], minlength=size)
-    timing = np.array([(v.hour, human_day(v), v.month) for v in visits])
+    timing = np.array([(v.hour, human_day(v)) for v in visits])
     return collapse(histo(0, 24), 3), histo(1, 7)
 
 
@@ -166,6 +168,8 @@ def to_frequency(data):
     """Take a list of lists and return the corresponding frequency matrix."""
     #TODO handle division by 0
     # pylint: disable=E1101
+    if hasattr(data, 'shape') and len(data.shape) == 1:
+        return data / np.sum(data, dtype=np.float)
     totals = np.sum(data, 1)
     nb_lines = len(data[0])
     return data/np.tile(np.array([totals], dtype=np.float).T, (1, nb_lines))
@@ -174,7 +178,7 @@ def to_frequency(data):
 def clusterize(patterns):
     """try to find the best k by running k means on pattern."""
     whitened = cluster.whiten(patterns)
-    distorsion = [cluster.kmeans(whitened, i)[1] for i in range(2, 8)]
+    distorsion = [cluster.kmeans(whitened, i) for i in range(2, 24)]
     return distorsion
 
 

@@ -207,7 +207,7 @@ def describe_venue(venues, city, depth=2, limit=None):
 
     def parenting_cat(place, depth):
         """Return the category of `place`, without going beyond `depth`"""
-        _, path = fsc.search_categories(cats, place['_id'])
+        _, path = fsc.search_categories(place['_id'])
         if len(path) > depth:
             return fsc.CAT_TO_ID[:path[depth]]
         return fsc.CAT_TO_ID[:path[-1]]

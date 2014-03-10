@@ -43,7 +43,10 @@ def get_categories(client=None):
     return cats
 
 
-def search_categories(cats, query, field=None):
+CATS = globals()['get_categories']()
+
+
+def search_categories(query, cats=CATS, field=None):
     """Return a category matching query (either by name or id) and its path
     inside cats."""
     if field is None:
@@ -51,7 +54,7 @@ def search_categories(cats, query, field=None):
     if cats[field] == query:
         return cats, [query]
     for sub_category in cats.sub:
-        found, path = search_categories(sub_category, query, field)
+        found, path = search_categories(query, sub_category, field)
         if found is not None:
             return found, [cats[field]] + path
     return None, None
@@ -64,9 +67,8 @@ def choose_type(query):
     return 1
 
 
-CATS = globals()['get_categories']()
 
 if __name__ == '__main__':
     #pylint: disable=C0103
-    ft = get_categories()
-    cbar, bpath = search_categories(ft, 'Bar')
+    cbar, bpath = search_categories('Bar')
+    movie, _ = search_categories('4d4b7105d754a06372d81259')

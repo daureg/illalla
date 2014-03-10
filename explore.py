@@ -206,12 +206,11 @@ def describe_venue(venues, city, depth=2, limit=None):
     query = cm.build_query(city, False, ['cat', 'likes'], limit)
     group = {'_id': '$cat', 'count': {'$sum': 1}, 'like': {'$sum': '$likes'}}
     query.extend([{'$group': group}, {'$sort': {'count': -1}}])
-    cats = fsc.get_categories()
     res = venues.aggregate(query)['result']
 
     def parenting_cat(place, depth):
         """Return the category of `place`, without going beyond `depth`"""
-        _, path = fsc.search_categories(cats, place['_id'])
+        _, path = fsc.search_categories(place['_id'])
         if len(path) > depth:
             return fsc.CAT_TO_ID[:path[depth]]
         return fsc.CAT_TO_ID[:path[-1]]
@@ -314,6 +313,24 @@ if __name__ == '__main__':
     # a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
     # b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
     # print(b-a)
-    fsclient = af.foursquare.Foursquare(af.CLIENT_ID, af.CLIENT_SECRET)
-    c, d = collect_similars(db.venue, fsclient, 'helsinki')
-    r = get_visits(client, Entity.venue, ball=((25, 60.23), 900))
+    # fsclient = af.foursquare.Foursquare(af.CLIENT_ID, af.CLIENT_SECRET)
+    # c, d, m = collect_similars(db.venue, fsclient, city)
+    paris_venue_visits = get_visits(client, Entity.venue, city)
+    getvenue = lambda i: db.venue.find_one({'_id': i},
+                                           {'canonicalUrl': 1, 'similars': 1})
+    sig = {k: to_frequency(aggregate_visits(v)[0])
+           for k, v in paris_venue_visits.iteritems() if len(v) > 5}
+    sval = np.array(sig.values())
+    legend = 'v^<>s*xo'
+    kd = clusterize(sval)
+    distorsion = [t[1] for t in kd]
+    plot(np.diff(distorsion), '+')
+    [plot(kd[8][0][i, :], m+'-', ms=14) for i, m in zip(range(8), legend)]
+    ak, kl = cluster.kmeans2(sval, 8, 20, minit='points')
+    np.bincount(kl)
+    getclass = lambda c: {v[0]: v[1] for v, k in zip(sig.iteritems(), kl) if k == c}
+    [plot(ak[i, :], m+'-', ms=14) for i, m in zip(range(8), legend)]
+    distance = lambda a, b: np.dot(a-b, a-b)
+    comp_disto = lambda ak, kl: sum([distance(ak[kl[i]], v) for i, v in enumerate(sval)])
+    disto = [comp_disto(*cluster.kmeans2(sval, k, 20, minit='points'))
+             for k in range(2, 15)]

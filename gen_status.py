@@ -15,6 +15,7 @@ def ordered(counts, cities, threshold=10):
     """Return `counts` ordered by cities."""
     as_dict = {v['_id']: v['count'] for v in counts}
     count = [as_dict.get(city, 0) for city in cities]
+    count.append(sum(count))
     fmt = lambda v: locale.format('%d', v, grouping=True)
     return [fmt(c) if c > threshold else '' for c in count]
 
@@ -45,11 +46,12 @@ if __name__ == '__main__':
     venue = venues.aggregate([{'$project': {'city': 1}},
                               {'$group': {'_id': '$city',
                                           'count': {'$sum': 1}}}])
-    order = [ck['_id'] for ck in checkin]
     flickr = photos.aggregate([{'$project': {'hint': 1}},
                                {'$group': {'_id': '$hint',
                                            'count': {'$sum': 1}}}])
-    t.add_column('city', [cm.cities.FULLNAMES[n] for n in order], 'l')
+    order = [ck['_id'] for ck in checkin]
+    cities_name = [cm.cities.FULLNAMES[n] for n in order] + ['total']
+    t.add_column('city', cities_name, 'l')
     t.add_column('ICWSM checkins', ordered(checkin, order), 'r')
     t.add_column('with venues', ordered(located['result'], order), 'r')
     t.add_column('photos', ordered(flickr['result'], order), 'r')

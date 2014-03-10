@@ -1,0 +1,16 @@
+bidict
+fiona
+flickr_api
+foursquare
+geographiclib
+lxml
+matplotlib
+numpy
+prettytable
+pycurl
+pymongo
+pytz
+scipy
+shapely
+TwitterAPI
+ujson

@@ -5,6 +5,8 @@ from collections import namedtuple
 import persistent as p
 import string
 Category = namedtuple('Category', ['id', 'name', 'depth', 'sub'])
+import enum
+Field = enum.Enum('Field', 'id name')  # pylint: disable=C0103
 import bidict
 CAT_TO_ID = bidict.bidict({None: '0', 'Venue': '1'})
 ID_TO_INDEX = bidict.bidict({None: 0, '0': 0, '1': 1})
@@ -67,8 +69,24 @@ def choose_type(query):
     return 1
 
 
+def pre_traversal(cats, field):
+    """Return a flat list of `field` by performing a depth first traversal of
+    `cats`, visiting the root first."""
+    assert field in [0, 1]
+    if not cats.sub:
+        return [cats[field]]
+    all_subs = [pre_traversal(sub, field) for sub in cats.sub]
+    return [cats[field]] + [s for sub in all_subs for s in sub]
+
+
+def get_subcategories(query, field=None):
+    """Return a list of `query` and all its sub categories"""
+    root, _ = search_categories(query)
+    field = choose_type(query) if not field else field.value - 1
+    return pre_traversal(root, field)
 
 if __name__ == '__main__':
     #pylint: disable=C0103
     cbar, bpath = search_categories('Bar')
-    movie, _ = search_categories('4d4b7105d754a06372d81259')
+    all_college = get_subcategories('4d4b7105d754a06372d81259', Field.id)
+    print(all_college)

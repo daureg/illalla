@@ -278,8 +278,9 @@ def collect_similars(venues_db, client, city):
     return matching venues that were already in DB."""
     from random import sample
     venues = answer_to_dict(venues_db.find({'city': city}, {'loc': 1}))
-    chosen = sample(venues.items(), 10)
+    chosen = sample(venues.items(), 500)
     distances = []
+    all_match = []
     for vid, loc in chosen:
         similars = af.similar_venues(vid, client=client)
         if similars is None:
@@ -289,9 +290,10 @@ def collect_similars(venues_db, client, city):
         venues_db.update({'_id': vid}, {'$set': {'similars': similars}})
         matching = answer_to_dict(venues_db.find({'_id': {'$in': similars}},
                                                  {'loc': 1}))
+        all_match.append(matching)
         distances.append([geodesic_distance(loc, sloc)
                           for sloc in matching.itervalues()])
-    return chosen, distances
+    return chosen, distances, all_match
 
 
 if __name__ == '__main__':
@@ -301,7 +303,7 @@ if __name__ == '__main__':
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
     city = 'paris'
-    hourly, weekly = venues_activity(checkins, 'newyork', 15)
+    # hourly, weekly = venues_activity(checkins, 'newyork', 15)
     # ny_venue = describe_venue(db['venue'], city, 2)
     # print(ny_venue.items())
     # stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)

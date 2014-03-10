@@ -190,12 +190,15 @@ if __name__ == '__main__':
     #pylint: disable=C0103
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
-    city = 'paris'
+    city = 'barcelona'
     # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
-    ny_venue = describe_venue(db['venue'], city, 2)
-    print(ny_venue.items())
     stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)
-    with codecs.open(city + '_cat.dat', 'w', 'utf8') as report:
+    ny_venue = describe_venue(db['venue'], city, 1)
+    with codecs.open(city + '_1_cat.dat', 'w', 'utf8') as report:
+        report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
+                                 for k, v in ny_venue.items()]))
+    ny_venue = describe_venue(db['venue'], city, 2)
+    with codecs.open(city + '_2_cat.dat', 'w', 'utf8') as report:
         report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
                                  for k, v in ny_venue.items()]))
     # surround = build_surrounding(db['venue'], 'helsinki')

@@ -23,6 +23,7 @@ code.html
 diary/aaltologo.sty
 diary/current.tex
 diary/*.tex
+diary/*.md
 diary/*.pdf
 papers/biblio_thesis.*
 disc/*

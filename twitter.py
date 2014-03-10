@@ -24,7 +24,7 @@ FullCheckIn = rf.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
                                             'time', 'tid', 'tuid', 'msg'])
 # the size of mongo bulk insert, in multiple of pool size
 INSERT_SIZE = 10
-CHECKINS_QUEUE = Queue((INSERT_SIZE+5)*cc.vc.POOL_SIZE)
+CHECKINS_QUEUE = Queue((INSERT_SIZE+3)*cc.vc.POOL_SIZE)
 NUM_VALID = 0
 
 
@@ -100,9 +100,11 @@ def perform_insertion(complete):
     """Insert `complete` checkins into the DB."""
     if not complete:
         return
+    global NUM_VALID
     try:
         DB.checkin.insert(complete, continue_on_error=True)
         print('insert {}'.format(len(complete)))
+        NUM_VALID += len(complete)
     except cm.pymongo.errors.DuplicateKeyError:
         pass
     except cm.pymongo.errors.OperationFailure as err:
@@ -114,21 +116,23 @@ if __name__ == '__main__':
                              access_token, access_secret)
     req = api.request('statuses/filter', {'track': '4sq com'})
     nb_tweets = 0
+    nb_cand = 0
     valid_checkins = []
     t = Thread(target=insert_checkins, name='InsertCheckins')
     t.daemon = True
     t.start()
     start = clock()
-    end = start + 11*60*60
+    end = start + 13*60*60
     new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
     for item in req.get_iterator():
         candidate = parse_tweet(item)
         nb_tweets += 1
         if candidate:
             CHECKINS_QUEUE.put_nowait(candidate)
-            NUM_VALID += 1
-            cc.vc.logging.info(new_tweet.format(candidate.tid, NUM_VALID,
-                                                nb_tweets, end - clock()))
+            nb_cand += 1
+            if nb_cand % 10 == 0:
+                cc.vc.logging.info(new_tweet.format(candidate.tid, nb_cand,
+                                                    nb_tweets, end - clock()))
             if clock() >= end:
                 CHECKINS_QUEUE.put_nowait(None)
                 break

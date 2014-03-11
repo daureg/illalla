@@ -159,6 +159,15 @@ def similar_venues(vid, venue_db=None, client=None):
     scrapping webpage (at most 3 results) or making an API call using `client`
     (at most 5 results)."""
     assert venue_db or client, 'Need more information'
+    venue = venue_db.find_one({'_id': vid},
+                              {'canonicalUrl': 1, 'similars': 1})
+    if not venue:
+        print(vid + ' is not an existing venue id')
+        return None
+    if 'similars' in venue and not client:
+        # if we have a client and the venue was previously just crawled, we
+        # may find more similar venues (4 and 5)
+        return venue['similars']
     if client:
         try:
             answer = client.venues.similar(vid)['similarVenues']['items']
@@ -166,10 +175,6 @@ def similar_venues(vid, venue_db=None, client=None):
         except foursquare.FoursquareException as e:
             print(e)
             return None
-    answer = venue_db.find_one({'_id': vid})
-    if not answer:
-        print(vid + ' is not an existing venue id')
-        return None
 
     buf = cs.StringIO()
     fetcher = pycurl.Curl()

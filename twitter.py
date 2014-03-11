@@ -49,8 +49,11 @@ def parse_tweet(tweet):
     # or by VenueIdCrawler. Once we get the full URL, we still need to request
     # 4SQ (500 per hours) to get info (or look at page body, which contains the
     # full checkin in a javascript field)
-    lid = str([url['expanded_url'] for url in urls
-               if '4sq.com' in url['expanded_url']][0])
+    fsq_urls = [url['expanded_url'] for url in urls
+                if '4sq.com' in url['expanded_url']]
+    if not fsq_urls:
+        return None
+    lid = str(fsq_urls[0])
     uid = get_nested(tweet, ['user', 'id_str'])
     msg = get_nested(tweet, 'text')
     try:
@@ -113,9 +116,11 @@ def perform_insertion(complete):
 
 if __name__ == '__main__':
     #pylint: disable=C0103
+    comma_bbox = lambda bb: ','.join([str(c) for c in bb[1::-1] + bb[:1:-1]])
+    bboxes = ','.join([comma_bbox(c) for c in cities.CITIES])
     api = twitter.TwitterAPI(consumer_key, consumer_secret,
                              access_token, access_secret)
-    req = api.request('statuses/filter', {'track': '4sq com'})
+    req = api.request('statuses/filter', {'track': '4sq com', 'locations': bboxes})
     nb_tweets = 0
     nb_cand = 0
     valid_checkins = []

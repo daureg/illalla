@@ -2,6 +2,7 @@
 # vim: set fileencoding=utf-8
 """Retrieve checkins tweets"""
 from timeit import default_timer as clock
+from time import sleep
 import TwitterAPI as twitter
 from api_keys import TWITTER_CONSUMER_KEY as consumer_key
 from api_keys import TWITTER_CONSUMER_SECRET as consumer_secret
@@ -23,7 +24,7 @@ UTC_DATE = '%a %b %d %X +0000 %Y'
 FullCheckIn = rf.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
                                             'time', 'tid', 'tuid', 'msg'])
 # the size of mongo bulk insert, in multiple of pool size
-INSERT_SIZE = 10
+INSERT_SIZE = 7
 CHECKINS_QUEUE = Queue((INSERT_SIZE+3)*cc.vc.POOL_SIZE)
 NUM_VALID = 0
 
@@ -48,8 +49,11 @@ def parse_tweet(tweet):
     # or by VenueIdCrawler. Once we get the full URL, we still need to request
     # 4SQ (500 per hours) to get info (or look at page body, which contains the
     # full checkin in a javascript field)
-    lid = str([url['expanded_url'] for url in urls
-               if '4sq.com' in url['expanded_url']][0])
+    fsq_urls = [url['expanded_url'] for url in urls
+                if '4sq.com' in url['expanded_url']]
+    if not fsq_urls:
+        return None
+    lid = str(fsq_urls[0])
     uid = get_nested(tweet, ['user', 'id_str'])
     msg = get_nested(tweet, 'text')
     try:
@@ -66,8 +70,8 @@ def post_process(checkins):
     information regarding the actual Foursquare checkin."""
     infos = CRAWLER.checkins_from_url([c.lid for c in checkins])
     to_insert = []
+    global NUM_VALID
     for checkin, info in zip(checkins, infos):
-        CHECKINS_QUEUE.task_done()
         if info:
             converted = checkin._asdict()
             id_, uid, vid, time = info
@@ -77,6 +81,8 @@ def post_process(checkins):
             converted['lid'] = vid
             converted['time'] = time
             to_insert.append(converted)
+            NUM_VALID += 1
+        CHECKINS_QUEUE.task_done()
     return to_insert
 
 
@@ -100,11 +106,9 @@ def perform_insertion(complete):
     """Insert `complete` checkins into the DB."""
     if not complete:
         return
-    global NUM_VALID
     try:
         DB.checkin.insert(complete, continue_on_error=True)
         print('insert {}'.format(len(complete)))
-        NUM_VALID += len(complete)
     except cm.pymongo.errors.DuplicateKeyError:
         pass
     except cm.pymongo.errors.OperationFailure as err:
@@ -112,9 +116,11 @@ def perform_insertion(complete):
 
 if __name__ == '__main__':
     #pylint: disable=C0103
+    comma_bbox = lambda bb: ','.join([str(c) for c in bb[1::-1] + bb[:1:-1]])
+    bboxes = ','.join([comma_bbox(c) for c in cities.CITIES])
     api = twitter.TwitterAPI(consumer_key, consumer_secret,
                              access_token, access_secret)
-    req = api.request('statuses/filter', {'track': '4sq com'})
+    req = api.request('statuses/filter', {'track': '4sq com', 'locations': bboxes})
     nb_tweets = 0
     nb_cand = 0
     valid_checkins = []
@@ -122,7 +128,7 @@ if __name__ == '__main__':
     t.daemon = True
     t.start()
     start = clock()
-    end = start + 13*60*60
+    end = start + 0.5*60*60
     new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
     for item in req.get_iterator():
         candidate = parse_tweet(item)
@@ -139,3 +145,4 @@ if __name__ == '__main__':
     CHECKINS_QUEUE.join()
     report = 'insert {} valid checkins in {:.2f}s (out of {}).'
     print(report.format(NUM_VALID, clock() - start, nb_tweets))
+    sleep(10)

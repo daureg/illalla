@@ -330,6 +330,11 @@ if __name__ == '__main__':
     # with codecs.open(city + '_2_cat.dat', 'w', 'utf8') as report:
     #     report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
     #                              for k, v in ny_venue.items()]))
+    # ny_venue = describe_venue(db['venue'], city, 2)
+    with codecs.open(city + '_2_cat.dat', 'w', 'utf8') as report:
+        report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
+                                 for k, v in ny_venue.items()]))
+    city = 'paris'
     # surround = build_surrounding(db['venue'], 'helsinki')
     # a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
     # b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))

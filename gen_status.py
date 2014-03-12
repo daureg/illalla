@@ -52,7 +52,7 @@ if __name__ == '__main__':
     order = [ck['_id'] for ck in checkin]
     cities_name = [cm.cities.FULLNAMES[n] for n in order] + ['total']
     t.add_column('city', cities_name, 'l')
-    t.add_column('ICWS checkins', ordered(checkin, order), 'r')
+    t.add_column('ICWSM checkins', ordered(checkin, order), 'r')
     t.add_column('with venues', ordered(located['result'], order), 'r')
     t.add_column('photos', ordered(flickr['result'], order), 'r')
     t.add_column('venues', ordered(venue['result'], order), 'r')

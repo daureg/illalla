@@ -3,13 +3,15 @@
 """Gather some commonly used code related to MongoDB."""
 import pymongo
 import cities
+HOST = 'localhost'
+PORT = 27017
 
 
-def connect_to_db(dbname, client=None):
+def connect_to_db(dbname, host=HOST, port=PORT, client=None):
     """Return a connection to `dbname`, potentially creating and returning a
     client in the process if none is provided."""
     if client is None:
-        client = pymongo.MongoClient('localhost', 27017)
+        client = pymongo.MongoClient(host, port)
     return client[dbname], client
 
 

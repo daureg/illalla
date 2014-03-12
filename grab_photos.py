@@ -17,7 +17,9 @@ from httplib import BadStatusLine
 import cities
 import logging
 import os
-HINT = "helsinki"
+import sys
+now = datetime.datetime.now().strftime('%Y%m%d_%H%M')
+HINT = now if len(sys.argv) < 2 else sys.argv[1].strip()
 LOG_FILE = 'photos_{}.log'.format(HINT)
 TMPDIR = '/tmp' if 'TMPDIR' not in os.environ else os.environ['TMPDIR']
 logging.basicConfig(filename=os.path.join(TMPDIR, LOG_FILE),
@@ -322,7 +324,6 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
 
 
 if __name__ == '__main__':
-    import sys
     global HINT
     START_OF_REQUESTS = time()
     logging.info('initial request')

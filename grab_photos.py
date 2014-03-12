@@ -17,6 +17,7 @@ from httplib import BadStatusLine
 import cities
 import logging
 import os
+import arguments
 import sys
 now = datetime.datetime.now().strftime('%Y%m%d_%H%M')
 HINT = now if len(sys.argv) < 2 else sys.argv[1].strip()
@@ -324,16 +325,15 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
 
 
 if __name__ == '__main__':
-    global HINT
     START_OF_REQUESTS = time()
     logging.info('initial request')
 
-    photos = cm.connect_to_db('world')[0]['photos']
+    args = arguments.city_parser().parse_args()
+    photos = cm.connect_to_db('world', args.host, args.port)[0]['photos']
     photos.ensure_index([('loc', cm.pymongo.GEOSPHERE),
                          ('tags', cm.pymongo.ASCENDING),
                          ('uid', cm.pymongo.ASCENDING)])
-    city = None if len(sys.argv) < 2 else sys.argv[1]
-    assert city and city in cm.cities.SHORT_KEY, 'choose a valid city'
+    city = args.city
     CITY = (cities.US + cities.EU)[cities.INDEX[city]]
     HINT = city
     bbox = (CITY[:2], CITY[2:])

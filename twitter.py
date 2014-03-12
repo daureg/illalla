@@ -8,8 +8,10 @@ from api_keys import TWITTER_CONSUMER_KEY as consumer_key
 from api_keys import TWITTER_CONSUMER_SECRET as consumer_secret
 from api_keys import TWITTER_ACCESS_TOKEN as access_token
 from api_keys import TWITTER_ACCESS_SECRET as access_secret
+import arguments
+ARGS = arguments.tweets_parser().parse_args()
 import CommonMongo as cm
-DB = cm.connect_to_db('foursquare')[0]
+DB = cm.connect_to_db('foursquare', ARGS.host, ARGS.port)[0]
 import read_foursquare as rf
 import CheckinCrawler as cc
 CRAWLER = cc.CheckinCrawler()
@@ -128,7 +130,7 @@ if __name__ == '__main__':
     t.daemon = True
     t.start()
     start = clock()
-    end = start + 0.5*60*60
+    end = start + ARGS.duration*60*60
     new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
     for item in req.get_iterator():
         candidate = parse_tweet(item)

@@ -14,6 +14,7 @@ from RequestsMonitor import RequestsMonitor
 from AskFourquare import gather_all_entities_id
 from AskFourquare import user_profile, venue_profile
 import sys
+import arguments
 
 ENTITY_KIND = 'venue'
 if ENTITY_KIND == 'venue':
@@ -110,7 +111,8 @@ def mongo_insertion():
 
 if __name__ == '__main__':
     REQ = getattr(CLIENT, REQ)
-    db = cm.connect_to_db('foursquare')[0]
+    args = arguments.city_parser().parse_args()
+    db = cm.connect_to_db('foursquare', args.host, args.port)[0]
     checkins = db['checkin']
     TABLE = db[ENTITY_KIND]
     if ENTITY_KIND == 'venue':
@@ -124,8 +126,7 @@ if __name__ == '__main__':
     t.daemon = True
     t.start()
     total_entities = 0
-    city = None if len(sys.argv) < 2 else sys.argv[1]
-    assert not city or city in cm.cities.SHORT_KEY, 'choose a valid city'
+    city = args.city
     chunker = Chunker.Chunker(foursquare.MAX_MULTI_REQUESTS)
     previous = [e['_id'] for e in TABLE.find({'city': city})]
     latent = gather_all_entities_id(checkins, DB_FIELD, city=city, limit=None)

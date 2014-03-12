@@ -1,24 +1,23 @@
-city         | flickr   | venues  | users
-newyork      |          |         | 
-washington   |          |         | 
-sanfrancisco |          |         | 
-atlanta      |          |         | 
-indianapolis |          |         | 
-losangeles   |          |         | 
-seattle      |          |         | 
-houston      |          |         | 
-stlouis      |          |         | 
-chicago      |          |         | 
-london       |          |         | 
-paris        | 159,969  | 7,955   | 
-berlin       |          |         | 
-rome         |          |         | 
-prague       |          |         | 
-moscow       |          |         | 
-amsterdam    |          |         | 
-helsinki     | 21,333   | 1,563   | 
-stockholm    | 26,540   | 2,648   | 
-barcelona    | 98,730   | 4,932   | 
-
-`db.photos.aggregate([{$project: {hint: 1}}, {$group: {_id: '$hint', count: {$sum: 1}}}])`
-`db.venue.aggregate([{$project: {city: 1}}, {$group: {_id: '$city', count: {$sum: 1}}}])`
+| city          | ICWSM checkins | with venues |  photos | venues | new checkins |
+|---------------|----------------|-------------|---------|--------|--------------|
+| New York      |        609,353 |     408,584 |         |        |       10,557 |
+| Los Angeles   |        258,838 |     165,463 |         |        |        4,754 |
+| Chicago       |        201,155 |     133,822 |         |        |        3,564 |
+| San Francisco |        190,448 |     104,363 |         |        |        2,234 |
+| London        |        141,784 |      72,673 |         |        |        2,236 |
+| Washington    |        119,654 |      75,984 |         |        |        2,222 |
+| Seattle       |         84,343 |      51,573 |         |        |          959 |
+| Amsterdam     |         67,971 |      35,339 |         |        |          456 |
+| Houston       |         62,768 |      41,037 |         |        |        1,611 |
+| Atlanta       |         61,958 |      40,798 |  44,292 |  4,907 |        1,344 |
+| Paris         |         53,642 |      32,952 | 159,969 |  7,955 |        1,459 |
+| Stockholm     |         53,241 |      10,501 |  26,540 |  2,648 |          215 |
+| Indianapolis  |         47,546 |      30,955 |  23,740 |  4,709 |          715 |
+| Moscow        |         46,598 |      17,577 |  52,821 |  8,713 |        8,808 |
+| Barcelona     |         37,146 |      21,448 |  98,730 |  4,932 |          765 |
+| Berlin        |         35,727 |      15,098 | 193,556 |  4,144 |        1,049 |
+| St. Louis     |         26,239 |      17,491 |  23,520 |  2,151 |          429 |
+| Rome          |         14,022 |       9,364 | 142,113 |  2,927 |          456 |
+| Prague        |         11,960 |       4,757 |  41,395 |  1,915 |          382 |
+| Helsinki      |          9,357 |       6,724 |  21,333 |  1,563 |          133 |
+| total         |      2,133,750 |   1,296,503 | 828,009 | 46,567 |       44,348 |

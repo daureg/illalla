@@ -319,12 +319,15 @@ if __name__ == '__main__':
     #pylint: disable=C0103
     db, client = cm.connect_to_db('foursquare')
     checkins = db['checkin']
-    city = 'paris'
-    # hourly, weekly = venues_activity(checkins, 'newyork', 15)
-    # ny_venue = describe_venue(db['venue'], city, 2)
-    # print(ny_venue.items())
+    city = 'barcelona'
+    # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
+    # ny_venue = describe_venue(db['venue'], city, 1)
     # stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)
-    # with codecs.open(city + '_cat.dat', 'w', 'utf8') as report:
+    # with codecs.open(city + '_1_cat.dat', 'w', 'utf8') as report:
+    #     report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
+    #                              for k, v in ny_venue.items()]))
+    # ny_venue = describe_venue(db['venue'], city, 2)
+    # with codecs.open(city + '_2_cat.dat', 'w', 'utf8') as report:
     #     report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
     #                              for k, v in ny_venue.items()]))
     # surround = build_surrounding(db['venue'], 'helsinki')
@@ -333,22 +336,69 @@ if __name__ == '__main__':
     # print(b-a)
     # fsclient = af.foursquare.Foursquare(af.CLIENT_ID, af.CLIENT_SECRET)
     # c, d, m = collect_similars(db.venue, fsclient, city)
-    paris_venue_visits = get_visits(client, Entity.venue, city)
-    getvenue = lambda i: db.venue.find_one({'_id': i},
-                                           {'canonicalUrl': 1, 'similars': 1})
-    sig = {k: to_frequency(aggregate_visits(v)[0])
-           for k, v in paris_venue_visits.iteritems() if len(v) > 5}
+    shift = 1
+    weekday = False
+    venue_visits = get_visits(client, Entity.venue, 'paris')
+
+    def getloc(i):
+        return db.venue.find_one({'_id': i}, {'loc': 1})['loc']['coordinates']
+
+    def getvenue(i):
+        venue = db.venue.find_one({'_id': i}, {'cat': 1, 'name': 1, '_id': 0})
+        try:
+            cat = venue['cat']
+        except TypeError:
+            print(i)
+            return None
+        if cat:
+            venue['cat'] = fsc.CAT_TO_ID[:cat]
+        else:
+            venue['cat'] = '???'
+        return u'{}: {} ({})'.format(venue['cat'], venue['name'], i)
+
+    sig = {k: to_frequency(aggregate_visits(v, shift)[1 if weekday else 0])
+           for k, v in venue_visits.iteritems() if len(v) > 5}
     sval = np.array(sig.values())
-    legend = 'v^<>s*xo'
-    kd = clusterize(sval)
-    distorsion = [t[1] for t in kd]
-    plot(np.diff(distorsion), '+')
-    [plot(kd[8][0][i, :], m+'-', ms=14) for i, m in zip(range(8), legend)]
-    ak, kl = cluster.kmeans2(sval, 8, 20, minit='points')
-    np.bincount(kl)
-    getclass = lambda c: {v[0]: v[1] for v, k in zip(sig.iteritems(), kl) if k == c}
-    [plot(ak[i, :], m+'-', ms=14) for i, m in zip(range(8), legend)]
+    print(np.mean(sval, 0))
+    legend = 'v^<>s*xo|8d+'
     distance = lambda a, b: np.dot(a-b, a-b)
-    comp_disto = lambda ak, kl: sum([distance(ak[kl[i]], v) for i, v in enumerate(sval)])
-    disto = [comp_disto(*cluster.kmeans2(sval, k, 20, minit='points'))
+    comp_disto = lambda ak, kl: sum([distance(ak[kl[i]], v)
+                                     for i, v in enumerate(sval)])
+    # TODO; check if results are better when withening data beforehand (but
+    # then we need the standard deviation of each feature to classify new
+    # observations)
+    disto = [comp_disto(*cluster.kmeans2(sval, k, 25, minit='points'))
              for k in range(2, 15)]
+    K = 6
+    ak, kl = cluster.kmeans2(sval, K, 30, minit='points')
+    print(np.sort(np.bincount(kl)))
+    getclass = lambda c: {v[0]: v[1]
+                          for v, k in zip(sig.iteritems(), kl) if k == c}
+
+    def draw_classes(centroid=ak, offset=shift, size=K):
+        from matplotlib import pyplot as pp
+        [pp.plot(centroid[i, :], m+'-', ms=11)
+         for i, m in zip(range(size), legend[:size])]
+        if len(centroid[0, :]) == 8:
+            period = lambda i: '{}--{}'.format(i % 24, (i+3) % 24)
+            pp.xticks(range(8), [period(i)
+                                 for i in range(0+offset, 24+offset, 3)])
+        else:
+            pp.xticks(range(7), 'mon tue wed thu fri sat sun'.split())
+
+    from datetime import datetime as dt
+    desc_class = lambda c: sample([getvenue(i)
+                                   for i in getclass(c).keys()], 15)
+    print(list(enumerate(legend[:K])))
+
+    def photos_around(id_, radius=200, centroid=ak):
+        center = getloc(id_)
+        photos = get_visits(client, Entity.photo, ball=(center, radius))
+        # photos = []
+        # for _ in range(150):
+        #     month, day, hour = randint(1, 12), randint(1, 28), randint(0, 23)
+        #     photos.append(dt(2013, month, day, hour, 45))
+        kind = to_frequency(aggregate_visits(photos, shift)[1])
+        classes = [distance(kind, centroid[i, :])
+                   for i in range(centroid.shape[0])]
+        return kind, classes

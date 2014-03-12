@@ -7,7 +7,7 @@ from operator import itemgetter
 from outplot import outplot
 from more_query import inside_bbox
 try:
-    from collection import OrderedDict
+    from collections import OrderedDict
 except ImportError:
     from OrderedDict import OrderedDict
 
@@ -16,15 +16,18 @@ def last_query_time(db):
     return db.system.profile.find().sort('ts', -1).limit(1)[0]['millis']
 
 
-def tag_count(db, bbox, output='tags_count.dat'):
+def tag_count(mongo, city, flickr=True, bbox=None, output='tags_count.dat'):
+    """Return ordered {tags: count} dict from `flickr` photos (or Foursquare
+    venues), in `city` and optionally within `bbox`."""
     start = clock()
-    tags = photos.aggregate([
-        # {"$match": {"loc": inside_bbox(bbox)}},
-        {"$match": {"hint": "sf"}},
-        {"$unwind": "$ntags"},
-        {"$group": {"_id": "$ntags", "count": {"$sum": 1}}},
-        {"$sort": SON([("count", -1), ("_id", -1)])}
-    ])
+    city_field = 'hint' if flickr else 'city'
+    collec = mongo.world.photos if flickr else mongo.foursquare.venue
+    query = [{"$match": {city_field: city}}, {"$unwind": "$tags"},
+             {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
+             {"$sort": SON([("count", -1), ("_id", -1)])}]
+    if bbox:
+        query[0]['$match'].update({"loc": inside_bbox(bbox)})
+    tags = collec.aggregate(query)
     t = 1000*(clock() - start)
     print('aggregate in {:.3f}ms ({})'.format(t, tags['result'][0]))
     name = map(itemgetter('_id'), tags['result'])
@@ -54,8 +57,8 @@ if __name__ == '__main__':
     client = pymongo.MongoClient('localhost', 27017)
     db = client['flickr']
     photos = db['photos']
-    db.set_profiling_level(pymongo.ALL)
-    SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
-    tc = tag_count(photos, None, 'nsf_tag.dat')
+    # db.set_profiling_level(pymongo.ALL)
+    # SF_BBOX = [37.7123, -122.531, 37.84, -122.35]
+    tc = tag_count(client, 'paris', flickr=False, output='paris_fs_tag.dat')
     # u, c = user_count(photos)
     # u = user_loc(photos)

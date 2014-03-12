@@ -22,7 +22,9 @@ def ordered(counts, cities, threshold=10):
 
 if __name__ == '__main__':
     #pylint: disable=C0103
-    foursquare, client = cm.connect_to_db('foursquare')
+    import arguments
+    args = arguments.city_parser().parse_args()
+    foursquare, client = cm.connect_to_db('foursquare', args.host, args.port)
     checkins = foursquare.checkin
     venues = foursquare.venue
     photos = client.world.photos

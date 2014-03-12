@@ -194,7 +194,9 @@ def similar_venues(vid, venue_db=None, client=None):
 
 if __name__ == '__main__':
     client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
-    db = cm.connect_to_db('foursquare')[0]
+    import arguments
+    args = arguments.city_parser().parse_args()
+    db = cm.connect_to_db('foursquare', args.host, args.port)[0]
     checkins = db['checkin']
     # print(venue_profile(client, ''))
     # up = user_profile(client, 2355635)

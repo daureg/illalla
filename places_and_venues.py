@@ -60,7 +60,9 @@ def update_checkins(checkins, cmap):
 if __name__ == '__main__':
     #pylint: disable=C0103
     import persistent as p
-    db = cm.connect_to_db('foursquare')[0]
+    import arguments
+    args = arguments.city_parser().parse_args()
+    db = cm.connect_to_db('foursquare', args.host, args.port)[0]
     # cmap = build_map(db['checkin'])
     # p.save_var('place_to_venue', cmap)
     update_checkins(db['checkin'], p.load_var('place_to_venue'))

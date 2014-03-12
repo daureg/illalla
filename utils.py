@@ -48,9 +48,9 @@ def photos_to_cluster_dataset(city, limit=300):
         f.write('var {}_cluster = {}'.format(city, str(points)))
 
 
-def output_checkins(city):
+def output_checkins(city, host=cm.HOST, port=cm.PORT):
     """Write a JS array of all checkins in `city` with their hour."""
-    checkins = cm.connect_to_db('foursquare')[0]['checkin']
+    checkins = cm.connect_to_db('foursquare', host, port)[0]['checkin']
     query = cm.build_query(city, venue=False, fields=['loc', 'time'])
     res = checkins.aggregate(query)['result']
 

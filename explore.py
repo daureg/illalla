@@ -317,7 +317,9 @@ if __name__ == '__main__':
     import doctest
     doctest.testmod()
     #pylint: disable=C0103
-    db, client = cm.connect_to_db('foursquare')
+    import arguments
+    args = arguments.city_parser().parse_args()
+    db, client = cm.connect_to_db('foursquare', args.host, args.port)
     checkins = db['checkin']
     city = 'barcelona'
     # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)

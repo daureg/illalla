@@ -17,6 +17,8 @@ Surrounding = namedtuple('Surrounding', ['tree', 'venues', 'id_to_index'])
 from utils import human_day, answer_to_dict, geodesic_distance
 import enum
 Entity = enum.Enum('Entity', 'checkin venue user photo')
+import itertools
+from random import sample, randint
 
 
 def increase_coverage(upto=5000):
@@ -131,7 +133,6 @@ def query_for_visits(operation, location, time, mongo, city):
     `time` arguments."""
     if 'find' in str(operation.im_func):
         return answer_to_dict(operation(location, {time: 1}))
-    from itertools import chain
     # $near is not supported in aggregate $match
     if 'loc' in location:
         ids = mongo.foursquare.venue.find({'city': city,
@@ -143,25 +144,43 @@ def query_for_visits(operation, location, time, mongo, city):
     project = {'$project': {'time': '$'+time, 'lid': 1, '_id': 0}}
     group = {'$group': {'_id': '$lid', 'visits': {'$push': '$time'}}}
     query = [match, project, group]
-    return answer_to_dict(chain(operation(query)['result']))
+    return answer_to_dict(itertools.chain(operation(query)['result']))
 
 
-def collapse(values, chunk_size):
-    """Return sum of `values` by piece of `chunk_size`.
+def collapse(values, chunk_size, offset=0):
+    """Return sum of `values` by piece of `chunk_size` (starting from `offset`
+    and then cycling).
     >>> collapse(range(6), 3)
-    array([ 3, 12])"""
-    assert len(values) % chunk_size == 0, 'there will be leftovers'
+    array([ 3, 12])
+    >>> collapse(range(8), 2, 2)
+    array([ 5,  9, 13,  1])
+    >>> collapse(range(6), 2, 1)
+    array([3, 7, 5])"""
+    length = len(values)
+    assert length % chunk_size == 0, 'there will be leftovers'
     # pylint: disable=E1101
-    return np.array([sum(values[i:i+chunk_size])
-                     for i in range(0, len(values), chunk_size)])
+    res = []
+    partial_sum = 0
+    i = 0
+    for val in itertools.cycle(values):
+        i += 1
+        if i <= offset:
+            continue
+        partial_sum += val
+        if (i+offset) % chunk_size == 0:
+            res.append(partial_sum)
+            partial_sum = 0
+        if len(res) == length/chunk_size:
+            return np.array(res)
 
 
-def aggregate_visits(visits):
-    """Transform a list of visits into hourly and daily pattern."""
+def aggregate_visits(visits, offset=0):
+    """Transform a list of visits into hourly and daily pattern (grouping
+    hours by chunk of 3, starting from `offset`)."""
     # pylint: disable=E1101
     histo = lambda dim, size: np.bincount(timing[:, dim], minlength=size)
     timing = np.array([(v.hour, human_day(v)) for v in visits])
-    return collapse(histo(0, 24), 3), histo(1, 7)
+    return collapse(histo(0, 24), 3, offset), histo(1, 7)
 
 
 def to_frequency(data):
@@ -275,7 +294,6 @@ def alt_surrounding(venues_db, venue_id, radius=150):
 def collect_similars(venues_db, client, city):
     """Find similars venues for 100 location in city, save the result in DB and
     return matching venues that were already in DB."""
-    from random import sample
     venues = answer_to_dict(venues_db.find({'city': city}, {'loc': 1}))
     chosen = sample(venues.items(), 500)
     distances = []

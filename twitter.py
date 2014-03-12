@@ -118,11 +118,9 @@ def perform_insertion(complete):
 
 if __name__ == '__main__':
     #pylint: disable=C0103
-    comma_bbox = lambda bb: ','.join([str(c) for c in bb[1::-1] + bb[:1:-1]])
-    bboxes = ','.join([comma_bbox(c) for c in cities.CITIES])
     api = twitter.TwitterAPI(consumer_key, consumer_secret,
                              access_token, access_secret)
-    req = api.request('statuses/filter', {'track': '4sq com', 'locations': bboxes})
+    req = api.request('statuses/filter', {'track': '4sq com'})
     nb_tweets = 0
     nb_cand = 0
     valid_checkins = []

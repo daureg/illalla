@@ -3,6 +3,7 @@
 from collections import Counter
 from persistent import load_var
 import json
+import arguments
 from random import uniform
 import CommonMongo as cm
 from geographiclib.geodesic import Geodesic
@@ -128,6 +129,19 @@ def answer_to_dict(cursor, default=None):
     res.update({v['_id']: v.get(field_name, default) for v in cursor})
     return res
 
+
+def convert_icwsm_checkin(checkins):
+    """Harmonize user and id fields between old and new checkins"""
+    from datetime import datetime as dt
+    limit = dt(2014, 1, 1)
+    for old in checkins.find({'time': {'$lte': limit}}):
+        _id, uid = old['_id'], str(old['uid'])
+        checkins.update({'_id': _id}, {'$set': {'tuid': uid, 'tid': _id}})
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+    #pylint: disable=C0103
+    args = arguments.get_parser().parse_args()
+    foursquare = cm.connect_to_db('foursquare', args.host, args.port)[0]
+    convert_icwsm_checkin(foursquare.checkin)

@@ -8,6 +8,7 @@ from random import uniform
 import CommonMongo as cm
 from geographiclib.geodesic import Geodesic
 EARTH = Geodesic.WGS84
+from datetime import datetime as dt
 
 
 def noise():
@@ -97,13 +98,32 @@ def get_nested(dico, fields, default=None):
     return current
 
 
-def human_day(time, new_day=4):
-    """Return weekday of `time`, but using `new_day` hour as separator instead
-    of midnight."""
+def human_day(time, new_day=4, period=True):
+    """Return period of weekday of `time`, but using `new_day` hour as
+    separator instead of midnight.
+    >>> human_day(dt(2014, 3, 10, 8))
+    0
+    >>> human_day(dt(2014, 3, 10, 14))
+    1
+    >>> human_day(dt(2014, 3, 10, 22))
+    2
+    >>> human_day(dt(2014, 3, 11, 2))
+    2
+    >>> human_day(dt(2014, 3, 11, 6))
+    3
+    >>> human_day(dt(2014, 3, 17, 2))
+    20
+    """
     hour, day = time.hour, time.weekday()
+    if new_day <= hour < new_day + 24/3:
+        shift = 0
+    elif new_day + 24/3 <= hour < new_day + 2*24/3:
+        shift = 1
+    else:
+        shift = 2
     if hour < new_day:
-        day = (day - 1) % 7
-    return day
+            day = (day - 1) % 7
+    return day*3 + shift if period else day
 
 
 def geodesic_distance(point_1, point_2):
@@ -132,7 +152,6 @@ def answer_to_dict(cursor, default=None):
 
 def convert_icwsm_checkin(checkins):
     """Harmonize user and id fields between old and new checkins"""
-    from datetime import datetime as dt
     limit = dt(2014, 1, 1)
     for old in checkins.find({'time': {'$lte': limit}}):
         _id, uid = old['_id'], str(old['uid'])

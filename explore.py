@@ -180,7 +180,7 @@ def aggregate_visits(visits, offset=0):
     # pylint: disable=E1101
     histo = lambda dim, size: np.bincount(timing[:, dim], minlength=size)
     timing = np.array([(v.hour, human_day(v)) for v in visits])
-    return collapse(histo(0, 24), 3, offset), histo(1, 7)
+    return collapse(histo(0, 24), 3, offset), histo(1, 7*3)
 
 
 def to_frequency(data):
@@ -321,22 +321,12 @@ if __name__ == '__main__':
     args = arguments.city_parser().parse_args()
     db, client = cm.connect_to_db('foursquare', args.host, args.port)
     checkins = db['checkin']
-    city = 'barcelona'
-    # hourly, weekly, monthly = venues_activity(checkins, 'newyork', 15)
     # ny_venue = describe_venue(db['venue'], city, 1)
     # stats = lambda s: '{:.2f}% of checkins ({}), {} likes'.format(*s)
     # with codecs.open(city + '_1_cat.dat', 'w', 'utf8') as report:
     #     report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
     #                              for k, v in ny_venue.items()]))
-    # ny_venue = describe_venue(db['venue'], city, 2)
-    # with codecs.open(city + '_2_cat.dat', 'w', 'utf8') as report:
-    #     report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
-    #                              for k, v in ny_venue.items()]))
-    # ny_venue = describe_venue(db['venue'], city, 2)
-    with codecs.open(city + '_2_cat.dat', 'w', 'utf8') as report:
-        report.write(u'\n'.join([u'{}: {}'.format(k, stats(v))
-                                 for k, v in ny_venue.items()]))
-    city = 'paris'
+    city = args.city
     # surround = build_surrounding(db['venue'], 'helsinki')
     # a = set(query_surrounding(surround, '4c619433a6ce9c74ba5ef1d6', 70))
     # b = set(alt_surrounding(db['venue'], '4c619433a6ce9c74ba5ef1d6', 70))
@@ -345,7 +335,7 @@ if __name__ == '__main__':
     # c, d, m = collect_similars(db.venue, fsclient, city)
     shift = 1
     weekday = False
-    venue_visits = get_visits(client, Entity.venue, 'paris')
+    venue_visits = get_visits(client, Entity.venue, city)
 
     def getloc(i):
         return db.venue.find_one({'_id': i}, {'loc': 1})['loc']['coordinates']
@@ -374,10 +364,10 @@ if __name__ == '__main__':
     # TODO; check if results are better when withening data beforehand (but
     # then we need the standard deviation of each feature to classify new
     # observations)
-    disto = [comp_disto(*cluster.kmeans2(sval, k, 25, minit='points'))
-             for k in range(2, 15)]
+    # disto = [comp_disto(*cluster.kmeans2(sval, k, 25, minit='points'))
+    #          for k in range(2, 15)]
     K = 6
-    ak, kl = cluster.kmeans2(sval, K, 30, minit='points')
+    ak, kl = cluster.kmeans2(sval, K, 20, minit='points')
     print(np.sort(np.bincount(kl)))
     getclass = lambda c: {v[0]: v[1]
                           for v, k in zip(sig.iteritems(), kl) if k == c}
@@ -386,14 +376,17 @@ if __name__ == '__main__':
         from matplotlib import pyplot as pp
         [pp.plot(centroid[i, :], m+'-', ms=11)
          for i, m in zip(range(size), legend[:size])]
+        # pp.plot(np.mean(sval, 0), 'k--')
         if len(centroid[0, :]) == 8:
             period = lambda i: '{}--{}'.format(i % 24, (i+3) % 24)
             pp.xticks(range(8), [period(i)
                                  for i in range(0+offset, 24+offset, 3)])
         else:
-            pp.xticks(range(7), 'mon tue wed thu fri sat sun'.split())
+            days = 'mon tue wed thu fri sat sun'.split()
+            period = '1 2 3'.split()
+            pp.xticks(range(7*3), [d+''+p for d in days for p in period])
 
-    from datetime import datetime as dt
+    # from datetime import datetime as dt
     desc_class = lambda c: sample([getvenue(i)
                                    for i in getclass(c).keys()], 15)
     print(list(enumerate(legend[:K])))
@@ -405,7 +398,7 @@ if __name__ == '__main__':
         # for _ in range(150):
         #     month, day, hour = randint(1, 12), randint(1, 28), randint(0, 23)
         #     photos.append(dt(2013, month, day, hour, 45))
-        kind = to_frequency(aggregate_visits(photos, shift)[1])
+        kind = to_frequency(aggregate_visits(photos.values(), shift)[1 if weekday else 0])
         classes = [distance(kind, centroid[i, :])
                    for i in range(centroid.shape[0])]
         return kind, classes

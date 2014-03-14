@@ -1,3 +1,5 @@
+elki.jar
+*.ipynb
 bidict.py
 papers/mk_summary.sh
 raw_categories

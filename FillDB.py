@@ -134,7 +134,6 @@ if __name__ == '__main__':
     new_ones = set(latent).difference(set(previous))
     print('So only {} new ones.'.format(len(new_ones)))
     for batch in chunker(new_ones):
-        print(batch)
         IDS_QUEUE.put(batch)
         total_entities += len(batch)
 

@@ -46,8 +46,12 @@ def convert_entity_for_mongo(entity):
 
 
 def entities_getter():
+    foursquare_is_down = False
     while True:
         batch = IDS_QUEUE.get()
+        if foursquare_is_down:
+            IDS_QUEUE.task_done()
+            continue
         go, wait = LIMITOR.more_allowed(CLIENT)
         if not go:
             sleep(wait + 3)
@@ -60,6 +64,9 @@ def entities_getter():
             print(e)
             invalid = str(e).split('/')[-1].replace(' ', '+')
             answers = individual_query(batch, invalid)
+        except foursquare.ServerError as e:
+            print(e)
+            foursquare_is_down = True
 
         for a in answers:
             if a is None:

@@ -13,6 +13,16 @@ import scipy.cluster.vq as cluster
 DB = None
 
 
+def parenting_cat(cat, depth=1):
+    """Return the name of category id `cat`, stopping at level `depth`."""
+    if not cat:
+        return None
+    _, path = fsc.search_categories(cat)
+    if len(path) > depth:
+        return fsc.CAT_TO_ID[:path[depth]]
+    return fsc.CAT_TO_ID[:path[-1]]
+
+
 def get_loc(vid):
     """Return coordinated of the venue `vid` (or None if it's not in DB)."""
     res = DB.venue.find_one({'_id': vid}, {'loc': 1})
@@ -21,15 +31,14 @@ def get_loc(vid):
     return None
 
 
-def get_venue(vid):
+def get_venue(vid, depth=1):
     """Return a textual description of venue `vid` or None."""
     venue = DB.venue.find_one({'_id': vid}, {'cat': 1, 'name': 1})
     if not venue:
         return None
-    cat = venue.get('cat')
-    venue['cat'] = '???' if not cat else fsc.CAT_TO_ID[:cat]
+    cat = parenting_cat(venue.get('cat'), depth)
+    venue['cat'] = cat or '???'
     return (venue['cat'], venue['name'], vid)
-    # return u'{}: {} ({})'.format(venue['cat'], venue['name'], vid)
 
 
 def photos_around(id_, centroid, offset, daily, radius=200):

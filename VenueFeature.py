@@ -14,13 +14,16 @@ DB = None
 
 
 def parenting_cat(cat, depth=1):
-    """Return the name of category id `cat`, stopping at level `depth`."""
+    """Return the name of category id `cat` (or name), stopping at level
+    `depth`."""
     if not cat:
         return None
     _, path = fsc.search_categories(cat)
-    if len(path) > depth:
-        return fsc.CAT_TO_ID[:path[depth]]
-    return fsc.CAT_TO_ID[:path[-1]]
+    cat_is_name = fsc.choose_type(cat)
+    answer = path[depth] if len(path) > depth else path[-1]
+    if cat_is_name:
+        return answer
+    return fsc.CAT_TO_ID[:answer]
 
 
 def get_loc(vid):
@@ -49,7 +52,21 @@ def photos_around(id_, centroid, offset, daily, radius=200):
     kind = xp.to_frequency(xp.aggregate_visits(photos.values(), offset)[daily])
     nb_class = centroid.shape[0]
     classes = np.linalg.norm(np.tile(kind, (nb_class, 1)) - centroid, axis=1)
-    return kind, classes, np.argmin(classes)
+    return len(photos), kind, classes, np.argmin(classes)
+
+
+def named_ticks(kind, offset=0):
+    """Return ticks label for kind in ('day', 'week', 'mix')."""
+    if kind is 'day':
+        period = lambda i: '{}--{}'.format(i % 24, (i+3) % 24)
+        return [period(i) for i in range(0+offset, 24+offset, 3)]
+    days = 'mon tue wed thu fri sat sun'.split()
+    if kind is 'week':
+        return days
+    if kind is 'mix':
+        period = '1 2 3'.split()
+        return [d+''+p for d in days for p in period]
+    raise ValueError('`kind` arguments is not valid')
 
 
 def draw_classes(centroid, offset):
@@ -58,16 +75,13 @@ def draw_classes(centroid, offset):
     for i, marker in zip(range(size), legend[:size]):
         pp.plot(centroid[i, :], marker+'-', ms=11)
     if centroid.shape[1] == 8:
-        period = lambda i: '{}--{}'.format(i % 24, (i+3) % 24)
-        pp.xticks(range(8), [period(i)
-                             for i in range(0+offset, 24+offset, 3)])
+        pp.xticks(range(8), named_ticks('day', offset))
     else:
-        days = 'mon tue wed thu fri sat sun'.split()
-        period = '1 2 3'.split()
-        pp.xticks(range(7*3), [d+''+p for d in days for p in period])
+        pp.xticks(range(7*3), named_ticks('mix'))
 
 
 if __name__ == '__main__':
+    #pylint: disable=C0103
     import arguments
     args = arguments.city_parser().parse_args()
     city = args.city
@@ -89,20 +103,3 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
-    # TODO; check if results are better when withening data beforehand (but
-    # then we need the standard deviation of each feature to classify new
-    # observations)
-    # disto = [comp_disto(*cluster.kmeans2(sval, k, 25, minit='points'))
-    #          for k in range(2, 15)]
-    # K = 6
-    # ak, kl = do_cluster(sval, K)
-    # print(np.sort(np.bincount(kl)))
-    # print(list(enumerate(legend[:K])))
-    # db = DB
-    # shift = 1
-    # daily = 1
-    # venue_visits = xp.get_visits(client, xp.Entity.venue, city)
-    # sig = {k: xp.to_frequency(xp.aggregate_visits(v, shift)[daily])
-    #        for k, v in venue_visits.iteritems() if len(v) > 5}
-    # sval = np.array(sig.values())
-    # print(np.mean(sval, 0))

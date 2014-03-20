@@ -79,6 +79,15 @@ def pre_traversal(cats, field):
     return [cats[field]] + [s for sub in all_subs for s in sub]
 
 
+def json_traversal(cats, field):
+    """."""
+    if not cats.sub:
+        return {'name': cats[field]}
+    all_subs = [json_traversal(sub, field) for sub in cats.sub]
+    return {'name': cats[field],
+            'children': all_subs}
+
+
 def get_subcategories(query, field=None):
     """Return a list of `query` and all its sub categories"""
     root, _ = search_categories(query)
@@ -89,4 +98,9 @@ if __name__ == '__main__':
     #pylint: disable=C0103
     cbar, bpath = search_categories('Bar')
     all_college = get_subcategories('4d4b7105d754a06372d81259', Field.id)
-    print(all_college)
+    # print(all_college)
+    j = json_traversal(search_categories('1')[0], 1)
+    import json
+    import codecs
+    with codecs.open('flare.json', 'w', 'utf8') as f:
+        json.dump(j, f)

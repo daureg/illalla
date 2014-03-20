@@ -136,7 +136,7 @@ if __name__ == '__main__':
         if candidate:
             CHECKINS_QUEUE.put_nowait(candidate)
             nb_cand += 1
-            if nb_cand % 10 == 0:
+            if nb_cand % 50 == 0:
                 cc.vc.logging.info(new_tweet.format(candidate.tid, nb_cand,
                                                     nb_tweets, end - clock()))
             if clock() >= end:

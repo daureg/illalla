@@ -15,6 +15,7 @@ from AskFourquare import gather_all_entities_id
 from AskFourquare import user_profile, venue_profile
 import sys
 import arguments
+import ssl
 
 ENTITY_KIND = 'venue'
 if ENTITY_KIND == 'venue':
@@ -65,6 +66,9 @@ def entities_getter():
             invalid = str(e).split('/')[-1].replace(' ', '+')
             answers = individual_query(batch, invalid)
         except foursquare.ServerError as e:
+            print(e)
+            foursquare_is_down = True
+        except ssl.SSLError as e:
             print(e)
             foursquare_is_down = True
 

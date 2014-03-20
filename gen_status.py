@@ -58,7 +58,7 @@ if __name__ == '__main__':
     t.add_column('with venues', ordered(located['result'], order), 'r')
     t.add_column('photos', ordered(flickr['result'], order), 'r')
     t.add_column('venues', ordered(venue['result'], order), 'r')
-    t.add_column('new checkins', ordered(newest['result'], order, 0), 'r')
+    t.add_column('2014 checkins', ordered(newest['result'], order, 0), 'r')
     table = str(t)
     line_size = len(table)/(len(order)+4)
     start = table.find('\n')+1

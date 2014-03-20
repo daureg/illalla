@@ -29,7 +29,7 @@ logging.basicConfig(filename=os.path.join(TMPDIR, LOG_FILE),
 
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]*)\s*(?P<tags>(?:#\w+\s*)*)$')
 BASE_URL = "http://api.flickr.com/services/rest/"
-PER_PAGE = 220
+PER_PAGE = 225
 # According to https://secure.flickr.com/services/developer/api/, one api key
 # can only make 3600 request per hour so we need to keep track of our usage to
 # stay under the limit.
@@ -181,8 +181,14 @@ def photo_to_dict(p):
         took = 1000*(clock() - start)
         logging.debug('map {} in {:.3f}ms (no tag)'.format(s['_id'], took))
         return None
-    coord = [p['longitude'], p['latitude']]
-    s['loc'] = {"type": "Point", "coordinates": coord}
+    # pymongo.errors.OperationFailure: Can't extract geo keys from object,
+    # malformed geometry?:
+    # {type: "Point", coordinates: [ "0.000000", 51.486554 ] }
+    try:
+        lng, lat = float(p['longitude']), float(p['latitude'])
+    except ValueError:
+        return None
+    s['loc'] = {"type": "Point", "coordinates": [lng, lat]}
     s['farm'] = p['farm']
     s['server'] = p['server']
     s['secret'] = p['secret']
@@ -196,8 +202,8 @@ def higher_request(start_time, bbox, db, level=0):
     """ Try to insert all photos in this region into db by potentially making
     recursing call, eventually to lower_request when the region accounts for
     less than 4000 photos. """
-    if level > 15:
-        logging.warn("Going too deep with {}.", bbox)
+    if level > 20:
+        logging.warn("Going too deep with {}.".format(bbox))
         return 0
 
     _, total = make_request(start_time, bbox, 1, need_answer=True,
@@ -295,10 +301,13 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
     bbox = '{:.9f},{:.9f},{:.9f},{:.9f}'.format(bbox[0][1], bbox[0][0],
                                                 bbox[1][1], bbox[1][0])
     min_upload = calendar.timegm(start_time.utctimetuple())
+    # max_upload = calendar.timegm(datetime.datetime.now().utctimetuple())
+    max_upload = calendar.timegm(datetime.datetime(2011,1,1).utctimetuple())
     while max_tries > 0:
         error = False
         try:
             res, t = send_request(min_upload_date=min_upload,
+                                  max_upload_date=max_upload,
                                   min_taken_date='1990-07-18 17:00:00',
                                   bbox=bbox, accuracy='16',
                                   content_type=1,  # photos only
@@ -308,6 +317,8 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
         except flickr_api.FlickrError as e:
             logging.warn('Error getting page {}: {}'.format(page, e))
             error = True
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except:
             error = True
 

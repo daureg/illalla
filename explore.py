@@ -258,12 +258,12 @@ def describe_venue(venues, city, depth=2, limit=None):
                               reverse=True))
 
 
-def build_surrounding(venues, city):
-    """Return a scipy backed 2-d tree of all venues in `city` with their
-    categories."""
+def build_surrounding(venues, city, likes=5, checkins=30):
+    """Return a scipy backed 2-d tree of venues in `city` with their
+    categories, provided that they have enough `likes` and `checkins`."""
     assert city in cm.cities.SHORT_KEY, 'not a valid city'
-    res = list(venues.find({'city': city, 'likes': {'$gt': 0},
-                            'checkinsCount': {'$gte': 10}},
+    res = list(venues.find({'city': city, 'likes': {'$gt': likes},
+                            'checkinsCount': {'$gte': checkins}},
                            {'cat': 1, 'loc.coordinates': 1}))
     indexing = fsc.bidict.bidict()
     places = np.zeros((len(res), 3))  # pylint: disable=E1101

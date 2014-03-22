@@ -8,6 +8,7 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolor
 from math import log
 from more_query import SF_BBOX, KARTO_CONFIG, FIRST_TIME, LAST_TIME
+BBOX = SF_BBOX
 CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.5px;}}'
 from more_query import k_split_bbox, bbox_to_polygon, compute_frequency, clock
 from utils import to_css_hex
@@ -34,7 +35,7 @@ def get_discrepancy_function(total_m, total_b, support):
         global Reject
         """Compute d(m, b) or return None if it lacks support."""
         assert m <= total_m, "common!"
-        if m < support:
+        if m < support or b < support:
             Reject += 1
             return None
         m_ratio = 1.0*m/total_m
@@ -63,7 +64,7 @@ def add_maybe(new_value, values_so_far, max_nb_values):
     upper_box = index_to_rect(new_value[1][1])
     total_box = bottom_box[:2] + upper_box[2:]
     poly = shape(bbox_to_polygon(total_box, False))
-    new_value = (real_value, poly)
+    new_value = (real_value, poly, new_value[2], new_value[3])
     ALLD.append(real_value)
     if len(values_so_far) == 0:
         return [new_value]
@@ -128,7 +129,7 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
                         b = cum_b[l] - cum_b[k-1]
                     max_values = add_maybe([discrepancy(m, b),
                                             [i*grid_size + k,
-                                             j*grid_size + l]],
+                                             j*grid_size + l], b, m],
                                            max_values, nb_loc)
     return sorted(max_values, key=lambda x: x[0], reverse=True)
 
@@ -143,8 +144,8 @@ def plot_regions(regions, bbox, tag):
                                  'YlOrBr')
     schema = {'geometry': 'Polygon', 'properties': {}}
     style = []
-    KARTO_CONFIG['bounds']['data'] = [SF_BBOX[1], SF_BBOX[0],
-                                      SF_BBOX[3], SF_BBOX[2]]
+    KARTO_CONFIG['bounds']['data'] = [BBOX[1], BBOX[0],
+                                      BBOX[3], BBOX[2]]
 
     polys = [{'geometry': mapping(r[1]), 'properties': {}} for r in regions]
     for i, r in enumerate(regions):
@@ -180,7 +181,7 @@ def spatial_scan(tag):
             res.append(sio.loadmat(filename)['c'])
         except IOError:
             conn, client = get_connection()
-            compute_frequency(conn, tag, SF_BBOX, FIRST_TIME,
+            compute_frequency(conn, tag, BBOX, FIRST_TIME,
                               LAST_TIME, grid_size, plot=False)
             client.close()
             res.append(sio.loadmat(filename)['c'])
@@ -209,7 +210,7 @@ def spatial_scan(tag):
     # for v in top_loc:
     #     print('{:.4f}'.format(v[0]))
     #     print(top_loc[0][1].intersects(v[1]))
-    # plot_regions(top_loc, SF_BBOX, tag)
+    plot_regions(merge_regions(top_loc), BBOX, tag)
 
 
 def merge_regions(top_loc):
@@ -217,8 +218,10 @@ def merge_regions(top_loc):
     merging = 0
     # print('from {}'.format(len(top_loc)))
     for i, loc in enumerate(top_loc):
-        val, poly = loc
+        val, poly, back, meas = loc
         new_val = [val]
+        new_back = [back]
+        new_meas = [meas]
         # size = poly.area
         merged_neighbors = 0
         to_remove = []
@@ -232,6 +235,8 @@ def merge_regions(top_loc):
                 if merged_neighbors < 2:
                     poly = poly.union(others[1])
                     new_val.append(others[0])
+                    new_back.append(others[2])
+                    new_meas.append(others[3])
                     merged_neighbors += 1
                 #     val = 0.5*(val + others[0])
                 #     size = poly.area
@@ -239,7 +244,8 @@ def merge_regions(top_loc):
         merging += merged_neighbors
         for j in to_remove[::-1]:
             del top_loc[j]
-        merged.append((np.mean(new_val), poly))
+        merged.append((np.mean(new_val), poly, np.mean(new_back),
+                       np.mean(new_meas)))
     # print('to {} with {} merges'.format(len(merged), merging))
     return merged
 
@@ -274,33 +280,33 @@ def get_best_tags(point):
                 break
     return sorted(res, key=lambda x: x[1], reverse=True)
 
-GRID_SIZE = 20
+GRID_SIZE = 80
 TOP_K = 2000
 MIN_WIDTH = 1
 MIN_HEIGHT = 1
-MAX_SIZE = 5
+MAX_SIZE = 4
 MAX_SUPPORT = 250
 Reject = 0
-rectangles, dummy, index_to_rect = k_split_bbox(SF_BBOX, GRID_SIZE)
+rectangles, dummy, index_to_rect = k_split_bbox(BBOX, GRID_SIZE)
 if __name__ == '__main__':
     import sys
     import random
-    random.seed(135)
+    # random.seed(135)
     tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
     tt = clock()
-    tmp = persistent.load_var('supported')
-    tags = [v[0] for v in tmp]
-    random.shuffle(tags)
-    tt = clock()
-    p = Pool(3)
-    p.map(spatial_scan, tags)
-    p.map(post_process, tags)
-    p.close()
-    consolidate(tags)
+    # tmp = persistent.load_var('supported')
+    # tags = [v[0] for v in tmp]
+    # random.shuffle(tags)
+    # tt = clock()
+    # p = Pool(3)
+    # p.map(spatial_scan, tags)
+    # p.map(post_process, tags)
+    # p.close()
+    # consolidate(tags)
     # print(get_best_tags(Point(-122.409615, 37.7899132)))
-    # spatial_scan(tag)
+    spatial_scan(tag)
     # sio.savemat('alld', {'d': ALLD})
     print(Reject)
     print('done in {:.2f}.'.format(clock() - tt))
-    # plot_regions(merged, SF_BBOX, tag)
+    # plot_regions(merged, BBOX, tag)
     # persistent.save_var('alld', ALLD)

@@ -54,10 +54,17 @@ def output_json(regions, photos_as_background=True):
                                                           max(discrepancies)),
                                      'YlOrBr')
     schema = {'geometry': 'Polygon', 'properties': [('discrepancy', 'float'),
-                                                    ('color', 'str')]}
+                                                    ('color', 'str'),
+                                                    ('photos', 'float'),
+                                                    ('checkins', 'float')]}
     get_color = lambda v: sps.mcolor.rgb2hex(colormap.to_rgba(v))
+    if photos_as_background:
+        photos_idx, checkins_idx = 2, 3
+    else:
+        photos_idx, checkins_idx = 3, 2
     polys = [{'geometry': sps.mapping(r[1]), 'properties':
-              {'discrepancy': r[0], 'color': get_color(r[0])}}
+              {'discrepancy': r[0], 'color': get_color(r[0]),
+               'photos': r[photos_idx], 'checkins': r[checkins_idx]}}
              for r in regions]
     name = 'paris_d.json'
     import os

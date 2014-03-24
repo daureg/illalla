@@ -20,6 +20,15 @@ def photos_request(bbox):
         print('curl --silent "http://api.flickr.com/services/rest/?min_upload_date={}&max_upload_date={}&format=json&min_taken_date=1990-07-18+17%3A00%3A00&nojsoncallback=1&method=flickr.photos.search&extras=date_upload%2Cdate_taken%2Cgeo%2Ctags&bbox={}%2C{}%2C{}%2C{}&content_type=1&media=photos&per_page=1&page=1&accuracy=16&api_key={}"| jq .photos.total'.format(mind, maxd, bbox[1], bbox[0], bbox[3], bbox[2], key))
 
 
+def bbox_to_polygon(bbox):
+    """Return a 4 points polygon based on the bottom left and upper
+    right coordinates of bbox [lat_bl, long_bl, lat_ur, long_ur]"""
+    assert(len(bbox) == 4)
+    lat_bl, long_bl, lat_ur, long_ur = bbox
+    return [[lat_bl, long_bl], [lat_bl, long_ur],
+            [lat_ur, long_ur], [lat_ur, long_bl]]
+
+
 def short_name(long_name):
     """Return normalized name of city"""
     return ''.join([c.lower() for c in long_name if c.lower() in alphabet])
@@ -101,6 +110,7 @@ if __name__ == '__main__':
     name = 'houston'
     place = lambda: (uniform(city[0], city[2]), uniform(city[1], city[3]))
     photos_request(NYC)
+    print(bbox_to_polygon(PAR))
     for i in range(0):
         year, month, hour = randint(2007, 2014), randint(1, 12), randint(0, 23)
         date = dt(year, month, 25, hour, 45)

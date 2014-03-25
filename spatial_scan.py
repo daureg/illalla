@@ -68,7 +68,7 @@ def add_maybe(new_value, values_so_far, max_nb_values):
     ALLD.append(real_value)
     if len(values_so_far) == 0:
         return [new_value]
-    if real_value > values_so_far[0][0]:
+    if len(values_so_far) < max_nb_values or real_value > values_so_far[0][0]:
         # need_heapify = False
         # discard = False
         # for i, previous in enumerate(values_so_far):

@@ -2,6 +2,7 @@
 # vim: set fileencoding=utf-8
 """Try to describe venue by various features."""
 from matplotlib import pyplot as pp
+from collections import Counter, defaultdict, OrderedDict
 import CommonMongo as cm
 import FSCategories as fsc
 import explore as xp
@@ -11,6 +12,58 @@ import utils as u
 import random as r
 import scipy.cluster.vq as cluster
 DB = None
+CLIENT = None
+
+
+def venues_info(vids, visits=None, visitors=None, depth=10):
+    """Return various info about from the venue ids `vids`."""
+    tags = defaultdict(int)
+    city = DB.venue.find_one({'_id': vids[0]})['city']
+    if not visits:
+        visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
+    if not visitors:
+        visitors = xp.get_visitors(CLIENT, city)
+    venues = list(DB.venue.find({'_id': {'$in': vids}},
+                                {'cat': 1, 'name': 1, 'loc': 1,
+                                 'price': 1, 'rating': 1, 'tags': 1,
+                                 'likes': 1, 'usersCount': 1,
+                                 'checkinsCount': 1}))
+
+    res = pd.DataFrame(index=[_['_id'] for _ in venues])
+
+    def add_col(field):
+        res[field.replace('Count', '')] = [_[field] for _ in venues]
+    for field in ['name', 'price', 'rating', 'likes',
+                  'usersCount', 'checkinsCount']:
+        add_col(field)
+    res['tags'] = [[normalized_tag(t) for t in _['tags']] for _ in venues]
+    res['loc'] = [_['loc']['coordinates'] for _ in venues]
+    res['cat'] = [parenting_cat(_['cat'], depth) for _ in venues]
+    res['vis'] = [len(visits[id_]) for id_ in res.index]
+    res['H'] = [venue_entropy(visitors[id_]) for id_ in res.index]
+    for venue in venues:
+        for tag in venue['tags']:
+            tags[normalized_tag(tag)] += 1
+    return res, OrderedDict(sorted(tags.iteritems(), key=lambda x: x[1],
+                                   reverse=True))
+
+
+def venue_entropy(visitors):
+    """Compute the entropy of venue given the list of its `visitors`."""
+    # pylint: disable=E1101
+    c = np.array(Counter(visitors).values(), dtype=float)
+    N = np.sum(c)
+    return np.log(N) - np.sum(c*np.log(c))/N
+
+
+def normalized_tag(tag):
+    """normalize `tag` by removing punctuation and space character."""
+    return tag.replace(' ', '')
+
+
+def count_tags(tags):
+    """Count occurence of a list of list of tags."""
+    return Counter([normalized_tag(t) for oneset in tags for t in oneset])
 
 
 def parenting_cat(cat, depth=1):

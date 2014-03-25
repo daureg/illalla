@@ -7,6 +7,7 @@ import more_query as mq
 from explore import Entity
 import spatial_scan as sps
 import matplotlib as mpl
+import os
 FREQUENCE_FILE = 'freq_{}_{}_{}.mat'
 
 
@@ -47,6 +48,38 @@ def get_checkins(client, city):
     return [p['loc']['coordinates'] for p in checkins]
 
 
+def full_disc_json(lratio, nz):
+    it = np.nditer(lratio, flags=['f_index'])
+    colormap = mpl.cm.ScalarMappable(sps.mcolor.Normalize(nz.min(), nz.max()),
+                                     'coolwarm')
+    schema = {'geometry': 'Polygon', 'properties': [('ratio', 'float'),
+                                                    ('color', 'str')]}
+    get_color = lambda v: sps.mcolor.rgb2hex(colormap.to_rgba(v))
+    polys = []
+    box = lambda i: sps.shape(sps.bbox_to_polygon(sps.index_to_rect(i), False))
+    while not it.finished:
+        idx, val = it.index, it[0]
+        if not np.isinf(val):
+            val = float(val)
+            polys.append({'geometry': sps.mapping(box(idx)), 'properties':
+                          {'ratio': val, 'color': get_color(val)}})
+        it.iternext()
+    print(polys[0])
+    name = 'maps/paris_full_d.json'
+    write_collection(polys, name, schema)
+
+
+def write_collection(polys, name, schema):
+    """Write JSON array `polys` in the file `name` using `schema`."""
+    try:
+        os.remove(name)
+    except OSError:
+        pass
+    print(name)
+    with sps.fiona.collection(name, "w", "GeoJSON", schema) as f:
+        f.writerecords(polys)
+
+
 def output_json(regions, options):
     """Write a GeoJSON collection of `regions` with their discrepancy."""
     discrepancies = [v[0] for v in regions]
@@ -58,47 +91,55 @@ def output_json(regions, options):
                                                     ('photos', 'float'),
                                                     ('checkins', 'float')]}
     get_color = lambda v: sps.mcolor.rgb2hex(colormap.to_rgba(v))
+    city = options['city']
     photos_as_background = options['photos_background']
+    prefix = '_only' if options['only'] else ''
+    ratio = options.pop('ratio', 0)
     if photos_as_background:
         photos_idx, checkins_idx = 2, 3
+        name = city+prefix+'_checkins_d.json'
+        options['photos_ratio'] = ratio
     else:
         photos_idx, checkins_idx = 3, 2
+        name = city+prefix+'_photos_d.json'
+        options['checkins_ratio'] = ratio
     polys = [{'geometry': sps.mapping(r[1]), 'properties':
               {'discrepancy': r[0], 'color': get_color(r[0]),
                'photos': r[photos_idx], 'checkins': r[checkins_idx]}}
              for r in regions]
-    city = options['city']
-    name = city+'_d.json'
-    import os
-    # TODO use with ignored
-    try:
-        os.remove(name)
-    except OSError:
-        pass
-    with sps.fiona.collection(name, "w", "GeoJSON", schema) as f:
-        f.writerecords(polys)
+    name = os.path.join('maps', name)
+    write_collection(polys, name, schema)
     options['city'] = '"{}"'.format(options['city'])
-    with open(os.path.join('maps', 'instructions.js'), 'w') as f:
+    with open(os.path.join('maps', 'instructions.js'), 'a') as f:
         f.write('\n'.join(['var {} = {};'.format(var, str(val).lower())
                            for var, val in options.iteritems()]))
+    options['city'] = city
 
 
 def compute_ratio(background, measured):
     """Compute the mean ratio of non extrem values between `background` and
     `measured` where both occured."""
     both = np.logical_and(background > 0, measured > 0)
+    background = background.astype(np.float32, copy=False)
+    measured = measured.astype(np.float32, copy=False)
     ratio = background[both]/measured[both]
     lower, upper = np.percentile(ratio, [5, 95])
     return np.mean(ratio[np.logical_and(ratio >= lower, ratio <= upper)])
 
 
-def do_scan(client, city, k, photos_as_background=True):
-    """Perform discrepancy scan on `city` with grid_size."""
+def load_frequency(client, city, k, photos_as_background=True):
+    """Set background and measured array in the right order"""
     photos = compute_frequency(client, city, Entity.photo, k)
     checkins = compute_frequency(client, city, Entity.checkin, k)
-    background, measured = photos, checkins
-    if not photos_as_background:
-        background, measured = checkins, photos
+    if photos_as_background:
+        return photos, checkins
+    return checkins, photos
+
+
+def do_scan(client, city, k, photos_as_background=True):
+    """Perform discrepancy scan on `city` with grid_size."""
+    background, measured = load_frequency(client, city, k,
+                                          photos_as_background)
     total_b = np.sum(background)
     total_m = np.sum(measured)
     if not total_m > 0:
@@ -119,6 +160,26 @@ def do_scan(client, city, k, photos_as_background=True):
                              discrepancy, sps.TOP_K, k/sps.MAX_SIZE)
     return top_loc, compute_ratio(background, measured)
 
+
+def stand_alone(client, city, k, photos_as_background=True, p=99.5):
+    """Return the top list of cells with only one kind of entity."""
+    background, measured = load_frequency(client, city, k,
+                                          photos_as_background)
+    alone = np.logical_and(measured > 0, background < 1)
+    threshold = np.percentile(measured[alone], p)
+    high_alone = np.logical_and(alone, measured > threshold)
+    print(photos_as_background)
+    print(np.sum(measured))
+    print(threshold)
+    print(np.sum(high_alone))
+    cells = np.argwhere(high_alone)[:, 1]
+    count = measured[0, cells]
+    max_values = []
+    for idx, val in zip(cells, count):
+        max_values = sps.add_maybe([val, [idx, idx], 0, val], max_values, 500)
+    return sorted(max_values, key=lambda x: x[0], reverse=True)
+
+
 if __name__ == '__main__':
     #pylint: disable=C0103
     import CommonMongo as cm
@@ -131,10 +192,23 @@ if __name__ == '__main__':
     photos_in_background = True
     k = 200
     sps.GRID_SIZE = k
+    sps.MAX_SUPPORT = 250
     bbox = (cities.US+cities.EU)[cities.INDEX[city]]
     sps.BBOX = bbox
     _, _, sps.index_to_rect = sps.k_split_bbox(bbox, k)
-    top_loc, ratio = do_scan(client, city, k, photos_in_background)
-    options = {'city': city, 'photos_background': photos_in_background,
-               'ratio': ratio, 'bbox': cities.bbox_to_polygon(bbox)}
-    output_json(sps.merge_regions(top_loc), options)
+    options = {'city': city, 'photos_background': True,
+               'bbox': cities.bbox_to_polygon(bbox), 'only': False}
+    # top_loc, ratio = do_scan(client, city, k, options['photos_background'])
+    # options['ratio'] = ratio
+    # output_json(sps.merge_regions(top_loc), options)
+    # options['photos_background'] = False
+    # top_loc, ratio = do_scan(client, city, k, options['photos_background'])
+    # options['ratio'] = ratio
+    # output_json(sps.merge_regions(top_loc), options)
+
+    # options['only'] = True
+    # for pb in [True, False]:
+    #     options['photos_background'] = pb
+        # top_loc = stand_alone(client, city, 100,
+        #                       options['photos_background'])
+    #     output_json(sps.merge_regions(top_loc, use_mean=False), options)

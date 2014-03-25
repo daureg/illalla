@@ -60,6 +60,7 @@ def log(date):
     since = date.replace(hour=4)
     log = check_output(cmd.format(str(since)),
                        shell=True).strip()+"\n\n~~~~"
+    log = MD_ACTIVITY + log
     print(log)
     return log.replace('\t', '    ')
 
@@ -76,7 +77,7 @@ def finish(date):
     today = datetime.datetime.now()
     name = today.strftime(DATE_FORMAT)
     with open(name+'.md', 'a') as f:
-        f.write(MD_ACTIVITY+log(today))
+        f.write(log(today))
     cmd = 'pandoc -f markdown -t latex {}.md'
     cmd += " |grep -v addcontent|sed -e '/^\\\\sec/ s/\\\\label.*$//'"
     print(cmd.format(name))

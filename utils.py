@@ -17,6 +17,7 @@ def noise():
 
 def to_css_hex(color):
     """
+    ie http://matplotlib.org/api/colors_api.html#matplotlib.colors.rgb2hex
     >>> to_css_hex([1, 0, 1, .7])
     '#ff00ff'
     """

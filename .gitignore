@@ -1,3 +1,4 @@
+node_modules/
 elki.jar
 *.ipynb
 bidict.py

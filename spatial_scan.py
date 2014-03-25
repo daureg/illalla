@@ -213,7 +213,8 @@ def spatial_scan(tag):
     plot_regions(merge_regions(top_loc), BBOX, tag)
 
 
-def merge_regions(top_loc):
+def merge_regions(top_loc, use_mean=True):
+    aggregate = np.mean if use_mean else np.sum
     merged = []
     merging = 0
     # print('from {}'.format(len(top_loc)))
@@ -244,8 +245,8 @@ def merge_regions(top_loc):
         merging += merged_neighbors
         for j in to_remove[::-1]:
             del top_loc[j]
-        merged.append((np.mean(new_val), poly, np.mean(new_back),
-                       np.mean(new_meas)))
+        merged.append((np.mean(new_val), poly, aggregate(new_back),
+                       aggregate(new_meas)))
     # print('to {} with {} merges'.format(len(merged), merging))
     return merged
 

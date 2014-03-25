@@ -101,9 +101,10 @@ def photos_around(id_, centroid, offset, daily, radius=200):
     """Gather photos timestamp in a `radius` around `id_` and return its time
     pattern (`daily` or not), and its distance to every `centroid`."""
     center = get_loc(id_)
-    photos = xp.get_visits(client, xp.Entity.photo, ball=(center, radius))
+    photos = xp.get_visits(CLIENT, xp.Entity.photo, ball=(center, radius))
     kind = xp.to_frequency(xp.aggregate_visits(photos.values(), offset)[daily])
     nb_class = centroid.shape[0]
+    # pylint: disable=E1101
     classes = np.linalg.norm(np.tile(kind, (nb_class, 1)) - centroid, axis=1)
     return len(photos), kind, classes, np.argmin(classes)
 
@@ -138,21 +139,28 @@ if __name__ == '__main__':
     import arguments
     args = arguments.city_parser().parse_args()
     city = args.city
-    DB, client = cm.connect_to_db('foursquare', args.host, args.port)
+    DB, CLIENT = cm.connect_to_db('foursquare', args.host, args.port)
 
     legend = 'v^<>s*xo|8d+'
 
+    # pylint: disable=E1101
     def get_distorsion(ak, kl, sval):
+        """Compute the sum of euclidean distance from `sval` to its
+        centroid"""
         return np.sum(np.linalg.norm(ak[kl, :] - sval, axis=1))
 
     do_cluster = lambda val, k: cluster.kmeans2(val, k, 20, minit='points')
 
     def getclass(c, kl, visits):
+        """Return {id: number of visits} of the venues in classs `c` of
+        `kl`."""
         return {v[0]: v[1] for v, k in zip(visits.iteritems(), kl) if k == c}
 
-    def peek_at_class(c, kl, visits):
+    def peek_at_class(c, kl, visits, k=15):
+        """Return a table of `k` randomly chosen venues in class `c` of
+        `kl`."""
         sample = r.sample([get_venue(i)
-                           for i in getclass(c, kl, visits).keys()], 15)
+                           for i in getclass(c, kl, visits).keys()], k)
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})

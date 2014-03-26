@@ -11,6 +11,9 @@ import pandas as pd
 import utils as u
 import random as r
 import scipy.cluster.vq as cluster
+import re
+import string
+NOISE = re.compile(r'[\s'+string.punctuation+r']')
 DB = None
 CLIENT = None
 
@@ -58,7 +61,7 @@ def venue_entropy(visitors):
 
 def normalized_tag(tag):
     """normalize `tag` by removing punctuation and space character."""
-    return tag.replace(' ', '')
+    return NOISE.sub('', tag).lower()
 
 
 def count_tags(tags):
@@ -152,7 +155,7 @@ if __name__ == '__main__':
     do_cluster = lambda val, k: cluster.kmeans2(val, k, 20, minit='points')
 
     def getclass(c, kl, visits):
-        """Return {id: number of visits} of the venues in classs `c` of
+        """Return {id: time pattern} of the venues in classs `c` of
         `kl`."""
         return {v[0]: v[1] for v, k in zip(visits.iteritems(), kl) if k == c}
 

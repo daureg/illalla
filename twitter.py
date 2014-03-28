@@ -2,7 +2,6 @@
 # vim: set fileencoding=utf-8
 """Retrieve checkins tweets"""
 from timeit import default_timer as clock
-from time import sleep
 import TwitterAPI as twitter
 from api_keys import TWITTER_CONSUMER_KEY as consumer_key
 from api_keys import TWITTER_CONSUMER_SECRET as consumer_secret
@@ -122,7 +121,7 @@ def perform_insertion(complete):
         print(err, err.code)
 
 if __name__ == '__main__':
-    #pylint: disable=C0103
+    # pylint: disable=C0103
     api = twitter.TwitterAPI(consumer_key, consumer_secret,
                              access_token, access_secret)
     req = api.request('statuses/filter', {'track': '4sq com'})
@@ -150,4 +149,3 @@ if __name__ == '__main__':
     CHECKINS_QUEUE.join()
     report = 'insert {} valid checkins in {:.2f}s (out of {}).'
     print(report.format(NUM_VALID, clock() - start, nb_tweets))
-    sleep(10)

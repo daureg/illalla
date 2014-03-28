@@ -11,6 +11,7 @@ logging.basicConfig(filename=os.path.expanduser('~/venue.log'),
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 POOL_SIZE = 30
+CHECKIN_URL = re.compile(r'([0-9a-f]{24})\?s=([0-9A-Za-z_-]{27})')
 
 
 class VenueIdCrawler(object):
@@ -30,7 +31,7 @@ class VenueIdCrawler(object):
         assert isinstance(pool_size, int) and pool_size > 0
         self.pool_size = pool_size
         self.claim_id = re.compile(r'claim\?vid=([0-9a-f]{24})')
-        self.checkin_url = re.compile(r'([0-9a-f]{24})\?s=([0-9A-Za-z_-]{27})')
+        self.checkin_url = CHECKIN_URL
         self.fs_id = re.compile(r'[0-9a-f]{24}')
         venue_url = r'venueName"><a href="/v/[^/]+/([0-9a-f]{24})'
         self.venue_url = re.compile(venue_url)

@@ -11,6 +11,34 @@ from datetime import datetime, timedelta
 from utils import get_nested
 
 
+def parse_json_checkin(json, url=None):
+    """Return salient info about a Foursquare checkin `json` that can be
+    either JSON text or already parsed as a dictionary."""
+    if not json:
+        return None
+    if not isinstance(json, dict):
+        try:
+            checkin = ujson.loads(json)
+        except ValueError as not_json:
+            print(not_json, url)
+            return None
+    else:
+        checkin = json['checkin']
+    uid = get_nested(checkin, ['user', 'id'])
+    vid = get_nested(checkin, ['venue', 'id'])
+    time = get_nested(checkin, 'createdAt')
+    offset = get_nested(checkin, 'timeZoneOffset', 0)
+    if None in [uid, vid, time]:
+        return None
+    time = datetime.fromtimestamp(time, tz=pytz.utc)
+    # by doing this, the date is no more UTC. So why not put the correct
+    # timezone? Because in that case, pymongo will convert to UTC at
+    # insertion. Yet I want local time, but without doing the conversion
+    # when the result comes back from the DB.
+    time += timedelta(minutes=offset)
+    return int(uid), str(vid), time
+
+
 class CheckinCrawler(vc.VenueIdCrawler):
     """Get checkins info by expanding 4sq.com short urls."""
     def __init__(self, pool_size=vc.POOL_SIZE):
@@ -54,29 +82,16 @@ class CheckinCrawler(vc.VenueIdCrawler):
         script = tree.xpath(XPATH_GET_SCRIPT)
         if not script:
             return None
-        try:
-            # the HTML contains a script that in turns has a checkin JSON
-            # object between these two indices.
-            checkin = ujson.loads(script[0].text[76:-118])
-        except ValueError as not_json:
-            print(not_json, url)
+        # the HTML contains a script that in turn has a checkin JSON
+        # object between these two indices.
+        checkin = parse_json_checkin(script[0].text[76:-118], url)
+        if not checkin:
             return None
-        uid = get_nested(checkin, ['user', 'id'])
-        vid = get_nested(checkin, ['venue', 'id'])
-        time = get_nested(checkin, 'createdAt')
-        offset = get_nested(checkin, 'timeZoneOffset', 0)
-        if None in [uid, vid, time]:
-            return None
-        time = datetime.fromtimestamp(time, tz=pytz.utc)
-        # by doing this, the date is no more UTC. So why not put the correct
-        # timezone? Because in that case, pymongo will convert to UTC at
-        # insertion. Yet I want local time, but without doing the conversion
-        # when the result comes back from the DB.
-        time += timedelta(minutes=offset)
-        return cid + '?s=' + sig, int(uid), str(vid), time
+        uid, vid, time = checkin
+        return cid + '?s=' + sig, uid, vid, time
 
 if __name__ == '__main__':
-    #pylint: disable=C0103
+    # pylint: disable=C0103
     cc = CheckinCrawler()
     urls = ['http://4sq.com/1mShn3O']
     res = cc.checkins_from_url(urls)

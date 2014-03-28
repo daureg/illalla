@@ -19,8 +19,8 @@ def parse_json_checkin(json, url=None):
     if not isinstance(json, dict):
         try:
             checkin = ujson.loads(json)
-        except ValueError as not_json:
-            print(not_json, url)
+        except (TypeError, ValueError) as not_json:
+            print(not_json, json, url)
             return None
     else:
         checkin = json['checkin']

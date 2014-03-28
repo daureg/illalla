@@ -14,11 +14,6 @@ DB = cm.connect_to_db('foursquare', ARGS.host, ARGS.port)[0]
 import read_foursquare as rf
 import CheckinAPICrawler as cac
 CRAWLER = cac.CheckinAPICrawler()
-import logging
-import os
-logging.basicConfig(filename=os.path.expanduser('~/tweets.log'),
-                    level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s]: %(message)s')
 CITIES_TREE = rf.obtain_tree()
 from Queue import Queue
 from threading import Thread
@@ -141,8 +136,9 @@ if __name__ == '__main__':
             CHECKINS_QUEUE.put_nowait(candidate)
             nb_cand += 1
             if nb_cand % 50 == 0:
-                logging.info(new_tweet.format(candidate.tid, nb_cand,
-                                              nb_tweets, end - clock()))
+                cac.cc.vc.logging.info(new_tweet.format(candidate.tid,
+                                                        nb_cand, nb_tweets,
+                                                        end - clock()))
             if clock() >= end:
                 CHECKINS_QUEUE.put_nowait(None)
                 break

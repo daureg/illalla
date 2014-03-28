@@ -16,6 +16,16 @@ from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
 BITLY_SIZE = 15
 
 
+def get_id_and_signature(url):
+    """Potentially extract checkin id and signature from `url`."""
+    components = None if not url else CHECKIN_URL.search(url)
+    if not components:
+        if url:
+            print(url)
+        return (None, None)
+    return components.groups()
+
+
 class CheckinAPICrawler(object):
     """Get checkins info."""
     def __init__(self):
@@ -37,8 +47,7 @@ class CheckinAPICrawler(object):
                         for res in self.bitly.expand(link=urls)]
         except bitly_api.BitlyError as oops:
             expanded = itertools.repeat(None, BITLY_SIZE)
-        id_and_sig = [CHECKIN_URL.search(u).groups() if u else (None, None)
-                      for u in expanded]
+        id_and_sig = [get_id_and_signature(url) for url in expanded]
         res = []
         for cid, sig in id_and_sig:
             if cid:

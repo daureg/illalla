@@ -13,8 +13,13 @@ ARGS = arguments.tweets_parser().parse_args()
 import CommonMongo as cm
 DB = cm.connect_to_db('foursquare', ARGS.host, ARGS.port)[0]
 import read_foursquare as rf
-import CheckinCrawler as cc
-CRAWLER = cc.CheckinCrawler()
+import CheckinAPICrawler as cac
+CRAWLER = cac.CheckinAPICrawler()
+import logging
+import os
+logging.basicConfig(filename=os.path.expanduser('~/tweets.log'),
+                    level=logging.INFO,
+                    format='%(asctime)s [%(levelname)s]: %(message)s')
 CITIES_TREE = rf.obtain_tree()
 from Queue import Queue
 from threading import Thread
@@ -27,7 +32,7 @@ FullCheckIn = rf.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
                                             'time', 'tid', 'tuid', 'msg'])
 # the size of mongo bulk insert, in multiple of pool size
 INSERT_SIZE = 7
-CHECKINS_QUEUE = Queue((INSERT_SIZE+3)*cc.vc.POOL_SIZE)
+CHECKINS_QUEUE = Queue((INSERT_SIZE+3)*cac.BITLY_SIZE)
 NUM_VALID = 0
 
 
@@ -98,7 +103,7 @@ def insert_checkins():
             CHECKINS_QUEUE.task_done()
             break
         waiting_for_crawling.append(checkin)
-        if len(waiting_for_crawling) == INSERT_SIZE*CRAWLER.pool_size:
+        if len(waiting_for_crawling) == INSERT_SIZE*cac.BITLY_SIZE:
             perform_insertion(post_process(waiting_for_crawling))
             del waiting_for_crawling[:]
     perform_insertion(post_process(waiting_for_crawling))
@@ -137,8 +142,8 @@ if __name__ == '__main__':
             CHECKINS_QUEUE.put_nowait(candidate)
             nb_cand += 1
             if nb_cand % 50 == 0:
-                cc.vc.logging.info(new_tweet.format(candidate.tid, nb_cand,
-                                                    nb_tweets, end - clock()))
+                logging.info(new_tweet.format(candidate.tid, nb_cand,
+                                              nb_tweets, end - clock()))
             if clock() >= end:
                 CHECKINS_QUEUE.put_nowait(None)
                 break

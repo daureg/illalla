@@ -110,7 +110,7 @@ def output_json(regions, options):
     name = os.path.join('maps', name)
     write_collection(polys, name, schema)
     options['city'] = '"{}"'.format(options['city'])
-    with open(os.path.join('maps', 'instructions.js'), 'a') as f:
+    with open(os.path.join('maps', city+'.js'), 'a') as f:
         f.write('\n'.join(['var {} = {};'.format(var, str(val).lower())
                            for var, val in options.iteritems()]))
     options['city'] = city

@@ -3,6 +3,7 @@
 """Try to describe venue by various features."""
 from matplotlib import pyplot as pp
 from collections import Counter, defaultdict, OrderedDict
+from sklearn.neighbors import KernelDensity
 import CommonMongo as cm
 import FSCategories as fsc
 import explore as xp
@@ -18,14 +19,13 @@ DB = None
 CLIENT = None
 
 
-def venues_info(vids, visits=None, visitors=None, depth=10):
+def venues_info(vids, density=None, visits=None, visitors=None, depth=10):
     """Return various info about from the venue ids `vids`."""
     tags = defaultdict(int)
     city = DB.venue.find_one({'_id': vids[0]})['city']
-    if not visits:
-        visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
-    if not visitors:
-        visitors = xp.get_visitors(CLIENT, city)
+    visits = visits or xp.get_visits(CLIENT, xp.Entity.venue, city)
+    visitors = visitors or xp.get_visitors(CLIENT, city)
+    density = density or estimate_density(city)
     venues = list(DB.venue.find({'_id': {'$in': vids}},
                                 {'cat': 1, 'name': 1, 'loc': 1,
                                  'price': 1, 'rating': 1, 'tags': 1,
@@ -40,15 +40,27 @@ def venues_info(vids, visits=None, visitors=None, depth=10):
                   'usersCount', 'checkinsCount']:
         add_col(field)
     res['tags'] = [[normalized_tag(t) for t in _['tags']] for _ in venues]
-    res['loc'] = [_['loc']['coordinates'] for _ in venues]
+    loc = [_['loc']['coordinates'] for _ in venues]
+    # res['loc'] = loc
     res['cat'] = [parenting_cat(_['cat'], depth) for _ in venues]
     res['vis'] = [len(visits[id_]) for id_ in res.index]
     res['H'] = [venue_entropy(visitors[id_]) for id_ in res.index]
+    coords = np.fliplr(np.array(loc))
+    points = cm.cities.GEO_TO_2D[city](coords)
+    res['Den'] = density(points)/1e-6
     for venue in venues:
         for tag in venue['tags']:
             tags[normalized_tag(tag)] += 1
     return res, OrderedDict(sorted(tags.iteritems(), key=lambda x: x[1],
                                    reverse=True))
+
+
+def estimate_density(city):
+    """Return a Gaussian KDE of venues in `city`."""
+    kde = KernelDensity(bandwidth=175, rtol=1e-4)
+    surround = xp.build_surrounding(DB.venue, city, likes=1, checkins=5)
+    kde.fit(surround.venues[:, :2])
+    return lambda xy: np.exp(kde.score_samples(xy))
 
 
 def venue_entropy(visitors):

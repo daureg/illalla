@@ -17,6 +17,7 @@ import string
 NOISE = re.compile(r'[\s'+string.punctuation+r']')
 DB = None
 CLIENT = None
+LEGEND = 'v^<>s*xo|8d+'
 
 
 def venues_info(vids, density=None, visits=None, visitors=None, depth=10):
@@ -141,7 +142,7 @@ def named_ticks(kind, offset=0):
 def draw_classes(centroid, offset):
     """Plot each time patterns in `centroid`."""
     size = centroid.shape[0]
-    for i, marker in zip(range(size), legend[:size]):
+    for i, marker in zip(range(size), LEGEND[:size]):
         pp.plot(centroid[i, :], marker+'-', ms=11)
     if centroid.shape[1] == 8:
         pp.xticks(range(8), named_ticks('day', offset))
@@ -149,20 +150,20 @@ def draw_classes(centroid, offset):
         pp.xticks(range(7*3), named_ticks('mix'))
 
 
+def get_distorsion(ak, kl, sval):
+    """Compute the sum of euclidean distance from `sval` to its
+    centroid"""
+    return np.sum(np.linalg.norm(ak[kl, :] - sval, axis=1))
+
 if __name__ == '__main__':
-    #pylint: disable=C0103
+    # pylint: disable=C0103
     import arguments
     args = arguments.city_parser().parse_args()
     city = args.city
     DB, CLIENT = cm.connect_to_db('foursquare', args.host, args.port)
 
-    legend = 'v^<>s*xo|8d+'
 
     # pylint: disable=E1101
-    def get_distorsion(ak, kl, sval):
-        """Compute the sum of euclidean distance from `sval` to its
-        centroid"""
-        return np.sum(np.linalg.norm(ak[kl, :] - sval, axis=1))
 
     do_cluster = lambda val, k: cluster.kmeans2(val, k, 20, minit='points')
 

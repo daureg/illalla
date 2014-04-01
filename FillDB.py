@@ -154,5 +154,5 @@ if __name__ == '__main__':
     from persistent import save_var
     print('{}/{} invalid id'.format(len(INVALID_ID), total_entities))
     print('{}/{} requests'.format(CLIENT.rate_remaining, CLIENT.rate_limit))
-    region = city or 'world'
-    save_var('non_{}_id_{}'.format(ENTITY_KIND, region), INVALID_ID)
+    # region = city or 'world'
+    # save_var('non_{}_id_{}'.format(ENTITY_KIND, region), INVALID_ID)

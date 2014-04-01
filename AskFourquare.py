@@ -71,8 +71,8 @@ def venue_profile(venue):
         # geometry but then there are limitation on compound index:
         # http://docs.mongodb.org/manual/applications/geospatial-indexes/
         return None
-    if city is None:
-        print("can't match {}".format(venue['location']))
+    # if city is None:
+    #     print("can't match {}".format(venue['location']))
     cats = [c['id'] for c in venue['categories']]
     cat = None if len(cats) == 0 else cats.pop(0)
     checkinsCount = venue['stats']['checkinsCount']

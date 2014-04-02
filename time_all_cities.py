@@ -1,6 +1,8 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Plot time pattern of all cities."""
+import matplotlib
+matplotlib.use('Agg')
 import VenueFeature as vf
 import explore as xp
 import numpy as np
@@ -27,16 +29,19 @@ def plot_city(city):
             min_disto, ak, kl = current_disto, tak, tkl
     std_ord = np.argsort((np.argsort(ak)), 0)[:, -1]
     vf.draw_classes(ak[std_ord, :], shift)
-    vf.pp.title(city)
+    vf.plt.title('{}, {} venues'.format(city, len(enough)))
+    vf.plt.ylim([0, 0.85])
     city = 'time/' + city
     sio.savemat(city+'_time', {'t': ak[std_ord, :]}, do_compression=True)
-    vf.pp.savefig(city+'_time.png', dpi=150, transparent=False, frameon=False,
-                  bbox_inches='tight', pad_inches=0)
+    vf.plt.savefig(city+'_time.png', dpi=160, transparent=False, frameon=False,
+                   bbox_inches='tight', pad_inches=0.1)
+    vf.plt.clf()
 
 if __name__ == '__main__':
     # pylint: disable=C0103
     import arguments
     args = arguments.get_parser().parse_args()
     DB, CLIENT = xp.cm.connect_to_db('foursquare', args.host, args.port)
-    for city in ['barcelona', 'paris']:
+    for city in reversed(xp.cm.cities.SHORT_KEY):
+        print(city)
         plot_city(city)

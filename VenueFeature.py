@@ -1,7 +1,8 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Try to describe venue by various features."""
-from matplotlib import pyplot as pp
+import prettyplotlib as ppl
+import matplotlib.pyplot as plt
 from collections import Counter, defaultdict, OrderedDict
 from sklearn.neighbors import KernelDensity
 import CommonMongo as cm
@@ -143,11 +144,11 @@ def draw_classes(centroid, offset):
     """Plot each time patterns in `centroid`."""
     size = centroid.shape[0]
     for i, marker in zip(range(size), LEGEND[:size]):
-        pp.plot(centroid[i, :], marker+'-', ms=11)
+        ppl.plot(centroid[i, :], marker+'-', ms=9)
     if centroid.shape[1] == 8:
-        pp.xticks(range(8), named_ticks('day', offset))
+        plt.xticks(range(8), named_ticks('day', offset))
     else:
-        pp.xticks(range(7*3), named_ticks('mix'))
+        plt.xticks(range(7*3), named_ticks('mix'))
 
 
 def get_distorsion(ak, kl, sval):

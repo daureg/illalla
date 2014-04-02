@@ -162,6 +162,8 @@ def collapse(values, chunk_size, offset=0):
     array([ 3, 12])
     >>> collapse(range(8), 2, 2)
     array([ 5,  9, 13,  1])
+    >>> collapse([4, 0, 0, 0, 0, 2], 3, 1)
+    array([0, 6])
     >>> collapse(range(6), 2, 1)
     array([3, 7, 5])"""
     length = len(values)
@@ -175,7 +177,7 @@ def collapse(values, chunk_size, offset=0):
         if i <= offset:
             continue
         partial_sum += val
-        if (i+offset) % chunk_size == 0:
+        if (i-offset) % chunk_size == 0:
             res.append(partial_sum)
             partial_sum = 0
         if len(res) == length/chunk_size:
@@ -324,7 +326,7 @@ def collect_similars(venues_db, client, city):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-    #pylint: disable=C0103
+    # pylint: disable=C0103
     import arguments
     args = arguments.city_parser().parse_args()
     city = args.city

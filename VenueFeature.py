@@ -12,13 +12,18 @@ import numpy as np
 import pandas as pd
 import utils as u
 import random as r
+import itertools
 import scipy.cluster.vq as cluster
+from scipy.stats import multivariate_normal
 import re
 import string
 NOISE = re.compile(r'[\s'+string.punctuation+r']')
 DB = None
 CLIENT = None
 LEGEND = 'v^<>s*xo|8d+'
+CATS = ['Arts & Entertainment', 'College & University', 'Food',
+        'Nightlife Spot', 'Outdoors & Recreation', 'Shop & Service',
+        'Professional & Other Places', 'Residence', 'Travel & Transport']
 
 
 def venues_info(vids, density=None, visits=None, visitors=None, depth=10):
@@ -49,7 +54,7 @@ def venues_info(vids, density=None, visits=None, visitors=None, depth=10):
     res['H'] = [venue_entropy(visitors[id_]) for id_ in res.index]
     coords = np.fliplr(np.array(loc))
     points = cm.cities.GEO_TO_2D[city](coords)
-    res['Den'] = density(points)/1e-6
+    res['Den'] = density(points)
     for venue in venues:
         for tag in venue['tags']:
             tags[normalized_tag(tag)] += 1
@@ -62,7 +67,79 @@ def estimate_density(city):
     kde = KernelDensity(bandwidth=175, rtol=1e-4)
     surround = xp.build_surrounding(DB.venue, city, likes=1, checkins=5)
     kde.fit(surround.venues[:, :2])
-    return lambda xy: np.exp(kde.score_samples(xy))
+    max_density = approximate_maximum_density(kde, surround.venues[:, :2])
+    # pylint: disable=E1101
+    return lambda xy: np.exp(kde.score_samples(xy))/max_density
+
+
+def approximate_maximum_density(kde, venues, precision=128):
+    """Evaluate the kernel on a grid and return the max value."""
+    # pylint: disable=E1101
+    xgrid = np.linspace(np.min(venues[:, 0]), np.max(venues[:, 0]), precision)
+    ygrid = np.linspace(np.min(venues[:, 1]), np.max(venues[:, 1]), precision)
+    X, Y = np.meshgrid(xgrid, ygrid)
+    xy = np.vstack([X.ravel(), Y.ravel()]).T
+    estim = np.exp(kde.score_samples(xy))
+    return estim.max()
+
+
+def smoothed_location(loc, center, radius, city):
+    """Return a list of weight (obtained by a 2D Gaussian with `radius`)
+    corresponding to the relative distance of points in `loc` with
+    `center`."""
+    project = cm.cities.GEO_TO_2D[city]
+    center = center if 'coordinates' not in center else center['coordinates']
+    center = project(reversed(center))[:2]
+    ploc = project(np.array(loc)) - np.tile(center, (len(loc), 1))
+    smooth = multivariate_normal([0, 0], (radius/2.5)*np.eye(2))
+    return smooth.pdf(ploc/20)/smooth.pdf([0, 0])
+
+
+def full_surrounding(vid, city=None, radius=350):
+    """Return a list of photos, checkins and venues categories in a `radius`
+    around `vid`, within `city`."""
+    self = DB.venue.find_one({'_id': vid}, {'loc': 1, 'city': 1})
+    city, position = city or self['city'], self['loc']
+    ball = {'$geometry': position, '$maxDistance': radius}
+    return categories_repartition(city, ball)
+    photos = CLIENT.world.photos({'hint': city, 'loc': {'$near': ball}},
+                                 {'venue': 1, 'taken': 1, 'loc': 1})
+    pvenue, ptime, ploc = zip(*[(p['venue'], p['taken'],
+                                 list(reversed(p['loc']['coordinates'])))
+                                for p in photos])
+    checkins = DB.checkin.find({'city': city, 'loc': {'$near': ball}},
+                               {'time': 1, 'loc': 1})
+    ctime, cloc = zip(*[(c['time'], list(reversed(c['loc']['coordinates'])))
+                        for c in checkins])
+
+
+def categories_repartition(city, ball=None):
+    """Return the distribution of top level Foursquare categories in
+    `ball` (or the whole `city` if None)."""
+    if ball:
+        position, radius = ball['$geometry'], ball['$maxDistance']
+        geo = {'$near': ball}
+    else:
+        geo = {'$ne': None}
+    neighbors = DB.venue.find({'city': city, 'loc': geo},
+                              {'cat': 1, 'cats': 1, 'loc': 1})
+    vcats, vloc = zip(*[([v['cat']] + v['cats'],
+                         list(reversed(v['loc']['coordinates'])))
+                        for v in neighbors])
+    smoothed_loc = itertools.cycle([1.0])
+    if ball:
+        smoothed_loc = smoothed_location(vloc, position, radius, city)
+    distrib = defaultdict(int)
+    for own_cat, weight in zip(vcats, smoothed_loc):
+        top_cat = [parenting_cat(c) for c in own_cat if c]
+        for cat in top_cat:
+            distrib[cat] += weight
+    distrib = np.array([distrib[c] for c in CATS])
+    # Can't be zero because there is always at least the venue itself in
+    # surrounding.
+    # TODO: maybe it would be more informative to return how it deviate from
+    # the global distribution.
+    return distrib / np.sum(distrib)
 
 
 def venue_entropy(visitors):
@@ -163,9 +240,7 @@ if __name__ == '__main__':
     city = args.city
     DB, CLIENT = cm.connect_to_db('foursquare', args.host, args.port)
 
-
     # pylint: disable=E1101
-
     do_cluster = lambda val, k: cluster.kmeans2(val, k, 20, minit='points')
 
     def getclass(c, kl, visits):

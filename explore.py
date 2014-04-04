@@ -184,13 +184,13 @@ def collapse(values, chunk_size, offset=0):
             return np.array(res)
 
 
-def aggregate_visits(visits, offset=0):
+def aggregate_visits(visits, offset=0, chunk=3):
     """Transform a list of visits into hourly and daily pattern (grouping
-    hours by chunk of 3, starting from `offset`)."""
+    hours by chunk of size `chunk`, starting from `offset`)."""
     # pylint: disable=E1101
     histo = lambda dim, size: np.bincount(timing[:, dim], minlength=size)
     timing = np.array([(v.hour, human_day(v)) for v in visits])
-    return collapse(histo(0, 24), 3, offset), histo(1, 7*3)
+    return collapse(histo(0, 24), chunk, offset), histo(1, 7*3)
 
 
 def to_frequency(data):

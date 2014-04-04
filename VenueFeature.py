@@ -26,7 +26,7 @@ CATS = ['Arts & Entertainment', 'College & University', 'Food',
         'Professional & Other Places', 'Residence', 'Travel & Transport']
 
 
-def venues_info(vids, density=None, visits=None, visitors=None, depth=10):
+def venues_info(vids, visits=None, visitors=None, density=None, depth=10):
     """Return various info about from the venue ids `vids`."""
     tags = defaultdict(int)
     city = DB.venue.find_one({'_id': vids[0]})['city']
@@ -203,11 +203,11 @@ def photos_around(id_, centroid, offset, daily, radius=200):
     return len(photos), kind, classes, np.argmin(classes)
 
 
-def named_ticks(kind, offset=0):
+def named_ticks(kind, offset=0, chunk=3):
     """Return ticks label for kind in ('day', 'week', 'mix')."""
     if kind is 'day':
-        period = lambda i: '{}--{}'.format(i % 24, (i+3) % 24)
-        return [period(i) for i in range(0+offset, 24+offset, 3)]
+        period = lambda i: '{}--{}'.format(i % 24, (i+chunk) % 24)
+        return [period(i) for i in range(0+offset, 24+offset, chunk)]
     days = 'mon tue wed thu fri sat sun'.split()
     if kind is 'week':
         return days
@@ -217,13 +217,13 @@ def named_ticks(kind, offset=0):
     raise ValueError('`kind` arguments is not valid')
 
 
-def draw_classes(centroid, offset):
+def draw_classes(centroid, offset, chunk=3):
     """Plot each time patterns in `centroid`."""
     size = centroid.shape[0]
     for i, marker in zip(range(size), LEGEND[:size]):
         ppl.plot(centroid[i, :], marker+'-', ms=9)
-    if centroid.shape[1] == 8:
-        plt.xticks(range(8), named_ticks('day', offset))
+    if centroid.shape[1] == 24/chunk:
+        plt.xticks(range(24/chunk), named_ticks('day', offset, chunk))
     else:
         plt.xticks(range(7*3), named_ticks('mix'))
 

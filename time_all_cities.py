@@ -40,8 +40,13 @@ def plot_city(city):
 if __name__ == '__main__':
     # pylint: disable=C0103
     import arguments
+    import persistent as p
     args = arguments.get_parser().parse_args()
     DB, CLIENT = xp.cm.connect_to_db('foursquare', args.host, args.port)
+    res = {}
     for city in reversed(xp.cm.cities.SHORT_KEY):
-        print(city)
-        plot_city(city)
+        # print(city)
+        # plot_city(city)
+        venue_visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
+        res.update({k: len(v) for k, v in venue_visits.iteritems()})
+    p.save_var('venue_visits', res)

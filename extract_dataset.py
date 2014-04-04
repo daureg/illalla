@@ -1,7 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 import codecs
-import pymongo
+import CommonMongo as cm
 from timeit import default_timer as clock
 from bson.son import SON
 from more_query import FIRST_TIME, LAST_TIME, compute_entropy
@@ -21,15 +21,15 @@ def write_tagset(DB):
         f.write(u'\n'.join(tags))
 
 
-def supported_tags(DB, photos_threshold=150, users_threshold=25, timespan=500):
+def supported_tags(DB, city, photos_threshold=150, users_threshold=25, timespan=500):
     interval = timespan*24*3600
     return [(p['_id'], p['count'], len(p['users']), p['first'], p['last'])
             for p in DB.photos.aggregate([
-                {"$match": {"hint": "sf"}},
+                {"$match": {"hint": city}},
                 {'$project': {'_id': 0, 'upload': 1,
-                              'user': '$uid', 'ntags': 1}},
-                {"$unwind": "$ntags"},
-                {'$group': {'_id': '$ntags',
+                              'user': '$uid', 'tags': 1}},
+                {"$unwind": "$tags"},
+                {'$group': {'_id': '$tags',
                             'first': {'$min': '$upload'},
                             'last': {'$max': '$upload'},
                             'users': {'$addToSet': '$user'},
@@ -39,8 +39,8 @@ def supported_tags(DB, photos_threshold=150, users_threshold=25, timespan=500):
                             "users."+str(users_threshold-1): {"$exists": 1}}},
                 # {"$sort": SON([("count", -1)])}
             ])['result']
-            ]
-            # if (p['last'] - p['first']).total_seconds() > interval]
+            # ]
+            if (p['last'] - p['first']).total_seconds() > interval]
 
 
 def tag_time(DB, tag, fm=None):
@@ -86,12 +86,14 @@ def get_data(DB):
     sio.savemat('deep', {'A': scipy.sparse.csr_matrix(photos_feature)})
 
 if __name__ == '__main__':
-    client = pymongo.MongoClient('localhost', 27017)
-    DB = client['flickr']
+    import arguments
+    args = arguments.city_parser().parse_args()
+    city = args.city
+    DB, client = cm.connect_to_db('world', args.host, args.port)
     s = clock()
-    tags = supported_tags(DB, photos_threshold=1, users_threshold=1,
-                            interval=0)
-    save_var('tag_support', tags)
+    tags = supported_tags(DB, city, photos_threshold=30, users_threshold=5,
+                          timespan=60)
+    save_var(city+'_tag_support', tags)
     # entropies = {t[0]: period_entropy(DB, t[0]) for t in tags}
     # save_var('Hsupported', entropies)
     # get_data(DB)

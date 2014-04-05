@@ -45,8 +45,8 @@ if __name__ == '__main__':
     DB, CLIENT = xp.cm.connect_to_db('foursquare', args.host, args.port)
     res = {}
     for city in reversed(xp.cm.cities.SHORT_KEY):
-        # print(city)
-        # plot_city(city)
-        venue_visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
-        res.update({k: len(v) for k, v in venue_visits.iteritems()})
-    p.save_var('venue_visits', res)
+        print(city)
+        plot_city(city)
+    #     venue_visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
+    #     res.update({k: len(v) for k, v in venue_visits.iteritems()})
+    # p.save_var('venue_visits', res)

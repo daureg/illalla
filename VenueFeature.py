@@ -14,7 +14,10 @@ import utils as u
 import random as r
 import itertools
 import scipy.cluster.vq as cluster
-from scipy.stats import multivariate_normal
+try:
+    from scipy.stats import multivariate_normal
+except ImportError:
+    from _multivariate import multivariate_normal
 import re
 import string
 NOISE = re.compile(r'[\s'+string.punctuation+r']')
@@ -221,7 +224,7 @@ def draw_classes(centroid, offset, chunk=3):
     """Plot each time patterns in `centroid`."""
     size = centroid.shape[0]
     for i, marker in zip(range(size), LEGEND[:size]):
-        ppl.plot(centroid[i, :], marker+'-', ms=9)
+        ppl.plot(centroid[i, :], marker+'-', ms=9, c=ppl.colors.set1[i])
     if centroid.shape[1] == 24/chunk:
         plt.xticks(range(24/chunk), named_ticks('day', offset, chunk))
     else:

@@ -11,16 +11,15 @@ import scipy.io as sio
 DO_CLUSTER = lambda val, k: vf.cluster.kmeans2(val, k, 20, minit='points')
 
 
-def plot_city(city):
+def plot_city(city, weekly=False, clusters=5):
     """Plot the 5 time clusters of `city` and save them on disk."""
-    daily = 0  # look a time of the day instead of day of the week
     shift = 1  # start from 1am instead of midnight
     venue_visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
     # Compute aggregated frequency for venues with at least 5 visits
-    enough = {k: xp.to_frequency(xp.aggregate_visits(v, shift)[daily])
+    enough = {k: xp.to_frequency(xp.aggregate_visits(v, shift)[int(weekly)])
               for k, v in venue_visits.iteritems() if len(v) > 5}
     sval = np.array(enough.values())
-    num_cluster = 5
+    num_cluster = clusters
     min_disto = 1e9
     for _ in range(5):
         tak, tkl = DO_CLUSTER(sval, num_cluster)
@@ -30,8 +29,9 @@ def plot_city(city):
     std_ord = np.argsort((np.argsort(ak)), 0)[:, -1]
     vf.draw_classes(ak[std_ord, :], shift)
     vf.plt.title('{}, {} venues'.format(city, len(enough)))
-    vf.plt.ylim([0, 0.85])
+    vf.plt.ylim([0, 0.28 if weekly else 0.85])
     city = 'time/' + city
+    city += '_weekly' if weekly else '_daily'
     sio.savemat(city+'_time', {'t': ak[std_ord, :]}, do_compression=True)
     vf.plt.savefig(city+'_time.png', dpi=160, transparent=False, frameon=False,
                    bbox_inches='tight', pad_inches=0.1)
@@ -46,7 +46,8 @@ if __name__ == '__main__':
     res = {}
     for city in reversed(xp.cm.cities.SHORT_KEY):
         print(city)
-        plot_city(city)
+        # plot_city(city, weekly=False, clusters=5)
+        plot_city(city, weekly=True, clusters=3)
     #     venue_visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
     #     res.update({k: len(v) for k, v in venue_visits.iteritems()})
     # p.save_var('venue_visits', res)

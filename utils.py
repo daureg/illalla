@@ -158,6 +158,16 @@ def convert_icwsm_checkin(checkins):
         _id, uid = old['_id'], str(old['uid'])
         checkins.update({'_id': _id}, {'$set': {'tuid': uid, 'tid': _id}})
 
+
+def memodict(f):
+    """Memoization decorator for a function taking a single argument """
+    # http://code.activestate.com/recipes/578231
+    class memodict(dict):
+        def __missing__(self, key):
+            ret = self[key] = f(key)
+            return ret
+    return memodict().__getitem__
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

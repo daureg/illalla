@@ -13,6 +13,7 @@ import pandas as pd
 import utils as u
 import random as r
 import itertools
+import scipy.stats as stats
 import scipy.cluster.vq as cluster
 try:
     from scipy.stats import multivariate_normal
@@ -29,6 +30,51 @@ CATS = ['Arts & Entertainment', 'College & University', 'Food',
         'Professional & Other Places', 'Residence', 'Travel & Transport']
 
 
+def geo_project(city, entities):
+    """Return {id: euclidean projection in `city`} for objects in
+    `entities`."""
+    ids, loc = zip(*[(_['_id'], list(reversed(_['loc']['coordinates'])))
+                     for _ in entities])
+    project = cm.cities.GEO_TO_2D[city]
+    return dict(zip(ids, project(np.array(loc))))
+
+
+@u.memodict
+def is_event(cat_id):
+    """Does `cat_id` represent an event."""
+    return cat_id in fsc.get_subcategories('Event')
+
+
+def describe_city(city):
+    """Compute feature vector for selected venue in `city`."""
+    lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
+    lcheckins = geo_project(city, DB.checkin.find({'city': city}, {'loc': 1}))
+    lphotos = geo_project(city, CLIENT.world.photos.find({'hint': city},
+                                                         {'loc': 1}))
+    visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
+    visitors = xp.get_visitors(CLIENT, city)
+    density = estimate_density(city)
+    categories = categories_repartition(city)
+    venues = DB.venue.find({'city': city, 'closed': {'$ne': True},
+                            'cat': {'$ne': None}}, {'cat': 1})
+    chosen = [v['_id'] for v in venues
+              if len(visits.get(v['_id'], [])) > 100 and
+              not is_event(v['cat'])]
+    info, _ = venues_info(chosen, visits, visitors, density, depth=1)
+    numeric = np.zeros((len(info), 16), dtype=np.float32)
+    numeric[:, :5] = np.array([info['likes'], np.log(info['users']),
+                               np.log(info['checkins']), info['H'],
+                               info['Den']]).T
+    numeric[:, 5] = [1e5 * CATS.index(c) for c in info['cat']]
+    numeric[:, :3] = stats.zscore(numeric[:, :3])
+    for idx, vid in enumerate(chosen):
+        cat, focus, ratio = full_surrounding(vid, lvenues, lphotos, lcheckins)
+        numeric[idx, 6:15] = cat
+        numeric[idx, 15] = focus
+        numeric[idx, 16] = ratio
+    return numeric, categories
+
+
 def venues_info(vids, visits=None, visitors=None, density=None, depth=10):
     """Return various info about from the venue ids `vids`."""
     tags = defaultdict(int)
@@ -42,7 +88,9 @@ def venues_info(vids, visits=None, visitors=None, density=None, depth=10):
                                  'likes': 1, 'usersCount': 1,
                                  'checkinsCount': 1}))
 
-    res = pd.DataFrame(index=[_['_id'] for _ in venues])
+    msg = 'Asked for {} but get only {}'.format(len(vids), len(venues))
+    assert len(vids) == len(venues), msg
+    res = pd.DataFrame(index=[vids])
 
     def add_col(field):
         res[field.replace('Count', '')] = [_[field] for _ in venues]
@@ -68,7 +116,7 @@ def venues_info(vids, visits=None, visitors=None, density=None, depth=10):
 def estimate_density(city):
     """Return a Gaussian KDE of venues in `city`."""
     kde = KernelDensity(bandwidth=175, rtol=1e-4)
-    surround = xp.build_surrounding(DB.venue, city, likes=1, checkins=5)
+    surround = xp.build_surrounding(DB.venue, city, likes=-1, checkins=1)
     kde.fit(surround.venues[:, :2])
     max_density = approximate_maximum_density(kde, surround.venues[:, :2])
     # pylint: disable=E1101
@@ -86,52 +134,84 @@ def approximate_maximum_density(kde, venues, precision=128):
     return estim.max()
 
 
-def smoothed_location(loc, center, radius, city):
+def smoothed_location(loc, center, radius, city, pmapping=None):
     """Return a list of weight (obtained by a 2D Gaussian with `radius`)
     corresponding to the relative distance of points in `loc` with
-    `center`."""
-    project = cm.cities.GEO_TO_2D[city]
-    center = center if 'coordinates' not in center else center['coordinates']
-    center = project(reversed(center))[:2]
-    ploc = project(np.array(loc)) - np.tile(center, (len(loc), 1))
+    `center`. If `pmapping` is not None, it's a dictionnary {id: 2dpos} and
+    center must be an id."""
+    if pmapping:
+        assert len(center) == 2
+        origins = np.tile(center, (len(loc), 1))
+        ploc = np.vstack([pmapping[_] for _ in loc]) - origins
+    else:
+        project = cm.cities.GEO_TO_2D[city]
+        if 'coordinates' in center:
+            center = center['coordinates']
+        center = project(reversed(center))[:2]
     smooth = multivariate_normal([0, 0], (radius/2.5)*np.eye(2))
     return smooth.pdf(ploc/20)/smooth.pdf([0, 0])
 
 
-def full_surrounding(vid, city=None, radius=350):
+def full_surrounding(vid, vmapping, pmapping, cmapping, city=None, radius=350):
     """Return a list of photos, checkins and venues categories in a `radius`
-    around `vid`, within `city`."""
+    around `vid`, within `city`. The mappings are dict({id: 2dpos})"""
     self = DB.venue.find_one({'_id': vid}, {'loc': 1, 'city': 1})
     city, position = city or self['city'], self['loc']
     ball = {'$geometry': position, '$maxDistance': radius}
-    return categories_repartition(city, ball)
-    photos = CLIENT.world.photos({'hint': city, 'loc': {'$near': ball}},
-                                 {'venue': 1, 'taken': 1, 'loc': 1})
-    pvenue, ptime, ploc = zip(*[(p['venue'], p['taken'],
-                                 list(reversed(p['loc']['coordinates'])))
+    cat_distrib = categories_repartition(city, vid, ball, vmapping)
+    photos = CLIENT.world.photos.find({'hint': city, 'loc': {'$near': ball}},
+                                      {'venue': 1, 'taken': 1})
+    pids, pvenue, ptime = zip(*[(p['_id'], p['venue'], p['taken'])
                                 for p in photos])
     checkins = DB.checkin.find({'city': city, 'loc': {'$near': ball}},
                                {'time': 1, 'loc': 1})
-    ctime, cloc = zip(*[(c['time'], list(reversed(c['loc']['coordinates'])))
-                        for c in checkins])
+    cids, ctime = zip(*[(c['_id'], c['time']) for c in checkins])
+    center = vmapping[vid]
+    focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
+    photogeny = photo_ratio(center, pids, cids, radius, pmapping, cmapping)
+    return cat_distrib, focus, photogeny
 
 
-def categories_repartition(city, ball=None):
+def photo_focus(vid, center, pids, pvenue, radius, mapping):
+    """Return the ratio of photos with venue id around `vid` that are indeed
+    about it."""
+    this_venue = 0
+    other_venues = 0
+    smoothed = smoothed_location(pids, center, radius, None, mapping)
+    for pid, weight in zip(pvenue, smoothed):
+        if pid:
+            if pid == vid:
+                this_venue += weight
+            else:
+                other_venues += weight
+    return 1.0*this_venue / other_venues
+
+
+def photo_ratio(center, pids, cids, radius, pmapping, cmapping):
+    """Return log(nb_photos/nb_checkins) around `vid`, weighted by
+    Gaussian."""
+    p_smoothed = smoothed_location(pids, center, radius, None, pmapping)
+    c_smoothed = smoothed_location(cids, center, radius, None, cmapping)
+    return np.log(np.sum(p_smoothed)/np.sum(c_smoothed))
+
+
+def categories_repartition(city, vid=None, ball=None, vmapping=None):
     """Return the distribution of top level Foursquare categories in
-    `ball` (or the whole `city` if None)."""
+    `ball` (ie around `vid`) (or the whole `city` without weighting if
+    None)."""
     if ball:
-        position, radius = ball['$geometry'], ball['$maxDistance']
+        radius = ball['$maxDistance']
         geo = {'$near': ball}
     else:
         geo = {'$ne': None}
     neighbors = DB.venue.find({'city': city, 'loc': geo},
                               {'cat': 1, 'cats': 1, 'loc': 1})
-    vcats, vloc = zip(*[([v['cat']] + v['cats'],
-                         list(reversed(v['loc']['coordinates'])))
+    vids, vcats = zip(*[(v['_id'], [v['cat']] + v['cats'])
                         for v in neighbors])
     smoothed_loc = itertools.cycle([1.0])
     if ball:
-        smoothed_loc = smoothed_location(vloc, position, radius, city)
+        smoothed_loc = smoothed_location(vids, vmapping[vid], radius, city,
+                                         vmapping)
     distrib = defaultdict(int)
     for own_cat, weight in zip(vcats, smoothed_loc):
         top_cat = [parenting_cat(c) for c in own_cat if c]
@@ -217,7 +297,7 @@ def named_ticks(kind, offset=0, chunk=3):
     if kind is 'mix':
         period = '1 2 3'.split()
         return [d+''+p for d in days for p in period]
-    raise ValueError('`kind` arguments is not valid')
+    raise ValueError('`kind` argument is not valid')
 
 
 def draw_classes(centroid, offset, chunk=3):

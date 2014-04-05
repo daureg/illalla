@@ -48,6 +48,9 @@ def get_checkins(client, city):
     return [p['loc']['coordinates'] for p in checkins]
 
 
+# lratio = np.log(np.zeros(p.shape))
+# nz = np.log(ratio)
+# lratio[both] = nz
 def full_disc_json(lratio, nz):
     it = np.nditer(lratio, flags=['f_index'])
     colormap = mpl.cm.ScalarMappable(sps.mcolor.Normalize(nz.min(), nz.max()),

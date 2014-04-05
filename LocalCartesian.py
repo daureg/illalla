@@ -37,7 +37,7 @@ class LocalCartesian(object):
         if hasattr(lat_lng, 'shape'):
             column_dim = (lat_lng.shape[0], 1)
             lat_lng = numpy.hstack([lat_lng, numpy.tile(h, column_dim)])
-            return ((bforward(lat_lng) - self.origin)*self.rot)[:, :2]
+            return ((bforward(lat_lng) - self.origin)*self.rot).A[:, :2]
         lat, lon = lat_lng
         result = (earth_forward(lat, lon, h) - self.origin)*self.rot
         return (result[0, :]).A1
@@ -111,3 +111,4 @@ if __name__ == '__main__':
     tdata = numpy.array([(60.15, 24.91, 10),
                          (60.19415, 24.92945, 30),
                          (59, 25, 0)])
+    print(center.forward(tdata).shape)

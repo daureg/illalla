@@ -20,8 +20,6 @@ def get_id_and_signature(url):
     """Potentially extract checkin id and signature from `url`."""
     components = None if not url else CHECKIN_URL.search(url)
     if not components:
-        if url:
-            print(url)
         return (None, None)
     return components.groups()
 

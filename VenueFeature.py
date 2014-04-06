@@ -176,15 +176,15 @@ def photo_focus(vid, center, pids, pvenue, radius, mapping):
     """Return the ratio of photos with venue id around `vid` that are indeed
     about it."""
     this_venue = 0
-    other_venues = 0
+    all_venues = 0
     smoothed = smoothed_location(pids, center, radius, None, mapping)
     for pid, weight in zip(pvenue, smoothed):
         if pid:
             if pid == vid:
                 this_venue += weight
             else:
-                other_venues += weight
-    return 1.0*this_venue / other_venues
+                all_venues += weight
+    return 0 if all_venues < 1e-4 else this_venue / other_venues
 
 
 def photo_ratio(center, pids, cids, radius, pmapping, cmapping):

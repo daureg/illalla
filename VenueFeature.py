@@ -14,6 +14,7 @@ import utils as u
 import random as r
 import itertools
 import scipy.stats as stats
+import scipy.io as sio
 import scipy.cluster.vq as cluster
 try:
     from scipy.stats import multivariate_normal
@@ -21,6 +22,7 @@ except ImportError:
     from _multivariate import multivariate_normal
 import re
 import string
+from ProgressBar import AnimatedProgressBar
 NOISE = re.compile(r'[\s'+string.punctuation+r']')
 DB = None
 CLIENT = None
@@ -42,11 +44,12 @@ def geo_project(city, entities):
 @u.memodict
 def is_event(cat_id):
     """Does `cat_id` represent an event."""
-    return cat_id in fsc.get_subcategories('Event')
+    return cat_id in fsc.get_subcategories('Event', fsc.Field.id)
 
 
 def describe_city(city):
     """Compute feature vector for selected venue in `city`."""
+    print("Gather information about {}.".format(city))
     lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
     lcheckins = geo_project(city, DB.checkin.find({'city': city}, {'loc': 1}))
     lphotos = geo_project(city, CLIENT.world.photos.find({'hint': city},
@@ -58,20 +61,34 @@ def describe_city(city):
     venues = DB.venue.find({'city': city, 'closed': {'$ne': True},
                             'cat': {'$ne': None}}, {'cat': 1})
     chosen = [v['_id'] for v in venues
-              if len(visits.get(v['_id'], [])) > 100 and
+              if len(visits.get(v['_id'], [])) > 4 and
+              len(np.unique(visitors.get(v['_id'], []))) > 1 and
               not is_event(v['cat'])]
+    print("Chosen {} venues in {}.".format(len(chosen), city))
     info, _ = venues_info(chosen, visits, visitors, density, depth=1)
-    numeric = np.zeros((len(info), 16), dtype=np.float32)
+    numeric = np.zeros((len(info), 24), dtype=np.float32)
     numeric[:, :5] = np.array([info['likes'], np.log(info['users']),
                                np.log(info['checkins']), info['H'],
                                info['Den']]).T
     numeric[:, 5] = [1e5 * CATS.index(c) for c in info['cat']]
-    numeric[:, :3] = stats.zscore(numeric[:, :3])
-    for idx, vid in enumerate(chosen):
+    numeric[:, :3] = stats.zscore(numeric[:, :3], ddof=1)
+    print("Got basic fact about it.")
+    progress = AnimatedProgressBar(end=len(info), width=120)
+    for idx, vid in enumerate(info.index):
+        print(vid, info.irow(idx)['name'])
         cat, focus, ratio = full_surrounding(vid, lvenues, lphotos, lcheckins)
         numeric[idx, 6:15] = cat
         numeric[idx, 15] = focus
         numeric[idx, 16] = ratio
+        own_visits = visits[vid]
+        numeric[idx, 17] = is_week_end_place(own_visits)
+        daily_visits = xp.aggregate_visits(own_visits, 1, 4)[0]
+        numeric[idx, 18:] = xp.to_frequency(daily_visits)
+        progress + 1
+        # progress.show_progress()
+    numeric[:, 6:15] = stats.zscore(numeric[:, 6:15], ddof=1)
+    sio.savemat(city+'_fv', {'v': numeric, 'c': categories,
+                'i': np.array(chosen)}, do_compression=True)
     return numeric, categories
 
 
@@ -90,7 +107,7 @@ def venues_info(vids, visits=None, visitors=None, density=None, depth=10):
 
     msg = 'Asked for {} but get only {}'.format(len(vids), len(venues))
     assert len(vids) == len(venues), msg
-    res = pd.DataFrame(index=[vids])
+    res = pd.DataFrame(index=[_['_id'] for _ in venues])
 
     def add_col(field):
         res[field.replace('Count', '')] = [_[field] for _ in venues]
@@ -139,6 +156,10 @@ def smoothed_location(loc, center, radius, city, pmapping=None):
     corresponding to the relative distance of points in `loc` with
     `center`. If `pmapping` is not None, it's a dictionnary {id: 2dpos} and
     center must be an id."""
+    if len(loc) == 0:
+        return []
+    if len(loc) == 1:
+        return [1.0]
     if pmapping:
         assert len(center) == 2
         origins = np.tile(center, (len(loc), 1))
@@ -161,15 +182,31 @@ def full_surrounding(vid, vmapping, pmapping, cmapping, city=None, radius=350):
     cat_distrib = categories_repartition(city, vid, ball, vmapping)
     photos = CLIENT.world.photos.find({'hint': city, 'loc': {'$near': ball}},
                                       {'venue': 1, 'taken': 1})
-    pids, pvenue, ptime = zip(*[(p['_id'], p['venue'], p['taken'])
-                                for p in photos])
+    pids, pvenue, ptime = xzip(photos, ['_id', 'venue', 'taken'])
     checkins = DB.checkin.find({'city': city, 'loc': {'$near': ball}},
                                {'time': 1, 'loc': 1})
-    cids, ctime = zip(*[(c['_id'], c['time']) for c in checkins])
+    cids, ctime = xzip(checkins, ['_id', 'time'])
     center = vmapping[vid]
     focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
     photogeny = photo_ratio(center, pids, cids, radius, pmapping, cmapping)
     return cat_distrib, focus, photogeny
+
+
+def xzip(items, fields):
+    """Unpack each field of `fields` into a separate tuple for object in
+    `items`.
+    >>> xzip([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}], ['a', 'b'])
+    [(1, 3), (2, 4)]
+    >>> xzip([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}], ['b'])
+    [(2, 4)]
+    >>> xzip([], ['a', 'b'])
+    [[], []]
+    """
+    unpack = lambda x: [x[f] for f in fields]
+    res = zip(*[unpack(x) for x in items])
+    if res == []:
+        return len(fields)*[[], ]
+    return res
 
 
 def photo_focus(vid, center, pids, pvenue, radius, mapping):
@@ -184,7 +221,7 @@ def photo_focus(vid, center, pids, pvenue, radius, mapping):
                 this_venue += weight
             else:
                 all_venues += weight
-    return 0 if all_venues < 1e-4 else this_venue / other_venues
+    return 0 if all_venues < 1e-4 else this_venue / all_venues
 
 
 def photo_ratio(center, pids, cids, radius, pmapping, cmapping):
@@ -192,7 +229,17 @@ def photo_ratio(center, pids, cids, radius, pmapping, cmapping):
     Gaussian."""
     p_smoothed = smoothed_location(pids, center, radius, None, pmapping)
     c_smoothed = smoothed_location(cids, center, radius, None, cmapping)
+    # sum of c_smoothed because for the venue to exist, there must be some
+    # checkins around.
     return np.log(np.sum(p_smoothed)/np.sum(c_smoothed))
+
+
+def is_week_end_place(place_visits):
+    """Tell if a place is more visited during the weekend."""
+    is_we_visit = lambda h, d: d == 5 or (d == 4 and h >= 20) or \
+        (d == 6 and h <= 20)
+    we_visits = [1 for v in place_visits if is_we_visit(v.hour, v.weekday())]
+    return int(len(we_visits) > 0.5*len(place_visits))
 
 
 def categories_repartition(city, vid=None, ball=None, vmapping=None):
@@ -318,6 +365,8 @@ def get_distorsion(ak, kl, sval):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
+    import doctest
+    doctest.testmod()
     import arguments
     args = arguments.city_parser().parse_args()
     city = args.city
@@ -339,3 +388,4 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
+    describe_city(city)

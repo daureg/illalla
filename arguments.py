@@ -31,6 +31,16 @@ def city_parser(desc=None):
     return parser
 
 
+def two_cities(desc=None):
+    """default parser plus 2 city names"""
+    parser = get_parser(desc)
+    parser.add_argument("origin", help="The city where you choose venues",
+                        type=valid_city)
+    parser.add_argument("dest", help="The city where to find venues",
+                        type=valid_city)
+    return parser
+
+
 def valid_number(number, lower, upper, ntype=int):
     """Ensure numeric argument is within bounds"""
     try:

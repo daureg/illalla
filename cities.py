@@ -75,6 +75,7 @@ INDEX = {short_name(city): _id for _id, city in enumerate(NAMES)}
 middle = lambda bbox: (.5*(bbox[0] + bbox[2]), (.5*(bbox[1] + bbox[3])))
 GEO_TO_2D = {name: lc.LocalCartesian(*middle(city)).forward
              for name, city in zip(SHORT_KEY, US+EU)}
+BBOXES = dict(zip(SHORT_KEY, [bbox_to_polygon(b) for b in US+EU]))
 
 
 def utc_to_local(city, time):

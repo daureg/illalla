@@ -99,6 +99,23 @@ def get_nested(dico, fields, default=None):
     return current
 
 
+def xzip(items, fields):
+    """Unpack each field of `fields` into a separate tuple for object in
+    `items`.
+    >>> xzip([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}], ['a', 'b'])
+    [(1, 3), (2, 4)]
+    >>> xzip([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}], ['b'])
+    [(2, 4)]
+    >>> xzip([], ['a', 'b'])
+    [[], []]
+    """
+    unpack = lambda x: [x[f] for f in fields]
+    res = zip(*[unpack(x) for x in items])
+    if res == []:
+        return len(fields)*[[], ]
+    return res
+
+
 def human_day(time, new_day=4, period=True):
     """Return period of weekday of `time`, but using `new_day` hour as
     separator instead of midnight.

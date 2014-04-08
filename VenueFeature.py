@@ -182,31 +182,14 @@ def full_surrounding(vid, vmapping, pmapping, cmapping, city=None, radius=350):
     cat_distrib = categories_repartition(city, vid, ball, vmapping)
     photos = CLIENT.world.photos.find({'hint': city, 'loc': {'$near': ball}},
                                       {'venue': 1, 'taken': 1})
-    pids, pvenue, ptime = xzip(photos, ['_id', 'venue', 'taken'])
+    pids, pvenue, ptime = u.xzip(photos, ['_id', 'venue', 'taken'])
     checkins = DB.checkin.find({'city': city, 'loc': {'$near': ball}},
                                {'time': 1, 'loc': 1})
-    cids, ctime = xzip(checkins, ['_id', 'time'])
+    cids, ctime = u.xzip(checkins, ['_id', 'time'])
     center = vmapping[vid]
     focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
     photogeny = photo_ratio(center, pids, cids, radius, pmapping, cmapping)
     return cat_distrib, focus, photogeny
-
-
-def xzip(items, fields):
-    """Unpack each field of `fields` into a separate tuple for object in
-    `items`.
-    >>> xzip([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}], ['a', 'b'])
-    [(1, 3), (2, 4)]
-    >>> xzip([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}], ['b'])
-    [(2, 4)]
-    >>> xzip([], ['a', 'b'])
-    [[], []]
-    """
-    unpack = lambda x: [x[f] for f in fields]
-    res = zip(*[unpack(x) for x in items])
-    if res == []:
-        return len(fields)*[[], ]
-    return res
 
 
 def photo_focus(vid, center, pids, pvenue, radius, mapping):

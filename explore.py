@@ -9,7 +9,6 @@ import scipy.spatial as spatial
 import scipy.cluster.vq as cluster
 import numpy as np
 import persistent
-from more_query import get_top_tags
 import CommonMongo as cm
 import FSCategories as fsc
 import AskFourquare as af
@@ -23,6 +22,7 @@ from random import sample
 
 def increase_coverage(upto=5000):
     """Save `upto` unprocessed San Francisco tags"""
+    from more_query import get_top_tags
     sup = persistent.load_var('supported')
     more = get_top_tags(upto, 'nsf_tag.dat')
     already = [v[0] for v in sup]

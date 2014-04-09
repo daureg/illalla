@@ -1,3 +1,16 @@
+static/app.css
+static/app.js
+static/leaflet.css
+static/leaflet.js
+static/leaflet-src.js
+static/leaflet-src.js.7
+static/minified-src.js
+static/normalize.css
+static/images
+Zipfian_project-similarity_between_SF_neighborhoods/
+_multivariate.py
+app.js
+classicthesis/
 node_modules/
 elki.jar
 *.ipynb

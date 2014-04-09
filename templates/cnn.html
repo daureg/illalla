@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block body %}
+	<title>From {{ origin|safe }} to {{ dest|safe }}</title>
+	<script type="text/javascript">var LBBOX={{ lbbox|safe }}; var RBBOX={{ rbbox|safe }};</script>
+</head>
+<body>
+	<div id="mapl" class="map"></div>
+	<div id="mapr" class="map"></div>
+    <table></table>
+	<script src="{{ url_for('static', filename='cnn.js') }}"></script>
+{% endblock %}

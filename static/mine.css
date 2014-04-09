@@ -1,0 +1,31 @@
+.leaflet-popup-content {text-align: center;}
+.leaflet-popup-content form {margin-top: .3em;}
+* {margin: 0; padding: 0;}
+a {color: #1e90ff; /* Dodger Blue */ }
+body {
+	background-color: #f9fcf9;
+	color: #333;
+	font-family: 'Open Sans', sans-serif;
+	line-height: 1.45;
+}
+#mapl {top: 0;}
+#mapr {top: 50%;}
+.map {
+    width: 49.8%;
+    height: 49.8%;
+    border: 1px solid white;
+    position: absolute;
+    left 0;
+}
+table {
+	position: absolute;
+	width: 49.8%;
+	top: 1em;
+	left: 50%;
+	text-align: center;
+	vertical-align: middle;
+}
+table, th, td {
+    padding: 0.15em;
+    border: 1px solid black;
+}

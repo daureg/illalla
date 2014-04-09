@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+        <!-- <link href='//fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'> -->
+        <script type="text/javascript" src="{{ url_for('static', filename='app.js') }}"></script>
+        <link  rel='stylesheet' type='text/css' href="{{ url_for('static', filename='app.css') }}">
+		<script type=text/javascript>var $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};</script>
+{% block body %}{% endblock %}
+	</body>
+</html>

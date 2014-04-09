@@ -4,10 +4,12 @@
 import os
 import numpy as np
 import sklearn.neighbors as skn
-import arguments
+# import arguments
 # import CommonMongo as cm
 import VenueFeature as vf
 import pandas as pd
+import matplotlib.colors as mcolor
+import matplotlib as mpl
 
 FEATURES = ['likes', 'users', 'checkins', 'publlicness', 'density',
             'category', 'art', 'education', 'food', 'night', 'recreation',
@@ -24,9 +26,9 @@ def load_matrix(city):
     if not os.path.exists(filename):
         vf.describe_city(city)
     mat = vf.sio.loadmat(filename)
-    # TODO: do not generate them in the first place?
     # pylint: disable=E1101
     # TODO: zscore everything
+    # TODO: do not generate them in the first place?
     mat['v'][np.isinf(mat['v'])] = 1e9
     return mat
 
@@ -54,11 +56,11 @@ def find_closest(vid, origin, dest):
         return None, None, None
     venue = origin['features'][query, :]
     cat = int(venue[5])
-    closest_idx = dest[cat][0].kneighbors(venue)[1].ravel()[0]
+    dst, closest_idx = [r.ravel()[0] for r in dest[cat][0].kneighbors(venue)]
     print(cat, closest_idx)
     res_id = dest[cat][1][closest_idx].ravel()[0]
     answer = dest['index'].index(res_id)
-    return query, res_id, answer
+    return query, res_id, answer, dst
 
 
 def interpret(query, answer):
@@ -68,18 +70,26 @@ def interpret(query, answer):
     # pylint: disable=E1101
     smaller_first = np.argsort(diff)
     percentage = 100*diff/np.sum(diff)
-    return [{'query': query[f], 'answer': answer[f], 'feature': FEATURES[f],
-             'percentage': percentage[f]} for f in smaller_first]
+    colormap = mpl.cm.ScalarMappable(mcolor.Normalize(percentage.min(),
+                                                      percentage.max()),
+                                     'copper_r')
+    get_color = lambda v: mcolor.rgb2hex(colormap.to_rgba(v))
+    sendf = lambda x, p: ('{:.'+str(p)+'f}').format(float(x))
+    return [{'query': sendf(query[f], 5), 'answer': sendf(answer[f], 5),
+             'feature': FEATURES[f], 'percentage': sendf(percentage[f], 2),
+             'color': get_color(float(percentage[f]))}
+            for f in smaller_first]
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    args = arguments.two_cities().parse_args()
+    # args = arguments.two_cities().parse_args()
     # db, client = cm.connect_to_db('foursquare', args.host, args.port)
     # left = gather_info(args.origin)
     # right = gather_info(args.dest)
+
     def explain(query, answer):
-        columns = 'feature query percentage answer'.split(
-        f,q,p,a=vf.u.xzip(interpret(query, answer), columns))
+        columns = 'feature query percentage answer'.split()
+        f, q, p, a = vf.u.xzip(interpret(query, answer), columns)
         return pd.DataFrame(data={'feature': f, 'query': q,
                                   'percentage': p, 'answer': a},
                             columns=columns)

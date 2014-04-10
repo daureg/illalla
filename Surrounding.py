@@ -1,7 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Implementation of Surrounding class."""
-import scipy.spatial as spatial
+import sklearn.neighbors as skn
 import numpy as np
 import utils as u
 
@@ -28,7 +28,9 @@ class Surrounding(object):
                 self.info[id_] = {'cats': [item['cat']] + item['cats']}
             else:
                 self.info[id_] = {f: item[f] for f in fields}
-        self.space = spatial.KDTree(np.array(self.loc), leafsize=25)
+        self.space = skn.NearestNeighbors(radius=350.0, algorithm='kd_tree',
+                                          leaf_size=25)
+        self.space.fit(np.array(self.loc))
 
     @profile
     def index_to_id(self, idx):
@@ -42,7 +44,7 @@ class Surrounding(object):
     @profile
     def around(self, center, radius):
         """Return info about all object at distance `radius` from `center`."""
-        neighbors_idx = self.space.query_ball_point(center, radius, eps=0.001)
+        neighbors_idx = self.space.radius_neighbors([center], radius, False)[0]
         return self.idx_to_infos(neighbors_idx)
 
     @profile

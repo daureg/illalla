@@ -23,6 +23,7 @@ except ImportError:
 import re
 import string
 from ProgressBar import AnimatedProgressBar
+import Surrounding as s
 NOISE = re.compile(r'[\s'+string.punctuation+r']')
 DB = None
 CLIENT = None
@@ -30,6 +31,11 @@ LEGEND = 'v^<>s*xo|8d+'
 CATS = ['Arts & Entertainment', 'College & University', 'Food',
         'Nightlife Spot', 'Outdoors & Recreation', 'Shop & Service',
         'Professional & Other Places', 'Residence', 'Travel & Transport']
+TOP_CATS = {None: None}
+# TOP_CATS.update({_: parenting_cat(_) for _ in fsc.get_subcategories('1')[1:]})
+RADIUS = 350
+SMOOTH = multivariate_normal([0, 0], (RADIUS/2.5)*np.eye(2))
+SMOOTH_MAX = SMOOTH.pdf([0, 0])
 
 
 def geo_project(city, entities):
@@ -47,17 +53,38 @@ def is_event(cat_id):
     return cat_id in fsc.get_subcategories('Event', fsc.Field.id)
 
 
-def describe_city(city):
-    """Compute feature vector for selected venue in `city`."""
-    print("Gather information about {}.".format(city))
+@profile
+def global_info(city):
+    """Gather global statistics about `city`."""
+    import persistent as p
     lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
     lcheckins = geo_project(city, DB.checkin.find({'city': city}, {'loc': 1}))
     lphotos = geo_project(city, CLIENT.world.photos.find({'hint': city},
                                                          {'loc': 1}))
+    local_projection = [lvenues, lcheckins, lphotos]
     visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
     visitors = xp.get_visitors(CLIENT, city)
     density = estimate_density(city)
-    categories = categories_repartition(city)
+    activity = [visits, visitors, density]
+    global TOP_CATS
+    TOP_CATS = p.load_var('top_cats')
+    svenues = s.Surrounding(DB.venue, {'city': city}, ['cat', 'cats'], lvenues)
+    scheckins = s.Surrounding(DB.checkin, {'city': city}, ['time'], lcheckins)
+    sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city},
+                            ['venue', 'taken'], lphotos)
+    surroundings = [svenues, scheckins, sphotos]
+    return local_projection + activity + surroundings
+
+
+@profile
+def describe_city(city):
+    """Compute feature vector for selected venue in `city`."""
+    print("Gather information about {}.".format(city))
+    info = global_info(city)
+    lvenues, lcheckins, lphotos = info[:3]
+    visits, visitors, density = info[3:6]
+    svenues, scheckins, sphotos = info[6:]
+    categories = categories_repartition(city, svenues, lvenues, RADIUS)
     venues = DB.venue.find({'city': city, 'closed': {'$ne': True},
                             'cat': {'$ne': None}}, {'cat': 1})
     chosen = [v['_id'] for v in venues
@@ -65,18 +92,18 @@ def describe_city(city):
               len(np.unique(visitors.get(v['_id'], []))) > 1 and
               not is_event(v['cat'])]
     print("Chosen {} venues in {}.".format(len(chosen), city))
-    info, _ = venues_info(chosen, visits, visitors, density, depth=1)
+    info, _ = venues_info(chosen, visits, visitors, density, depth=1,
+                          tags_freq=False)
     numeric = np.zeros((len(info), 24), dtype=np.float32)
-    numeric[:, :5] = np.array([info['likes'], np.log(info['users']),
-                               np.log(info['checkins']), info['H'],
-                               info['Den']]).T
+    numeric[:, :5] = np.array([info['likes'], info['users'], info['checkins'],
+                               info['H'], info['Den']]).T
     numeric[:, 5] = [1e5 * CATS.index(c) for c in info['cat']]
-    numeric[:, :3] = stats.zscore(numeric[:, :3], ddof=1)
     print("Got basic fact about it.")
-    progress = AnimatedProgressBar(end=len(info), width=120)
+    # progress = AnimatedProgressBar(end=len(info), width=120)
     for idx, vid in enumerate(info.index):
-        print(vid, info.irow(idx)['name'])
-        cat, focus, ratio = full_surrounding(vid, lvenues, lphotos, lcheckins)
+        # print(vid, info.irow(idx)['name'])
+        cat, focus, ratio = full_surrounding(vid, lvenues, lphotos, lcheckins,
+                                             svenues, scheckins, sphotos, city)
         numeric[idx, 6:15] = cat
         numeric[idx, 15] = focus
         numeric[idx, 16] = ratio
@@ -84,15 +111,16 @@ def describe_city(city):
         numeric[idx, 17] = is_week_end_place(own_visits)
         daily_visits = xp.aggregate_visits(own_visits, 1, 4)[0]
         numeric[idx, 18:] = xp.to_frequency(daily_visits)
-        progress + 1
+        # progress + 1
         # progress.show_progress()
-    numeric[:, 6:15] = stats.zscore(numeric[:, 6:15], ddof=1)
     sio.savemat(city+'_fv', {'v': numeric, 'c': categories,
                 'i': np.array(chosen)}, do_compression=True)
     return numeric, categories
 
 
-def venues_info(vids, visits=None, visitors=None, density=None, depth=10):
+@profile
+def venues_info(vids, visits=None, visitors=None, density=None, depth=10,
+                tags_freq=True):
     """Return various info about from the venue ids `vids`."""
     tags = defaultdict(int)
     city = DB.venue.find_one({'_id': vids[0]})['city']
@@ -114,18 +142,20 @@ def venues_info(vids, visits=None, visitors=None, density=None, depth=10):
     for field in ['name', 'price', 'rating', 'likes',
                   'usersCount', 'checkinsCount']:
         add_col(field)
-    res['tags'] = [[normalized_tag(t) for t in _['tags']] for _ in venues]
+    if tags_freq:
+        res['tags'] = [[normalized_tag(t) for t in _['tags']] for _ in venues]
     loc = [_['loc']['coordinates'] for _ in venues]
-    # res['loc'] = loc
-    res['cat'] = [parenting_cat(_['cat'], depth) for _ in venues]
+    get_cat = lambda c, d: top_category(c) if d == 1 else parenting_cat(c, d)
+    res['cat'] = [get_cat(_['cat'], depth) for _ in venues]
     res['vis'] = [len(visits[id_]) for id_ in res.index]
     res['H'] = [venue_entropy(visitors[id_]) for id_ in res.index]
     coords = np.fliplr(np.array(loc))
     points = cm.cities.GEO_TO_2D[city](coords)
     res['Den'] = density(points)
-    for venue in venues:
-        for tag in venue['tags']:
-            tags[normalized_tag(tag)] += 1
+    if tags_freq:
+        for venue in venues:
+            for tag in venue['tags']:
+                tags[normalized_tag(tag)] += 1
     return res, OrderedDict(sorted(tags.iteritems(), key=lambda x: x[1],
                                    reverse=True))
 
@@ -151,47 +181,38 @@ def approximate_maximum_density(kde, venues, precision=128):
     return estim.max()
 
 
-def smoothed_location(loc, center, radius, city, pmapping=None):
+@profile
+def smoothed_location(loc, center, radius, city, pmapping):
     """Return a list of weight (obtained by a 2D Gaussian with `radius`)
     corresponding to the relative distance of points in `loc` with
-    `center`. If `pmapping` is not None, it's a dictionnary {id: 2dpos} and
-    center must be an id."""
+    `center`. `pmapping` is a dictionnary {id: 2dpos} and `center` a 2D
+    point."""
     if len(loc) == 0:
         return []
     if len(loc) == 1:
         return [1.0]
-    if pmapping:
-        assert len(center) == 2
-        origins = np.tile(center, (len(loc), 1))
-        ploc = np.vstack([pmapping[_] for _ in loc]) - origins
-    else:
-        project = cm.cities.GEO_TO_2D[city]
-        if 'coordinates' in center:
-            center = center['coordinates']
-        center = project(reversed(center))[:2]
-    smooth = multivariate_normal([0, 0], (radius/2.5)*np.eye(2))
-    return smooth.pdf(ploc/20)/smooth.pdf([0, 0])
+    assert len(center) == 2
+    # TODO: loc could directly be the subset
+    ploc = np.array([pmapping[_] for _ in loc]) - center
+    return SMOOTH.pdf(ploc/20)/SMOOTH_MAX
 
 
-def full_surrounding(vid, vmapping, pmapping, cmapping, city=None, radius=350):
+@profile
+def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
+                     sphotos, city, radius=350):
     """Return a list of photos, checkins and venues categories in a `radius`
     around `vid`, within `city`. The mappings are dict({id: 2dpos})"""
-    self = DB.venue.find_one({'_id': vid}, {'loc': 1, 'city': 1})
-    city, position = city or self['city'], self['loc']
-    ball = {'$geometry': position, '$maxDistance': radius}
-    cat_distrib = categories_repartition(city, vid, ball, vmapping)
-    photos = CLIENT.world.photos.find({'hint': city, 'loc': {'$near': ball}},
-                                      {'venue': 1, 'taken': 1})
-    pids, pvenue, ptime = u.xzip(photos, ['_id', 'venue', 'taken'])
-    checkins = DB.checkin.find({'city': city, 'loc': {'$near': ball}},
-                               {'time': 1, 'loc': 1})
-    cids, ctime = u.xzip(checkins, ['_id', 'time'])
+    cat_distrib = categories_repartition(city, svenues, vmapping, radius, vid)
     center = vmapping[vid]
+    pids, infos = sphotos.around(center, radius)
+    pvenue, ptime = infos
+    cids, _ = scheckins.around(center, radius)
     focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
     photogeny = photo_ratio(center, pids, cids, radius, pmapping, cmapping)
     return cat_distrib, focus, photogeny
 
 
+@profile
 def photo_focus(vid, center, pids, pvenue, radius, mapping):
     """Return the ratio of photos with venue id around `vid` that are indeed
     about it."""
@@ -207,12 +228,13 @@ def photo_focus(vid, center, pids, pvenue, radius, mapping):
     return 0 if all_venues < 1e-4 else this_venue / all_venues
 
 
+@profile
 def photo_ratio(center, pids, cids, radius, pmapping, cmapping):
     """Return log(nb_photos/nb_checkins) around `vid`, weighted by
     Gaussian."""
     p_smoothed = smoothed_location(pids, center, radius, None, pmapping)
     c_smoothed = smoothed_location(cids, center, radius, None, cmapping)
-    # sum of c_smoothed because for the venue to exist, there must be some
+    # sum of c_smoothed ≠ 0 because for the venue to exist, there must be some
     # checkins around.
     return np.log(np.sum(p_smoothed)/np.sum(c_smoothed))
 
@@ -225,28 +247,23 @@ def is_week_end_place(place_visits):
     return int(len(we_visits) > 0.5*len(place_visits))
 
 
-def categories_repartition(city, vid=None, ball=None, vmapping=None):
+@profile
+def categories_repartition(city, svenues, vmapping, radius, vid=None):
     """Return the distribution of top level Foursquare categories in
     `ball` (ie around `vid`) (or the whole `city` without weighting if
     None)."""
-    if ball:
-        radius = ball['$maxDistance']
-        geo = {'$near': ball}
-    else:
-        geo = {'$ne': None}
-    neighbors = DB.venue.find({'city': city, 'loc': geo},
-                              {'cat': 1, 'cats': 1, 'loc': 1})
-    vids, vcats = zip(*[(v['_id'], [v['cat']] + v['cats'])
-                        for v in neighbors])
     smoothed_loc = itertools.cycle([1.0])
-    if ball:
+    if vid:
+        vids, vcats = svenues.around(vmapping[vid], radius)
         smoothed_loc = smoothed_location(vids, vmapping[vid], radius, city,
                                          vmapping)
+    else:
+        vids, vcats = svenues.all()
+    vcats = vcats[0]
     distrib = defaultdict(int)
     for own_cat, weight in zip(vcats, smoothed_loc):
-        top_cat = [parenting_cat(c) for c in own_cat if c]
-        for cat in top_cat:
-            distrib[cat] += weight
+        for cat in own_cat:
+            distrib[TOP_CATS[cat]] += weight
     distrib = np.array([distrib[c] for c in CATS])
     # Can't be zero because there is always at least the venue itself in
     # surrounding.
@@ -271,6 +288,11 @@ def normalized_tag(tag):
 def count_tags(tags):
     """Count occurence of a list of list of tags."""
     return Counter([normalized_tag(t) for oneset in tags for t in oneset])
+
+
+@u.memodict
+def top_category(cat):
+    return parenting_cat(cat, 1)
 
 
 def parenting_cat(cat, depth=1):

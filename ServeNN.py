@@ -49,7 +49,7 @@ def find_match():
     _id = f.request.form['_id']
     first = DEST if side else ORIGIN
     second = ORIGIN if side else DEST
-    query, res_ids, answers, dsts = cn.find_closest(_id, first, second)
+    query, res_ids, answers, dsts, among = cn.find_closest(_id, first, second)
     _ = cn.interpret(first['features'][query, :],
                      second['features'][answers[0], :])
     query_info, first_answer, feature_order = _
@@ -61,7 +61,7 @@ def find_match():
     sendf = lambda x, p: ('{:.'+str(p)+'f}').format(float(x))
     res = {'query': query_info, 'answers_id': list(res_ids),
            'distances': [sendf(d, 5) for d in dsts],
-           'explanations': answers_info}
+           'explanations': answers_info, 'among': among}
     return f.jsonify(r=res)
 
 

@@ -57,11 +57,11 @@ def find_closest(vid, origin, dest):
         cat = int(venue[5])
         dst, closest_idx = [r.ravel() for r in dest[cat][0].kneighbors(venue)]
     except (ValueError, KeyError):
-        return None, None, None, None
+        return None, None, None, None, None
     print(cat, closest_idx)
     res_ids = dest[cat][1][closest_idx].ravel()
     answer = [dest['index'].index(rid) for rid in res_ids]
-    return query, res_ids, answer, dst
+    return query, res_ids, answer, dst, len(dest[cat][1])
 
 
 def interpret(query, answer, feature_order=None):

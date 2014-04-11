@@ -85,7 +85,8 @@ function match() {
         MARKERS[request.side][request._id].closePopup();
         MARKERS[other_side][answers_id[0]].openPopup();
         map.fitBounds(L.latLngBounds([LOCS[other_side][answers_id[0]]]), {maxZoom: 17});
-        var table = '<table><thead><tr><td>'+venue_name(query_side, request._id)+'</td>';
+        var table = '<table><thead><tr><td>';
+        table += venue_name(query_side, request._id)+' ('+why.among+')</td>';
         table += '<td>Feature</td>';
         for (var i=0; i<KNN; i++) {
             table += '<td>'+distances[i]+'</td>';

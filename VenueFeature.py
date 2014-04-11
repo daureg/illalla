@@ -205,7 +205,7 @@ def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
     cat_distrib = categories_repartition(city, svenues, vmapping, radius, vid)
     center = vmapping[vid]
     pids, infos = sphotos.around(center, radius)
-    pvenue, ptime = infos
+    pvenue = infos[0]
     cids, _ = scheckins.around(center, radius)
     focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
     photogeny = photo_ratio(center, pids, cids, radius, pmapping, cmapping)

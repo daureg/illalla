@@ -69,9 +69,9 @@ def global_info(city):
     global TOP_CATS
     TOP_CATS = p.load_var('top_cats')
     svenues = s.Surrounding(DB.venue, {'city': city}, ['cat', 'cats'], lvenues)
-    scheckins = s.Surrounding(DB.checkin, {'city': city}, ['time'], lcheckins)
+    scheckins = s.Surrounding(DB.checkin, {'city': city}, [], lcheckins)
     sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city},
-                            ['venue', 'taken'], lphotos)
+                            ['venue'], lphotos)
     surroundings = [svenues, scheckins, sphotos]
     return local_projection + activity + surroundings
 

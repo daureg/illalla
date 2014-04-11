@@ -26,10 +26,10 @@ class Surrounding(object):
             self.loc.append(projection[id_])
             if only_venue_cats:
                 self.info[id_] = {'cats': [item['cat']] + item['cats']}
-            else:
+            elif self.fields:
                 self.info[id_] = {f: item[f] for f in fields}
         self.space = skn.NearestNeighbors(radius=350.0, algorithm='kd_tree',
-                                          leaf_size=25)
+                                          leaf_size=35)
         self.space.fit(np.array(self.loc))
 
     @profile
@@ -52,7 +52,10 @@ class Surrounding(object):
         """Return info about object with index in `idxs`."""
         neighbors_ids = [self.index_to_id(idx) for idx in idxs]
         # neighbors_locs = [self.loc[idx] for idx in idxs]
-        extra = u.xzip([self.info[id_] for id_ in neighbors_ids], self.fields)
+        extra = []
+        if self.fields:
+            extra = u.xzip([self.info[id_] for id_ in neighbors_ids],
+                           self.fields)
         # TODO return neighbors_locs first
         return neighbors_ids, extra
 

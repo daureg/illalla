@@ -53,7 +53,6 @@ def is_event(cat_id):
     return cat_id in fsc.get_subcategories('Event', fsc.Field.id)
 
 
-@profile
 def global_info(city):
     """Gather global statistics about `city`."""
     import persistent as p
@@ -76,7 +75,6 @@ def global_info(city):
     return local_projection + activity + surroundings
 
 
-@profile
 def describe_city(city):
     """Compute feature vector for selected venue in `city`."""
     print("Gather information about {}.".format(city))
@@ -118,7 +116,6 @@ def describe_city(city):
     return numeric, categories
 
 
-@profile
 def venues_info(vids, visits=None, visitors=None, density=None, depth=10,
                 tags_freq=True):
     """Return various info about from the venue ids `vids`."""
@@ -181,7 +178,6 @@ def approximate_maximum_density(kde, venues, precision=128):
     return estim.max()
 
 
-@profile
 def smoothed_location(loc, center, radius, city, pmapping):
     """Return a list of weight (obtained by a 2D Gaussian with `radius`)
     corresponding to the relative distance of points in `loc` with
@@ -197,7 +193,6 @@ def smoothed_location(loc, center, radius, city, pmapping):
     return SMOOTH.pdf(ploc/20)/SMOOTH_MAX
 
 
-@profile
 def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
                      sphotos, city, radius=350):
     """Return a list of photos, checkins and venues categories in a `radius`
@@ -212,7 +207,6 @@ def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
     return cat_distrib, focus, photogeny
 
 
-@profile
 def photo_focus(vid, center, pids, pvenue, radius, mapping):
     """Return the ratio of photos with venue id around `vid` that are indeed
     about it."""
@@ -228,7 +222,6 @@ def photo_focus(vid, center, pids, pvenue, radius, mapping):
     return 0 if all_venues < 1e-4 else this_venue / all_venues
 
 
-@profile
 def photo_ratio(center, pids, cids, radius, pmapping, cmapping):
     """Return log(nb_photos/nb_checkins) around `vid`, weighted by
     Gaussian."""
@@ -247,7 +240,6 @@ def is_week_end_place(place_visits):
     return int(len(we_visits) > 0.5*len(place_visits))
 
 
-@profile
 def categories_repartition(city, svenues, vmapping, radius, vid=None):
     """Return the distribution of top level Foursquare categories in
     `ball` (ie around `vid`) (or the whole `city` without weighting if

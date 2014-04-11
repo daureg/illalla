@@ -9,7 +9,6 @@ import utils as u
 class Surrounding(object):
     """Build a KD tree of objects to allow faster ball query."""
 
-    @profile
     def __init__(self, db, query, fields, projection):
         """Retrieve `fields` of items satisfying `query` in `db` and build the
         tree using `projection`."""
@@ -32,7 +31,6 @@ class Surrounding(object):
                                           leaf_size=35)
         self.space.fit(np.array(self.loc))
 
-    @profile
     def index_to_id(self, idx):
         """Return the id corresponding to `idx`."""
         return self.id_index_map[idx]
@@ -41,13 +39,11 @@ class Surrounding(object):
         """Return info about all objects."""
         return self.idx_to_infos(range(len(self.id_index_map)))
 
-    @profile
     def around(self, center, radius):
         """Return info about all object at distance `radius` from `center`."""
         neighbors_idx = self.space.radius_neighbors([center], radius, False)[0]
         return self.idx_to_infos(neighbors_idx)
 
-    @profile
     def idx_to_infos(self, idxs):
         """Return info about object with index in `idxs`."""
         neighbors_ids = [self.index_to_id(idx) for idx in idxs]

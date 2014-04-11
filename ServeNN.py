@@ -17,6 +17,7 @@ app.config.update(dict(
 # set the secret key.  keep this really secret:
 app.secret_key = os.environ['SECRET_KEY']
 # TODO: find a better way to share complex object between requests
+# http://pythonhosted.org/Flask-Cache/#flask.ext.cache.Cache.memoize
 ORIGIN = {}
 DEST = {}
 

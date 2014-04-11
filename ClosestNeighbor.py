@@ -13,7 +13,7 @@ import matplotlib.colors as mcolor
 import matplotlib as mpl
 import scipy.stats as stats
 
-FEATURES = ['likes', 'users', 'checkins', 'publlicness', 'density',
+FEATURES = ['likes', 'users', 'checkins', 'publicness', 'density',
             'category', 'art', 'education', 'food', 'night', 'recreation',
             'shop', 'professional', 'residence', 'transport', 'focus',
             'photogenicity', 'weekend']
@@ -77,9 +77,7 @@ def interpret(query, answer, feature_order=None):
     if feature_order is None:
         feature_order = np.argsort(diff)
     percentage = 100*diff/np.sum(diff)
-    colormap = mpl.cm.ScalarMappable(mcolor.Normalize(percentage.min(),
-                                                      percentage.max()),
-                                     'copper_r')
+    colormap = mpl.cm.ScalarMappable(mcolor.Normalize(0, 25), 'copper_r')
     get_color = lambda v: mcolor.rgb2hex(colormap.to_rgba(v))
     sendf = lambda x, p: ('{:.'+str(p)+'f}').format(float(x))
     query_info = [{'val': sendf(query[f], 5), 'feature': FEATURES[f]}

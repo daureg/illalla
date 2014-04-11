@@ -26,6 +26,13 @@ table {
 	vertical-align: middle;
 }
 table, th, td {
-    padding: 0.15em;
-    border: 1px solid black;
+    padding: 0.25em;
+}
+table { border: 1px solid #555;}
+tr {
+	border-bottom: 1px solid #555;
+	border-top: 1px solid #555;
+}
+td.value {
+	border-left: 3px solid #555;
 }

@@ -70,8 +70,8 @@ function match() {
     var other_side = (request.side + 1) % 2, query_side = request.side;
     var map = null;
     var cell_begin = '<tr><td>{{val}}</td><td>{{feature}}</td>';
-    var cell_end = '<td><span style="color: {{color}};">{{percentage}}%</span></td>';
-    cell_end += '<td>{{answer}}</td>';
+    var cell_end = '<td class="value">{{answer}}</td>';
+    cell_end += '<td><span style="color: {{color}};">{{percentage}}%</span></td>';
     function venue_name(side, id_) {
         var res = '<a href="https://foursquare.com/v/'+id_+'" target="_blank">';
         return res + NAMES[side][id_] + '</a>';
@@ -89,23 +89,19 @@ function match() {
         table += venue_name(query_side, request._id)+' ('+why.among+')</td>';
         table += '<td>Feature</td>';
         for (var i=0; i<KNN; i++) {
-            table += '<td>'+distances[i]+'</td>';
+            table += '<td class="value">'+distances[i]+'</td>';
             table += '<td>'+venue_name(other_side, answers_id[i])+'</td>';
         }
         table += '</tr></thead><tbody>';
         for (var f = 0; f < explanations[0].length; f++) {
             table += _.formatHtml(cell_begin, query[f]);
             for (var i=0; i<KNN; i++) {
-                console.log(i, f);
-                console.log(explanations);
                 table += _.formatHtml(cell_end, explanations[i][f]);
             }
             table += '</tr>';
         }
         table += '</tbody></table>';
-        console.log(HTML(table));
         $('table').replace(HTML(table));
-        console.log(why);
     })
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);

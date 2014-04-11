@@ -114,7 +114,7 @@ def describe_city(city):
         # progress + 1
         # progress.show_progress()
     sio.savemat(city+'_fv', {'v': numeric, 'c': categories,
-                'i': np.array(chosen)}, do_compression=True)
+                'i': np.array(list(info.index))}, do_compression=True)
     return numeric, categories
 
 

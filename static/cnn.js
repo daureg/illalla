@@ -67,26 +67,39 @@ function populate(side) {
 function match() {
     var request = $('form').values();
     request.side = parseInt(request.side);
-    var other_side = (request.side + 1) % 2;
-    var vids = [];
+    var other_side = (request.side + 1) % 2, query_side = request.side;
     var map = null;
-    var cell = '<tr><td>{{query}}</td><td>{{feature}}</td>';
-    cell += '<td><span style="color: {{color}};">{{percentage}}%</span></td>';
-    cell += '<td>{{answer}}</td></tr>';
+    var cell_begin = '<tr><td>{{val}}</td><td>{{feature}}</td>';
+    var cell_end = '<td><span style="color: {{color}};">{{percentage}}%</span></td>';
+    cell_end += '<td>{{answer}}</td>';
+    function venue_name(side, id_) {
+        var res = '<a href="https://foursquare.com/v/'+id_+'" target="_blank">';
+        return res + NAMES[side][id_] + '</a>';
+    }
     $.request('post', $SCRIPT_ROOT+'/match', request)
     .then(function success(result) {
         var why = $.parseJSON(result).r;
-        if (request.side === 0) { vids = [request._id, why._id]; map = right; }
-        else { vids = [why._id, request._id];  map = left;}
+        var query = why.query, distances = why.distances,
+            answers_id = why.answers_id, explanations = why.explanations,
+            map = (request.side === 0) ? right : left;
         MARKERS[request.side][request._id].closePopup();
-        MARKERS[other_side][why._id].openPopup();
-        map.fitBounds(L.latLngBounds([LOCS[other_side][why._id]]), {maxZoom: 17});
-        var table = '<table><thead><tr><td>'+NAMES[0][vids[0]]+'</td>';
-        table += '<td>Feature</td><td>'+why.distance+'</td>';
-        table += '<td>'+NAMES[1][vids[1]]+'</td></tr></thead>';
-        table += '<tbody>';
-        for (var i = 0; i < why.explanation.length; i++) {
-            table += _.formatHtml(cell, why.explanation[i]);
+        MARKERS[other_side][answers_id[0]].openPopup();
+        map.fitBounds(L.latLngBounds([LOCS[other_side][answers_id[0]]]), {maxZoom: 17});
+        var table = '<table><thead><tr><td>'+venue_name(query_side, request._id)+'</td>';
+        table += '<td>Feature</td>';
+        for (var i=0; i<KNN; i++) {
+            table += '<td>'+distances[i]+'</td>';
+            table += '<td>'+venue_name(other_side, answers_id[i])+'</td>';
+        }
+        table += '</tr></thead><tbody>';
+        for (var f = 0; f < explanations[0].length; f++) {
+            table += _.formatHtml(cell_begin, query[f]);
+            for (var i=0; i<KNN; i++) {
+                console.log(i, f);
+                console.log(explanations);
+                table += _.formatHtml(cell_end, explanations[i][f]);
+            }
+            table += '</tr>';
         }
         table += '</tbody></table>';
         console.log(HTML(table));

@@ -1,7 +1,11 @@
 {% extends "layout.html" %}
 {% block body %}
 	<title>From {{ origin|safe }} to {{ dest|safe }}</title>
-	<script type="text/javascript">var LBBOX={{ lbbox|safe }}; var RBBOX={{ rbbox|safe }};</script>
+	<script type="text/javascript">
+        var LBBOX={{ lbbox|safe }},
+            RBBOX={{ rbbox|safe }},
+            KNN={{ knn|safe }};
+    </script>
 </head>
 <body>
 	<div id="mapl" class="map"></div>

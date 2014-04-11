@@ -49,12 +49,19 @@ def find_match():
     _id = f.request.form['_id']
     first = DEST if side else ORIGIN
     second = ORIGIN if side else DEST
-    query, res_id, answer, dst = cn.find_closest(_id, first, second)
-    explanation = cn.interpret(first['features'][query, :],
-                               second['features'][answer, :])
+    query, res_ids, answers, dsts = cn.find_closest(_id, first, second)
+    _ = cn.interpret(first['features'][query, :],
+                     second['features'][answers[0], :])
+    query_info, first_answer, feature_order = _
+    answers_info = [first_answer]
+    answers_info.extend([cn.interpret(first['features'][query, :],
+                                      second['features'][answer, :],
+                                      feature_order)[1]
+                         for answer in answers[1:]])
     sendf = lambda x, p: ('{:.'+str(p)+'f}').format(float(x))
-    res = {'explanation': explanation, '_id': res_id,
-           'distance': sendf(dst, 5)}
+    res = {'query': query_info, 'answers_id': list(res_ids),
+           'distances': [sendf(d, 5) for d in dsts],
+           'explanations': answers_info}
     return f.jsonify(r=res)
 
 
@@ -72,23 +79,23 @@ def get_venues():
     return f.jsonify(r=ven)
 
 
-@app.route('/<origin>/<dest>')
-def compare(origin, dest):
+@app.route('/<origin>/<dest>/<int:knn>')
+def compare(origin, dest, knn):
     """Compare two cities."""
     global ORIGIN
     global DEST
     origin = 'barcelona' if origin not in c.SHORT_KEY else origin
     dest = 'helsinki' if dest not in c.SHORT_KEY else dest
-    ORIGIN = ORIGIN or cn.gather_info(origin)
-    DEST = DEST or cn.gather_info(dest)
-    return f.render_template('cnn.html', origin=origin, dest=dest,
+    ORIGIN = cn.gather_info(origin, knn)
+    DEST = cn.gather_info(dest, knn)
+    return f.render_template('cnn.html', origin=origin, dest=dest, knn=knn,
                              lbbox=c.BBOXES[origin], rbbox=c.BBOXES[dest])
 
 
 @app.route('/')
 def welcome():
     return f.redirect(f.url_for('compare', origin='barcelona',
-                                dest='helsinki'))
+                                dest='helsinki', knn=2))
 
 if __name__ == '__main__':
     app.run()

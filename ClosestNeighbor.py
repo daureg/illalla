@@ -4,8 +4,9 @@
 import os
 import numpy as np
 import sklearn.neighbors as skn
-# import arguments
-# import CommonMongo as cm
+NN = skn.NearestNeighbors
+import arguments
+import CommonMongo as cm
 import VenueFeature as vf
 import pandas as pd
 import matplotlib.colors as mcolor
@@ -33,59 +34,65 @@ def load_matrix(city):
     return mat
 
 
-def gather_info(city):
-    """Build KD-tree for each categories of venues in `city`."""
+def gather_info(city, knn=2):
+    """Build KD-tree for each categories of venues in `city` that will return
+    `knn` results on subsequent call."""
     matrix = load_matrix(city)
     res = {'features': matrix['v']}
     for cat in range(len(vf.CATS)):
         cat *= 1e5
         mask = res['features'][:, 5] == cat
         venues = matrix['i'][mask]
-        res.update({int(cat):
-                    (skn.NearestNeighbors(1).fit(res['features'][mask, :]),
-                     venues)})
-    res.update({'index': list(matrix['i'].ravel())})
+        if len(venues) > 0:
+            res[int(cat)] = (NN(knn).fit(res['features'][mask, :]), venues)
+    res['index'] = list(matrix['i'])
     return res
 
 
 def find_closest(vid, origin, dest):
-    """Find the closest venue in `dest` to `vid`, which lies in `origin`."""
+    """Find the closest venues in `dest` to `vid`, which lies in `origin`."""
     try:
         query = origin['index'].index(vid)
-    except ValueError:
-        return None, None, None
-    venue = origin['features'][query, :]
-    cat = int(venue[5])
-    dst, closest_idx = [r.ravel()[0] for r in dest[cat][0].kneighbors(venue)]
+        venue = origin['features'][query, :]
+        cat = int(venue[5])
+        dst, closest_idx = [r.ravel() for r in dest[cat][0].kneighbors(venue)]
+    except (ValueError, KeyError):
+        return None, None, None, None
     print(cat, closest_idx)
-    res_id = dest[cat][1][closest_idx].ravel()[0]
-    answer = dest['index'].index(res_id)
-    return query, res_id, answer, dst
+    res_ids = dest[cat][1][closest_idx].ravel()
+    answer = [dest['index'].index(rid) for rid in res_ids]
+    return query, res_ids, answer, dst
 
 
-def interpret(query, answer):
-    """Return a sorted of list of criteria explaining distance between `query`
-    and `answer`."""
+def interpret(query, answer, feature_order=None):
+    """Return a list of criteria explaining distance between `query`
+    and `answer`, along with their value for `answer`. If no `feature_order`
+    is provided, one is computed to sort features by the proportion they
+    contribute to the total distance."""
     diff = (query - answer) * (query - answer)
     # pylint: disable=E1101
-    smaller_first = np.argsort(diff)
+    if feature_order is None:
+        feature_order = np.argsort(diff)
     percentage = 100*diff/np.sum(diff)
     colormap = mpl.cm.ScalarMappable(mcolor.Normalize(percentage.min(),
                                                       percentage.max()),
                                      'copper_r')
     get_color = lambda v: mcolor.rgb2hex(colormap.to_rgba(v))
     sendf = lambda x, p: ('{:.'+str(p)+'f}').format(float(x))
-    return [{'query': sendf(query[f], 5), 'answer': sendf(answer[f], 5),
-             'feature': FEATURES[f], 'percentage': sendf(percentage[f], 2),
-             'color': get_color(float(percentage[f]))}
-            for f in smaller_first]
+    query_info = [{'val': sendf(query[f], 5), 'feature': FEATURES[f]}
+                  for f in feature_order]
+    answer_info = [{'answer': sendf(answer[f], 5),
+                    'percentage': sendf(percentage[f], 4),
+                    'color': get_color(float(percentage[f]))}
+                   for f in feature_order]
+    return query_info, answer_info, feature_order
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    # args = arguments.two_cities().parse_args()
-    # db, client = cm.connect_to_db('foursquare', args.host, args.port)
-    # left = gather_info(args.origin)
-    # right = gather_info(args.dest)
+    args = arguments.two_cities().parse_args()
+    db, client = cm.connect_to_db('foursquare', args.host, args.port)
+    left = gather_info(args.origin)
+    right = gather_info(args.dest)
 
     def explain(query, answer):
         columns = 'feature query percentage answer'.split()
@@ -93,6 +100,3 @@ if __name__ == '__main__':
         return pd.DataFrame(data={'feature': f, 'query': q,
                                   'percentage': p, 'answer': a},
                             columns=columns)
-    # while True:
-    #     venue_id = raw_input('venue: ').strip()
-    #     print(find_closest(venue_id, left, right))

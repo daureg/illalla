@@ -13,7 +13,6 @@ import pandas as pd
 import utils as u
 import random as r
 import itertools
-import scipy.stats as stats
 import scipy.io as sio
 import scipy.cluster.vq as cluster
 try:
@@ -229,7 +228,7 @@ def photo_ratio(center, pids, cids, radius, pmapping, cmapping):
     c_smoothed = smoothed_location(cids, center, radius, None, cmapping)
     # sum of c_smoothed ≠ 0 because for the venue to exist, there must be some
     # checkins around.
-    return np.log(np.sum(p_smoothed)/np.sum(c_smoothed))
+    return np.sum(p_smoothed)/np.sum(c_smoothed)
 
 
 def is_week_end_place(place_visits):

@@ -11,6 +11,7 @@ import VenueFeature as vf
 import pandas as pd
 import matplotlib.colors as mcolor
 import matplotlib as mpl
+import scipy.stats as stats
 
 FEATURES = ['likes', 'users', 'checkins', 'publlicness', 'density',
             'category', 'art', 'education', 'food', 'night', 'recreation',
@@ -28,9 +29,11 @@ def load_matrix(city):
         vf.describe_city(city)
     mat = vf.sio.loadmat(filename)
     # pylint: disable=E1101
-    # TODO: zscore everything
-    # TODO: do not generate them in the first place?
-    mat['v'][np.isinf(mat['v'])] = 1e9
+    mat['v'][:, 1:3] = np.log(mat['v'][:, 1:3])
+    non_categorical = range(24)
+    del non_categorical[non_categorical.index(5)]
+    del non_categorical[non_categorical.index(17)]
+    mat['v'][:, non_categorical] = stats.zscore(mat['v'][:, non_categorical])
     return mat
 
 

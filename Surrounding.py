@@ -19,14 +19,19 @@ class Surrounding(object):
         only_venue_cats = set(['cat', 'cats']) == set(fields)
         if only_venue_cats:  # special case
             self.fields = ['cats']
+        missing = 0
         for idx, item in enumerate(db.find(query, {f: 1 for f in fields})):
             id_ = item['_id']
+            if id_ not in projection:
+                missing += 1
+                continue
             self.id_index_map[idx] = id_
             self.loc.append(projection[id_])
             if only_venue_cats:
                 self.info[id_] = {'cats': [item['cat']] + item['cats']}
             elif self.fields:
                 self.info[id_] = {f: item[f] for f in fields}
+        print('missed {}'.format(missing))
         self.space = skn.NearestNeighbors(radius=350.0, algorithm='kd_tree',
                                           leaf_size=35)
         self.space.fit(np.array(self.loc))

@@ -20,6 +20,7 @@ FEATURES = ['likes', 'users', 'checkins', 'publicness', 'density',
 for i in range(6, 15):
     FEATURES[i] += ' surrounding'
 FEATURES.extend(['activity at ' + t for t in vf.named_ticks('day', 1, 4)])
+RESTRICTED = np.array(range(18, 23+1))  # pylint: disable=E1101
 
 
 def load_matrix(city):
@@ -47,7 +48,8 @@ def gather_info(city, knn=2):
         mask = res['features'][:, 5] == cat
         venues = matrix['i'][mask]
         if len(venues) > 0:
-            res[int(cat)] = (NN(knn).fit(res['features'][mask, :]), venues)
+            idx_subset = np.ix_(mask, RESTRICTED)  # pylint: disable=E1101
+            res[int(cat)] = (NN(knn).fit(res['features'][idx_subset]), venues)
     res['index'] = list(matrix['i'])
     return res
 
@@ -58,10 +60,11 @@ def find_closest(vid, origin, dest):
         query = origin['index'].index(vid)
         venue = origin['features'][query, :]
         cat = int(venue[5])
+        venue = venue[RESTRICTED]
         dst, closest_idx = [r.ravel() for r in dest[cat][0].kneighbors(venue)]
-    except (ValueError, KeyError):
+    except (ValueError, KeyError) as oops:
+        print(oops)
         return None, None, None, None, None
-    print(cat, closest_idx)
     res_ids = dest[cat][1][closest_idx].ravel()
     answer = [dest['index'].index(rid) for rid in res_ids]
     return query, res_ids, answer, dst, len(dest[cat][1])
@@ -72,15 +75,18 @@ def interpret(query, answer, feature_order=None):
     and `answer`, along with their value for `answer`. If no `feature_order`
     is provided, one is computed to sort features by the proportion they
     contribute to the total distance."""
+    query = query[RESTRICTED]
+    answer = answer[RESTRICTED]
     diff = (query - answer) * (query - answer)
     # pylint: disable=E1101
     if feature_order is None:
         feature_order = np.argsort(diff)
     percentage = 100*diff/np.sum(diff)
-    colormap = mpl.cm.ScalarMappable(mcolor.Normalize(0, 25), 'copper_r')
+    colormap = mpl.cm.ScalarMappable(mcolor.Normalize(0, 15), 'copper_r')
     get_color = lambda v: mcolor.rgb2hex(colormap.to_rgba(v))
     sendf = lambda x, p: ('{:.'+str(p)+'f}').format(float(x))
-    query_info = [{'val': sendf(query[f], 5), 'feature': FEATURES[f]}
+    query_info = [{'val': sendf(query[f], 5),
+                   'feature': FEATURES[RESTRICTED[f]]}
                   for f in feature_order]
     answer_info = [{'answer': sendf(answer[f], 5),
                     'percentage': sendf(percentage[f], 4),

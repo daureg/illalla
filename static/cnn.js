@@ -1,3 +1,4 @@
+'use strict';
 var MINI = require('minified');
 var _=MINI._, $=MINI.$, $$=MINI.$$, EE=MINI.EE, HTML=MINI.HTML;
 L.Icon.Default.imagePath = '/static/images';
@@ -32,6 +33,8 @@ function create_map(div_id, bbox) {
     L.polygon(bbox, {fill: false, weight: 3}).addTo(map);
     return map;
 }
+var graph = create_graph('graph', 0.65, 0.7);
+// plot(graph, [[.32, .85, 1.52, .73, -.51, -.25], [.23, .58, 1.25, .37, -.15, -.52]], ["hello", 'world']);
 var left = create_map('mapl', LBBOX);
 var right = create_map('mapr', RBBOX);
 var MARKERS = [{}, {}];
@@ -44,9 +47,7 @@ function populate(side) {
     if (side === 'left') {nside = 0; origin = true; map = left;}
     else {nside = 1; origin = false; map = right;}
     var card = '<a href="{{url}}" target="_blank">{{name}}</a>, {{cat}}<br>';
-    card += '<form onsubmit="match();return false;">';
-    card += '<input type="hidden" name="_id" value="{{_id}}">';
-    card += '<input type="hidden" name="side" value="'+nside+'">';
+    card += '<form onsubmit="match(\'{{_id}}\', '+nside+');return false;">';
     card += '<button type="submit" autofocus>Match!</button></form>';
     $.request('post', $SCRIPT_ROOT+'/populate', {origin: origin})
     .then(function success(result) {
@@ -64,14 +65,35 @@ function populate(side) {
         console.log(status, statusText, responseText);
     });
 }
-function match() {
-    var request = $('form').values();
-    request.side = parseInt(request.side);
+var SMAP = {
+    'art surrounding': 0,
+    'education surrounding': 1,
+    'food surrounding': 2,
+    'night surrounding': 3,
+    'recreation surrounding': 4,
+    'shop surrounding': 5,
+    'professional surrounding': 6,
+    'residence surrounding': 7,
+    'transport surrounding': 8
+};
+var TMAP = {
+'activity at 1--5' : 0,
+'activity at 5--9' : 1,
+'activity at 9--13' : 2,
+'activity at 13--17' : 3,
+'activity at 17--21' : 4,
+'activity at 21--1' : 5
+};
+var FMAP = TMAP;
+function match(_id, side) {
+    var request = {side: side, _id: _id};
     var other_side = (request.side + 1) % 2, query_side = request.side;
     var map = null;
     var cell_begin = '<tr><td>{{val}}</td><td>{{feature}}</td>';
     var cell_end = '<td class="value">{{answer}}</td>';
     cell_end += '<td><span style="color: {{color}};">{{percentage}}%</span></td>';
+    var gnames = [NAMES[query_side][request._id]];
+    var gdata = [[], ];
     function venue_name(side, id_) {
         var res = '<a href="https://foursquare.com/v/'+id_+'" target="_blank">';
         return res + NAMES[side][id_] + '</a>';
@@ -91,17 +113,25 @@ function match() {
         for (var i=0; i<KNN; i++) {
             table += '<td class="value">'+distances[i]+'</td>';
             table += '<td>'+venue_name(other_side, answers_id[i])+'</td>';
+            gnames.push(NAMES[other_side][answers_id[i]]);
+            gdata.push([]);
         }
         table += '</tr></thead><tbody>';
+        var feature_idx = 0;
         for (var f = 0; f < explanations[0].length; f++) {
             table += _.formatHtml(cell_begin, query[f]);
+            feature_idx = FMAP[query[f].feature];
+            gdata[0][feature_idx] = parseFloat(query[f].val);
             for (var i=0; i<KNN; i++) {
                 table += _.formatHtml(cell_end, explanations[i][f]);
+                gdata[i+1][feature_idx] = parseFloat(explanations[i][f].answer);
             }
             table += '</tr>';
         }
         table += '</tbody></table>';
         $('table').replace(HTML(table));
+        clear_graph();
+        plot(graph, gdata, gnames);
     })
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);

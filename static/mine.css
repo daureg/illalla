@@ -11,7 +11,7 @@ body {
 #mapl {top: 0;}
 #mapr {top: 50%;}
 .map {
-    width: 39.8%;
+    width: 34.85%;
     height: 49.8%;
     border: 1px solid white;
     position: absolute;
@@ -19,20 +19,39 @@ body {
 }
 table {
 	position: absolute;
-	width: 59.8%;
 	top: 1em;
-	left: 40%;
+	left: 35%;
 	text-align: center;
 	vertical-align: middle;
 }
 table, th, td {
-    padding: 0.25em;
+    padding: 0.2em 0.45em;
 }
-table { border: 1px solid #555;}
+table { border: 1px solid #555;margin-right:0.5em;}
 tr {
 	border-bottom: 1px solid #555;
 	border-top: 1px solid #555;
 }
 td.value {
 	border-left: 3px solid #555;
+}
+path {fill: none;}
+.axis { shape-rendering: crispEdges; }
+.x.axis line { stroke: lightgrey; }
+.x.axis .minor { display: none;stroke-opacity: .5; }
+.x.axis path { display: none; }
+.y.axis line, .y.axis path { fill: none; stroke: #000; }
+#graph {position:fixed;top:30%;left:35%;}
+div.tooltip {
+	position: absolute;
+	text-align: center;
+	width: 150px;
+	height: 40px;
+	padding: .25em;
+	font: 10pt sans-serif;
+	color: white;
+	border: 0px;
+	border-radius: 6px;
+	pointer-events: none;
+	vertical-align: middle;
 }

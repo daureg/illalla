@@ -80,6 +80,8 @@ def describe_city(city):
     info = global_info(city)
     lvenues, lcheckins, lphotos = info[:3]
     visits, visitors, density = info[3:6]
+    nb_visitors = np.unique(np.array([v for place in visitors.itervalues()
+                                      for v in place])).size
     svenues, scheckins, sphotos = info[6:]
     categories = categories_repartition(city, svenues, lvenues, RADIUS)
     venues = DB.venue.find({'city': city, 'closed': {'$ne': True},
@@ -111,7 +113,8 @@ def describe_city(city):
         # progress + 1
         # progress.show_progress()
     sio.savemat(city+'_fv', {'v': numeric, 'c': categories,
-                'i': np.array(list(info.index))}, do_compression=True)
+                             'i': np.array(list(info.index)),
+                             'stat': [nb_visitors]}, do_compression=True)
     return numeric, categories
 
 

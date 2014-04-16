@@ -21,7 +21,6 @@ except ImportError:
     from _multivariate import multivariate_normal
 import re
 import string
-from ProgressBar import AnimatedProgressBar
 import Surrounding as s
 NOISE = re.compile(r'[\s'+string.punctuation+r']')
 DB = None
@@ -31,7 +30,8 @@ CATS = ['Arts & Entertainment', 'College & University', 'Food',
         'Nightlife Spot', 'Outdoors & Recreation', 'Shop & Service',
         'Professional & Other Places', 'Residence', 'Travel & Transport']
 TOP_CATS = {None: None}
-# TOP_CATS.update({_: parenting_cat(_) for _ in fsc.get_subcategories('1')[1:]})
+# TOP_CATS.update({_: parenting_cat(_)
+#                  for _ in fsc.get_subcategories('1')[1:]})
 RADIUS = 350
 SMOOTH = multivariate_normal([0, 0], (RADIUS/2.5)*np.eye(2))
 SMOOTH_MAX = SMOOTH.pdf([0, 0])
@@ -76,7 +76,6 @@ def global_info(city):
 
 def describe_city(city):
     """Compute feature vector for selected venue in `city`."""
-    print("Gather information about {}.".format(city))
     info = global_info(city)
     lvenues, lcheckins, lphotos = info[:3]
     visits, visitors, density = info[3:6]
@@ -97,10 +96,7 @@ def describe_city(city):
     numeric[:, :5] = np.array([info['likes'], info['users'], info['checkins'],
                                info['H'], info['Den']]).T
     numeric[:, 5] = [1e5 * CATS.index(c) for c in info['cat']]
-    print("Got basic fact about it.")
-    # progress = AnimatedProgressBar(end=len(info), width=120)
     for idx, vid in enumerate(info.index):
-        # print(vid, info.irow(idx)['name'])
         cat, focus, ratio = full_surrounding(vid, lvenues, lphotos, lcheckins,
                                              svenues, scheckins, sphotos, city)
         numeric[idx, 6:15] = cat
@@ -110,12 +106,9 @@ def describe_city(city):
         numeric[idx, 17] = is_week_end_place(own_visits)
         daily_visits = xp.aggregate_visits(own_visits, 1, 4)[0]
         numeric[idx, 18:] = xp.to_frequency(daily_visits)
-        # progress + 1
-        # progress.show_progress()
     sio.savemat(city+'_fv', {'v': numeric, 'c': categories,
                              'i': np.array(list(info.index)),
                              'stat': [nb_visitors]}, do_compression=True)
-    return numeric, categories
 
 
 def venues_info(vids, visits=None, visitors=None, density=None, depth=10,

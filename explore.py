@@ -100,7 +100,7 @@ def get_visitors(mongo, city=None, ball=None):
     ((lng, lat), radius) by querying a `mongo` client."""
     operation, _ = choose_query_type(mongo, Entity.venue)
     location = get_spatial_query(Entity.venue, city, ball)
-    return query_for_visits(operation, location, 'uid', mongo, city)
+    return query_for_visits(operation, location, 'tuid', mongo, city)
 
 
 def get_visits(mongo, entity, city=None, ball=None):
@@ -152,7 +152,8 @@ def query_for_visits(operation, location, time, mongo, city):
     project = {'$project': {'time': '$'+time, 'lid': 1, '_id': 0}}
     group = {'$group': {'_id': '$lid', 'visits': {'$push': '$time'}}}
     query = [match, project, group]
-    return answer_to_dict(itertools.chain(operation(query)['result']))
+    convert = (lambda x: map(int, x)) if time == 'tuid' else None
+    return answer_to_dict(itertools.chain(operation(query)['result']), convert)
 
 
 def collapse(values, chunk_size, offset=0):

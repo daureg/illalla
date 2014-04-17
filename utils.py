@@ -152,19 +152,20 @@ def geodesic_distance(point_1, point_2):
     return EARTH.Inverse(p1_lat, p1_lon, p2_lat, p2_lon)['s12']
 
 
-def answer_to_dict(cursor, default=None):
+def answer_to_dict(cursor, transfo=None, default=None):
     """Take a `cursor` resulting from a mongo find query and return a
-    dictionary id: value (provided that there is only one other field) (or
-    `default`)."""
+    dictionary id: `transfo`(value) (provided that there is only one other
+    field) (or `default`)."""
     try:
         first = cursor.next()
     except StopIteration:
         return {}
+    transfo = transfo or (lambda x: x)
     keys = first.keys()
     assert '_id' in keys and len(keys) == 2
     field_name = keys[(keys.index('_id') + 1) % 2]
-    res = {first['_id']: first.get(field_name, default)}
-    res.update({v['_id']: v.get(field_name, default) for v in cursor})
+    res = {first['_id']: transfo(first.get(field_name, default))}
+    res.update({v['_id']: transfo(v.get(field_name, default)) for v in cursor})
     return res
 
 

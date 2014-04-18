@@ -118,6 +118,10 @@ def perform_insertion(complete):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
+    DB.checkin.ensure_index([('loc', cm.pymongo.GEOSPHERE),
+                             ('lid', cm.pymongo.ASCENDING),
+                             ('city', cm.pymongo.ASCENDING),
+                             ('time', cm.pymongo.ASCENDING)])
     api = twitter.TwitterAPI(consumer_key, consumer_secret,
                              access_token, access_secret)
     req = api.request('statuses/filter', {'track': '4sq com'})

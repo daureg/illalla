@@ -1,4 +1,7 @@
 tSNE_linux
+doc/Makefile
+doc/source/_static/
+doc/source/_templates/
 static/colorbrewer.js
 static/d3.v3.min.js
 static/app.css

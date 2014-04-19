@@ -119,6 +119,7 @@ def xzip(items, fields):
 def human_day(time, new_day=4, period=True):
     """Return period of weekday of `time`, but using `new_day` hour as
     separator instead of midnight.
+
     >>> human_day(dt(2014, 3, 10, 8))
     0
     >>> human_day(dt(2014, 3, 10, 14))

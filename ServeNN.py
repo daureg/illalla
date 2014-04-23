@@ -76,7 +76,6 @@ def get_venues():
     ven = [{'name': v['name'], 'cat': fsc.CAT_TO_ID[:v['cat']],
             '_id': v['_id'], 'url': v['canonicalUrl'],
             'loc': list(reversed(v['loc']['coordinates']))} for v in res]
-    print(len(ven))
     return f.jsonify(r=ven)
 
 

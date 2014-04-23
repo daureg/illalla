@@ -1,10 +1,9 @@
 SOURCES_JS = static/minified-src.js \
-	     static/leaflet-src.js.7
+	     static/leaflet-src.js
 SOURCES_CSS = static/normalize.css \
-	      static/leaflet.css \
-	      static/mine.css
+	      static/leaflet.css
 PROD = 0
-NODE=node_modules
+NODE=../node_modules
 
 all: app.css app.js
 

@@ -1,6 +1,12 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Plot dataset in (reduced) dimension 2 or 3."""
+import sys
+try:
+    # old version of matplotlib on some computers
+    del sys.path[sys.path.index('/usr/lib/pymodules/python2.7')]
+except ValueError:
+    pass
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import prettyplotlib as ppl
@@ -64,7 +70,7 @@ def choose_manifold_method(method, n_components, n_neighbors):
     elif method == 'spectral':
         return manifold.SpectralEmbedding(n_components=n_components,
                                           n_neighbors=n_neighbors)
-    elif method == 'tSNE':
+    elif method == 't-sne':
         return calc_tsne.tSNE(n_components)
     raise ValueError('{} is not a known method'.format(method))
 
@@ -84,14 +90,14 @@ def compute_embedding(high, method, n_components=2, n_neighbors=None):
 if __name__ == '__main__':
     from timeit import default_timer as time
     from ClosestNeighbor import load_matrix
-    import sys
     # pylint: disable=C0103
     city = sys.argv[1].strip().lower()
     nb_dim = 2 if len(sys.argv) <= 2 else int(sys.argv[2])
     features = load_matrix(city)['v']
+    features[:, 5] = features[:, 5] / 8e5
     cats = (8*features[:, 5]).astype(int)
     Axes3D
-    n_points = 300
+    # n_points = 300
     # X, color = datasets.samples_generator.make_s_curve(n_points,
     # features, cats = datasets.samples_generator.make_swiss_roll(n_points,
     #                                                             noise=0.1,
@@ -105,7 +111,7 @@ if __name__ == '__main__':
     # plt.scatter(X[:, 0], X[:, 1], X[:, 2], c=color, cmap=mpl.cm.Spectral)
 
     methods = ['Standard', 'LTSA', 'Hessian', 'Modified', 'Isomap', 'MDS',
-               'Spectral', 'tSNE', 'PCA', 'Randomized PCA', 'Kernel PCA',
+               'Spectral', 't-SNE', 'PCA', 'Randomized PCA', 'Kernel PCA',
                'Sparse PCA', 'SVD', 'Factor Analysis', 'ICA']
 
     for i, method in enumerate(methods):

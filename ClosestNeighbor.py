@@ -102,6 +102,7 @@ if __name__ == '__main__':
     right = gather_info(args.dest)
 
     def explain(query, answer):
+        """Explains distance between `query` and `answer` as a data frame."""
         columns = 'feature query percentage answer'.split()
         f, q, p, a = vf.u.xzip(interpret(query, answer), columns)
         return pd.DataFrame(data={'feature': f, 'query': q,

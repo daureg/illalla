@@ -92,10 +92,11 @@ def describe_city(city):
     print("Chosen {} venues in {}.".format(len(chosen), city))
     info, _ = venues_info(chosen, visits, visitors, density, depth=1,
                           tags_freq=False)
-    numeric = np.zeros((len(info), 24), dtype=np.float32)
+    numeric = np.zeros((len(info), 25), dtype=np.float32)
     numeric[:, :5] = np.array([info['likes'], info['users'], info['checkins'],
                                info['H'], info['Den']]).T
     numeric[:, 5] = [1e5 * CATS.index(c) for c in info['cat']]
+    numeric[:, 24] = np.array(info['Ht'])
     for idx, vid in enumerate(info.index):
         cat, focus, ratio = full_surrounding(vid, lvenues, lphotos, lcheckins,
                                              svenues, scheckins, sphotos, city)
@@ -141,6 +142,7 @@ def venues_info(vids, visits=None, visitors=None, density=None, depth=10,
     res['cat'] = [get_cat(_['cat'], depth) for _ in venues]
     res['vis'] = [len(visits[id_]) for id_ in res.index]
     res['H'] = [venue_entropy(visitors[id_]) for id_ in res.index]
+    res['Ht'] = [time_entropy(visits[id_]) for id_ in res.index]
     coords = np.fliplr(np.array(loc))
     points = cm.cities.GEO_TO_2D[city](coords)
     res['Den'] = density(points)
@@ -263,6 +265,13 @@ def venue_entropy(visitors):
     """Compute the entropy of venue given the list of its `visitors`."""
     # pylint: disable=E1101
     return u.compute_entropy(np.array(Counter(visitors).values(), dtype=float))
+
+
+def time_entropy(visits):
+    """Compute entropy of venue with respect to time of the day of its
+    checkins."""
+    hours = np.bincount([t.hour for t in visits], minlength=24)
+    return u.compute_entropy(hours.astype(float))/np.log(24.0)
 
 
 def normalized_tag(tag):

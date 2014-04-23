@@ -20,6 +20,7 @@ FEATURES = ['likes', 'users', 'checkins', 'publicness', 'density',
 for i in range(6, 15):
     FEATURES[i] += ' surrounding'
 FEATURES.extend(['activity at ' + t for t in vf.named_ticks('day', 1, 4)])
+FEATURES.append('opening')
 RESTRICTED = np.array(range(18, 23+1))  # pylint: disable=E1101
 
 
@@ -31,7 +32,7 @@ def load_matrix(city):
     mat = vf.sio.loadmat(filename)
     # pylint: disable=E1101
     mat['v'][:, 1:3] = np.log(mat['v'][:, 1:3])
-    non_categorical = range(24)
+    non_categorical = range(25)
     del non_categorical[non_categorical.index(5)]
     del non_categorical[non_categorical.index(17)]
     mat['v'][:, non_categorical] = stats.zscore(mat['v'][:, non_categorical])

@@ -127,6 +127,8 @@ def entities_putter():
 
 def mongo_insertion():
     global TO_BE_INSERTED
+    if len(TO_BE_INSERTED) == 0:
+        return
     try:
         TABLE.insert(TO_BE_INSERTED, continue_on_error=True)
     except cm.pymongo.errors.DuplicateKeyError:
@@ -155,9 +157,8 @@ if __name__ == '__main__':
     city = args.city
     chunker = Chunker.Chunker(foursquare.MAX_MULTI_REQUESTS)
     previous = [e['_id'] for e in TABLE.find({'city': city})]
-    potential = gather_all_entities_id(checkins, DB_FIELD, city=city,
-                                       limit=None)
-    print('but already {} {} in DB.'.format(len(previous), ENTITY_KIND))
+    potential = gather_all_entities_id(checkins, DB_FIELD, city=city)
+    print('but already {} {}s in DB.'.format(len(previous), ENTITY_KIND))
     import persistent as p
     region = city or 'world'
     invalid_filename = 'non_{}_id_{}'.format(ENTITY_KIND, region)
@@ -165,9 +166,13 @@ if __name__ == '__main__':
         INVALID_ID = p.load_var(invalid_filename)
     except IOError:
         pass
-    print('and {} {} are invalid.'.format(len(INVALID_ID), ENTITY_KIND))
+    print('and {} {}s are invalid.'.format(len(INVALID_ID), ENTITY_KIND))
     new_ones = set(potential).difference(set(previous))
     new_ones = new_ones.difference(set(INVALID_ID))
+    outside = set([e['_id'] for e in TABLE.find({'city': None}, {'_id': 1})])
+    outside.intersection_update(new_ones)
+    print('and {} {}s are outside range.'.format(len(outside), ENTITY_KIND))
+    new_ones = new_ones.difference(outside)
     print('So only {} new ones.'.format(len(new_ones)))
     for batch in chunker(new_ones):
         IDS_QUEUE.put(batch)

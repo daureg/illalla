@@ -9,6 +9,7 @@ import CommonMongo as cm
 from geographiclib.geodesic import Geodesic
 EARTH = Geodesic.WGS84
 from datetime import datetime as dt
+import numpy as np
 
 
 def noise():
@@ -114,6 +115,13 @@ def xzip(items, fields):
     if res == []:
         return len(fields)*[[], ]
     return res
+
+
+def compute_entropy(c):
+    """Compute entropy of a numpy array `c`."""
+    mask = c > 0
+    N = np.sum(c)
+    return np.log(N) - np.sum(c[mask]*np.log(c[mask]))/N
 
 
 def human_day(time, new_day=4, period=True):

@@ -9,15 +9,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as sio
 import sklearn.metrics as skm
+import utils as u
 from ClosestNeighbor import FEATURES
 TRIVIAL = [(1, 2), (0, 1), (0, 2), (0, 3), (2, 3)]
-
-
-def compute_entropy(c):
-    """Compute entropy of a numpy array `c`."""
-    mask = c > 0
-    N = np.sum(c)
-    return np.log(N) - np.sum(c[mask]*np.log(c[mask]))/N
 
 
 def plotc(f, i, j, r, m, mi=False):
@@ -34,8 +28,8 @@ def plotc(f, i, j, r, m, mi=False):
 
 def mi(x, y, bins=10):
     """Mutual information between x and y"""
-    H_x = compute_entropy(np.histogram(x, bins)[0])
-    H_y = compute_entropy(np.histogram(y, bins)[0])
+    H_x = u.compute_entropy(np.histogram(x, bins)[0])
+    H_y = u.compute_entropy(np.histogram(y, bins)[0])
     c_xy = np.histogram2d(x, y, bins)[0]
     mi = skm.mutual_info_score(None, None, contingency=c_xy)
     return mi/np.sqrt(H_x*H_y)

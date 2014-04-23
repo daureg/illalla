@@ -73,14 +73,30 @@ def entities_getter():
             foursquare_is_down = True
 
         for a in answers:
-            if a is None:
-                print('None answer')
-            elif not isinstance(a, foursquare.FoursquareException):
-                ENTITIES_QUEUE.put(PARSE(a[ENTITY_KIND]))
-            else:
-                print(a)
-                INVALID_ID.append(str(a).split()[1])
+            dispatch_answer(a)
         IDS_QUEUE.task_done()
+
+
+def dispatch_answer(a):
+    """According to the type of answer of `a`, either enqueue it for DB
+    insertion or try to save its id as invalid."""
+    if a is None:
+        print('None answer')
+    elif not isinstance(a, foursquare.FoursquareException):
+        parsed = PARSE(a[ENTITY_KIND])
+        if parsed:
+            ENTITIES_QUEUE.put(parsed)
+        else:
+            # no lon and lat
+            vid = a[ENTITY_KIND].get('id')
+            if vid:
+                INVALID_ID.append(vid)
+    else:
+        print(a)
+        # deleted venue or server error
+        potential_id = str(a).split()[1]
+        if len(potential_id) == 24:
+            INVALID_ID.append(potential_id)
 
 
 def individual_query(batch, invalid):
@@ -103,8 +119,7 @@ def individual_query(batch, invalid):
 def entities_putter():
     while True:
         entity = ENTITIES_QUEUE.get()
-        if entity is not None:
-            TO_BE_INSERTED.append(convert_entity_for_mongo(entity))
+        TO_BE_INSERTED.append(convert_entity_for_mongo(entity))
         if len(TO_BE_INSERTED) >= 400:
             mongo_insertion()
         ENTITIES_QUEUE.task_done()
@@ -140,9 +155,19 @@ if __name__ == '__main__':
     city = args.city
     chunker = Chunker.Chunker(foursquare.MAX_MULTI_REQUESTS)
     previous = [e['_id'] for e in TABLE.find({'city': city})]
-    latent = gather_all_entities_id(checkins, DB_FIELD, city=city, limit=None)
+    potential = gather_all_entities_id(checkins, DB_FIELD, city=city,
+                                       limit=None)
     print('but already {} {} in DB.'.format(len(previous), ENTITY_KIND))
-    new_ones = set(latent).difference(set(previous))
+    import persistent as p
+    region = city or 'world'
+    invalid_filename = 'non_{}_id_{}'.format(ENTITY_KIND, region)
+    try:
+        INVALID_ID = p.load_var(invalid_filename)
+    except IOError:
+        pass
+    print('and {} {} are invalid.'.format(len(INVALID_ID), ENTITY_KIND))
+    new_ones = set(potential).difference(set(previous))
+    new_ones = new_ones.difference(set(INVALID_ID))
     print('So only {} new ones.'.format(len(new_ones)))
     for batch in chunker(new_ones):
         IDS_QUEUE.put(batch)
@@ -151,8 +176,6 @@ if __name__ == '__main__':
     IDS_QUEUE.join()
     ENTITIES_QUEUE.join()
     mongo_insertion()
-    from persistent import save_var
     print('{}/{} invalid id'.format(len(INVALID_ID), total_entities))
     print('{}/{} requests'.format(CLIENT.rate_remaining, CLIENT.rate_limit))
-    # region = city or 'world'
-    # save_var('non_{}_id_{}'.format(ENTITY_KIND, region), INVALID_ID)
+    p.save_var(invalid_filename, INVALID_ID)

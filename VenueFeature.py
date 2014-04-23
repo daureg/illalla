@@ -22,6 +22,7 @@ except ImportError:
 import re
 import string
 import Surrounding as s
+from plot_corr import compute_entropy
 NOISE = re.compile(r'[\s'+string.punctuation+r']')
 DB = None
 CLIENT = None
@@ -262,9 +263,7 @@ def categories_repartition(city, svenues, vmapping, radius, vid=None):
 def venue_entropy(visitors):
     """Compute the entropy of venue given the list of its `visitors`."""
     # pylint: disable=E1101
-    c = np.array(Counter(visitors).values(), dtype=float)
-    N = np.sum(c)
-    return np.log(N) - np.sum(c*np.log(c))/N
+    return compute_entropy(np.array(Counter(visitors).values(), dtype=float))
 
 
 def normalized_tag(tag):
@@ -380,4 +379,4 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
-    describe_city(city)
+    # describe_city(city)

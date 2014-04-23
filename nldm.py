@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import prettyplotlib as ppl
 import matplotlib as mpl
 from sklearn import manifold, decomposition  # , datasets
+import calc_tsne
 
 
 def plot_embedding(figure, index, method, run_time, data, classes, dimension):
@@ -63,6 +64,8 @@ def choose_manifold_method(method, n_components, n_neighbors):
     elif method == 'spectral':
         return manifold.SpectralEmbedding(n_components=n_components,
                                           n_neighbors=n_neighbors)
+    elif method == 'tSNE':
+        return calc_tsne.tSNE(n_components)
     raise ValueError('{} is not a known method'.format(method))
 
 
@@ -102,7 +105,7 @@ if __name__ == '__main__':
     # plt.scatter(X[:, 0], X[:, 1], X[:, 2], c=color, cmap=mpl.cm.Spectral)
 
     methods = ['Standard', 'LTSA', 'Hessian', 'Modified', 'Isomap', 'MDS',
-               'Spectral', 'PCA', 'Randomized PCA', 'Kernel PCA',
+               'Spectral', 'tSNE', 'PCA', 'Randomized PCA', 'Kernel PCA',
                'Sparse PCA', 'SVD', 'Factor Analysis', 'ICA']
 
     for i, method in enumerate(methods):

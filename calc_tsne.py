@@ -16,6 +16,7 @@ import struct
 import sys
 import os
 import numpy as np
+xprint = lambda x: None
 
 
 class tSNE(object):
@@ -50,7 +51,7 @@ def PCA(dataMatrix, INITIAL_DIMS):
     Performs PCA on data.
     Reduces the dimensionality to INITIAL_DIMS
     """
-    print 'Performing PCA'
+    xprint('Performing PCA')
 
     if dataMatrix.shape[1] < INITIAL_DIMS:
         return dataMatrix
@@ -74,9 +75,9 @@ def writeDat(dataMatrix, NO_DIMS, PERPLEX, LANDMARKS):
     """
     Generates data.dat
     """
-    print 'Writing data.dat'
+    xprint('Writing data.dat')
     info = 'Projection: %i D \nPerplexity: %i \nLandmarks(ratio): %f'
-    print info % (NO_DIMS, PERPLEX, LANDMARKS)
+    xprint(info % (NO_DIMS, PERPLEX, LANDMARKS))
     n, d = dataMatrix.shape
     f = open('data.dat', 'wb')
     f.write(struct.pack('=iiid', n, d, NO_DIMS, PERPLEX))
@@ -92,7 +93,7 @@ def call_tSNE():
     Calls the tsne c++ implementation depending on the platform
     """
     platform = sys.platform
-    print'Platform detected : %s' % platform
+    xprint('Platform detected : %s' % platform)
     if platform in ['mac', 'darwin']:
         cmd = './tSNE_maci'
     elif platform == 'win32':
@@ -100,9 +101,9 @@ def call_tSNE():
     elif platform == 'linux2':
         cmd = './tSNE_linux'
     else:
-        print 'Not sure about the platform, we will try linux version...'
+        xprint('Not sure about the platform, we will try linux version...')
         cmd = './tSNE_linux'
-    print 'Calling executable "%s"' % cmd
+    xprint('Calling executable "%s"' % cmd)
     os.system(cmd)
 
 
@@ -110,7 +111,7 @@ def readResult():
     """
     Reads result from result.dat
     """
-    print 'Reading result.dat'
+    xprint('Reading result.dat')
     try:
         f = open('result.dat', 'rb')
     except IOError:
@@ -133,7 +134,7 @@ def reOrder(Xmat, LM):
     Re-order the data in the original order
     Call only if LANDMARKS==1
     """
-    print 'Reordering results'
+    xprint('Reordering results')
     X = np.zeros(Xmat.shape)
     for i, lm in enumerate(LM):
         X[lm] = Xmat[i]
@@ -144,6 +145,6 @@ def clearData():
     """
     Clears files data.dat and result.dat
     """
-    print 'Clearing data.dat and result.dat'
+    xprint('Clearing data.dat and result.dat')
     os.system('rm data.dat')
     os.system('rm result.dat')

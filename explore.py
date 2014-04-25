@@ -156,6 +156,7 @@ def query_for_visits(operation, location, time, mongo, city):
     return answer_to_dict(itertools.chain(operation(query)['result']), convert)
 
 
+import Chunker
 def collapse(values, chunk_size, offset=0):
     """Return sum of `values` by piece of `chunk_size` (starting from `offset`
     and then cycling).
@@ -170,19 +171,9 @@ def collapse(values, chunk_size, offset=0):
     length = len(values)
     assert length % chunk_size == 0, 'there will be leftovers'
     # pylint: disable=E1101
-    res = []
-    partial_sum = 0
-    i = 0
-    for val in itertools.cycle(values):
-        i += 1
-        if i <= offset:
-            continue
-        partial_sum += val
-        if (i-offset) % chunk_size == 0:
-            res.append(partial_sum)
-            partial_sum = 0
-        if len(res) == length/chunk_size:
-            return np.array(res)
+    chunker = Chunker.Chunker(chunk_size)
+    return np.array([sum(chunk)
+                     for chunk in chunker(values[offset:]+values[:offset])])
 
 
 def aggregate_visits(visits, offset=0, chunk=3):

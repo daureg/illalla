@@ -3,15 +3,23 @@
 """Retrieve checkins tweets"""
 from timeit import default_timer as clock
 from time import sleep
+from datetime import datetime
 import TwitterAPI as twitter
 from api_keys import TWITTER_CONSUMER_KEY as consumer_key
 from api_keys import TWITTER_CONSUMER_SECRET as consumer_secret
 from api_keys import TWITTER_ACCESS_TOKEN as access_token
 from api_keys import TWITTER_ACCESS_SECRET as access_secret
+import twitter_helper as th
 import arguments
 ARGS = arguments.tweets_parser().parse_args()
-import CommonMongo as cm
-DB = cm.connect_to_db('foursquare', ARGS.host, ARGS.port)[0]
+DB = None
+SAVE = None
+if ARGS.mongodb:
+    import CommonMongo as cm
+    DB = cm.connect_to_db('foursquare', ARGS.host, ARGS.port)[0]
+else:
+    json = th.import_json()
+    import codecs
 import read_foursquare as rf
 import CheckinAPICrawler as cac
 CRAWLER = cac.CheckinAPICrawler()
@@ -71,7 +79,7 @@ def post_process(checkins):
     """use `crawler` to follow URL within `checkins` and update them with
     information regarding the actual Foursquare checkin."""
     infos = CRAWLER.checkins_from_url([c.lid for c in checkins])
-    to_insert = []
+    finalized = []
     global NUM_VALID
     for checkin, info in zip(checkins, infos):
         if info:
@@ -82,14 +90,15 @@ def post_process(checkins):
             converted['uid'] = uid
             converted['lid'] = vid
             converted['time'] = time
-            to_insert.append(converted)
+            finalized.append(converted)
             NUM_VALID += 1
         CHECKINS_QUEUE.task_done()
-    return to_insert
+    return finalized
 
 
-def insert_checkins():
-    """batch insert checkins into DB."""
+def accumulate_checkins():
+    """Call save checkin as soon as a batch is complete (or the last one was
+    received)."""
     waiting_for_crawling = []
     while True:
         checkin = CHECKINS_QUEUE.get()
@@ -99,15 +108,20 @@ def insert_checkins():
             break
         waiting_for_crawling.append(checkin)
         if len(waiting_for_crawling) == INSERT_SIZE*cac.BITLY_SIZE:
-            perform_insertion(post_process(waiting_for_crawling))
+            save_checkins(post_process(waiting_for_crawling), SAVE)
             del waiting_for_crawling[:]
-    perform_insertion(post_process(waiting_for_crawling))
+    save_checkins(post_process(waiting_for_crawling), SAVE)
 
 
-def perform_insertion(complete):
-    """Insert `complete` checkins into the DB."""
+def save_checkins(complete, saving_method):
+    """Save `complete` using `saving_method`."""
     if not complete:
         return
+    saving_method(complete)
+
+
+def save_checkins_mongo(complete):
+    """Save `complete` in DB."""
     try:
         DB.checkin.insert(complete, continue_on_error=True)
         print('insert {}'.format(len(complete)))
@@ -116,21 +130,41 @@ def perform_insertion(complete):
     except cm.pymongo.errors.OperationFailure as err:
         print(err, err.code)
 
+
+def save_checkins_json(complete):
+    """Save `complete` as JSON in a file."""
+    now = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = 'tweets_{}.json'.format(now)
+    msg = 'Save {} tweets in {}.'.format(len(complete), filename)
+    try:
+        with codecs.open(filename, 'w', 'utf8') as out:
+            # TODO: go through all time field and make them look like
+            # "time" : { "$date" : "2014-04-23T19:45:32.000+0300" }
+            json.dump(complete, out, ensure_ascii=True)
+            cac.cc.vc.logging.info(msg)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except:
+        msg = "Fail to save {} tweets.".format(len(complete))
+        cac.cc.vc.logging.exception(msg)
+
 if __name__ == '__main__':
     # pylint: disable=C0103
-    DB.checkin.ensure_index([('loc', cm.pymongo.GEOSPHERE),
-                             ('lid', cm.pymongo.ASCENDING),
-                             ('city', cm.pymongo.ASCENDING),
-                             ('time', cm.pymongo.ASCENDING)])
+    if DB:
+        DB.checkin.ensure_index([('loc', cm.pymongo.GEOSPHERE),
+                                 ('lid', cm.pymongo.ASCENDING),
+                                 ('city', cm.pymongo.ASCENDING),
+                                 ('time', cm.pymongo.ASCENDING)])
+    SAVE = save_checkins_mongo if ARGS.mongodb else save_checkins_json
     api = twitter.TwitterAPI(consumer_key, consumer_secret,
                              access_token, access_secret)
     req = api.request('statuses/filter', {'track': '4sq com'})
     nb_tweets = 0
     nb_cand = 0
     valid_checkins = []
-    t = Thread(target=insert_checkins, name='InsertCheckins')
-    t.daemon = True
-    t.start()
+    accu = Thread(target=accumulate_checkins, name='AccumulateCheckins')
+    accu.daemon = True
+    accu.start()
     start = clock()
     end = start + ARGS.duration*60*60
     new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'

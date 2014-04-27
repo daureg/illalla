@@ -19,7 +19,6 @@ if ARGS.mongodb:
     DB = cm.connect_to_db('foursquare', ARGS.host, ARGS.port)[0]
 else:
     json = th.import_json()
-    import codecs
 import read_foursquare as rf
 import CheckinAPICrawler as cac
 CRAWLER = cac.CheckinAPICrawler()
@@ -137,10 +136,12 @@ def save_checkins_json(complete):
     filename = 'tweets_{}.json'.format(now)
     msg = 'Save {} tweets in {}.'.format(len(complete), filename)
     try:
-        with codecs.open(filename, 'w', 'utf8') as out:
-            # TODO: go through all time field and make them look like
-            # "time" : { "$date" : "2014-04-23T19:45:32.000+0300" }
-            json.dump(complete, out, ensure_ascii=True)
+        for idx, checkin in enumerate(complete):
+            fmt_time = checkin['time'].strftime('%Y-%m-%dT%H:%M:%SZ')
+            complete[idx]['time'] = {'$date': fmt_time}
+        with open(filename, 'w') as out:
+            out.write(json.dumps(complete, ensure_ascii=False).replace('\/',
+                                                                       '/'))
             cac.cc.vc.logging.info(msg)
     except (KeyboardInterrupt, SystemExit):
         raise

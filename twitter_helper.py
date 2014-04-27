@@ -10,10 +10,12 @@ def import_json():
     try:
         import ujson as json
     except ImportError:
-        try:
-            import simplejson as json
-        except ImportError:
-            import json
+        # try:
+        #     import simplejson as json
+        # except ImportError:
+        #     import json
+        # I cannot make the others two work with utf-8
+        raise
     return json
 
 

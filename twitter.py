@@ -35,6 +35,10 @@ FullCheckIn = rf.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
 # the size of mongo bulk insert, in multiple of pool size
 INSERT_SIZE = 7
 CHECKINS_QUEUE = Queue((INSERT_SIZE+3)*cac.BITLY_SIZE)
+# There is probably a cleaner version, but it is global because if
+# read_twitter_stream fails, we still want to keep a accurate count of tweets
+# seen so far
+NB_TWEETS = 0
 NUM_VALID = 0
 
 
@@ -149,6 +153,44 @@ def save_checkins_json(complete):
         msg = "Fail to save {} tweets.".format(len(complete))
         cac.cc.vc.logging.exception(msg)
 
+
+def read_twitter_stream(client, end):
+    """Iterate over tweets and put those matched by parse_tweet in a queue,
+    until current time is more than `end`."""
+    global NB_TWEETS
+    req = client.request('statuses/filter', {'track': '4sq com'})
+    new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
+    nb_cand = 0
+    for item in req.get_iterator():
+        candidate = parse_tweet(item)
+        NB_TWEETS += 1
+        if candidate:
+            CHECKINS_QUEUE.put_nowait(candidate)
+            nb_cand += 1
+            if nb_cand % 50 == 0:
+                cac.cc.vc.logging.info(new_tweet.format(candidate.tid,
+                                                        nb_cand, NB_TWEETS,
+                                                        end - clock()))
+            if clock() >= end:
+                CHECKINS_QUEUE.put_nowait(None)
+                break
+
+
+class Failures(object):
+    """Keep track of Failures."""
+    def __init__(self):
+        self.nb_failures = 0
+        self.last_failure = clock()
+
+    def fail(self):
+        """Register a new failure"""
+        self.nb_failures += 1
+        self.last_failure = clock()
+
+    def has_failed_recently(self, small=3600):
+        """Has it failed in the last `small` seconds?"""
+        return clock() - self.last_failure < small
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     if DB:
@@ -159,30 +201,32 @@ if __name__ == '__main__':
     SAVE = save_checkins_mongo if ARGS.mongodb else save_checkins_json
     api = twitter.TwitterAPI(consumer_key, consumer_secret,
                              access_token, access_secret)
-    req = api.request('statuses/filter', {'track': '4sq com'})
-    nb_tweets = 0
-    nb_cand = 0
-    valid_checkins = []
     accu = Thread(target=accumulate_checkins, name='AccumulateCheckins')
     accu.daemon = True
     accu.start()
     start = clock()
     end = start + ARGS.duration*60*60
-    new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
-    for item in req.get_iterator():
-        candidate = parse_tweet(item)
-        nb_tweets += 1
-        if candidate:
-            CHECKINS_QUEUE.put_nowait(candidate)
-            nb_cand += 1
-            if nb_cand % 50 == 0:
-                cac.cc.vc.logging.info(new_tweet.format(candidate.tid,
-                                                        nb_cand, nb_tweets,
-                                                        end - clock()))
-            if clock() >= end:
-                CHECKINS_QUEUE.put_nowait(None)
+    waiting_time = 2*60.0
+    failures = Failures()
+    while clock() < end:
+        try:
+            read_twitter_stream(api, end)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            msg = 'Fail to read or enqueue tweet\n'
+            cac.cc.vc.logging.exception(msg)
+            if failures.has_failed_recently():
+                waiting_time *= 1.5
+            failures.fail()
+            if clock() + waiting_time > end or failures.nb_failures >= 5:
+                # We might as well quit right now, as stars are agains us
                 break
+            msg = 'Will wait for {:.0f} seconds'.format(waiting_time)
+            cac.cc.vc.logging.info(msg)
+            sleep(waiting_time)
+
     CHECKINS_QUEUE.join()
     report = 'insert {} valid checkins in {:.2f}s (out of {}).'
-    print(report.format(NUM_VALID, clock() - start, nb_tweets))
+    print(report.format(NUM_VALID, clock() - start, NB_TWEETS))
     sleep(10)

@@ -31,25 +31,38 @@ LCATS = {}
 def load_matrix(city):
     """Open `city` matrix or compute it."""
     # import os
-    filename = city + '_fv.mat'
+    filename = city
+    if not filename.endswith('.mat'):
+        filename = city + '_fv.mat'
     # if not os.path.exists(filename):
     #     vf.describe_city(city)
     mat = vf.sio.loadmat(filename)
     # pylint: disable=E1101
-    mat['v'][:, 1:3] = np.log(mat['v'][:, 1:3])
-    LCATS[city] = (mat['v'][:, 5]/1e5).astype(int)
-    mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
-    non_categorical = range(25)
-    del non_categorical[non_categorical.index(5)]
-    del non_categorical[non_categorical.index(17)]
-    mat['v'][:, non_categorical] = stats.zscore(mat['v'][:, non_categorical])
+    if filename.endswith('_fv.mat'):
+        # we loaded the raw features, which need preprocessing
+        mat['v'][:, 1:3] = np.log(mat['v'][:, 1:3])
+        LCATS[city] = (mat['v'][:, 5]/1e5).astype(int)
+        mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
+        non_categorical = range(25)
+        del non_categorical[non_categorical.index(5)]
+        del non_categorical[non_categorical.index(17)]
+        mat['v'][:, non_categorical] = stats.zscore(mat['v'][:, non_categorical])
+    elif filename.endswith('_embed.mat'):
+        # add a blank category feature
+        mat['v'] = np.insert(mat['v'], 5, values=0, axis=1)
+        # but still get the real one for evaluation purpose
+        # tmp = vf.sio.loadmat(city+'_fv.mat')
+        # LCATS[city] = (tmp['v'][:, 5]/1e5).astype(int)
     return mat
 
 
-def gather_info(city, knn=2, mat=None):
+def gather_info(city, knn=2, mat=None, raw_features=True):
     """Build KD-tree for each categories of venues in `city` that will return
     `knn` results on subsequent call."""
-    matrix = load_matrix(city)
+    if raw_features:
+        matrix = load_matrix(city)
+    else:
+        matrix = load_matrix('mLMNN2.5/'+city+'_embed.mat')
     res = {'features': matrix['v'], 'city': city}
     for cat in range(len(vf.CATS)):
         cat *= 1e5
@@ -128,11 +141,11 @@ def interpret(query, answer, feature_order=None):
     colormap = mpl.cm.ScalarMappable(mcolor.Normalize(0, 15), 'copper_r')
     get_color = lambda v: mcolor.rgb2hex(colormap.to_rgba(v))
     sendf = lambda x, p: ('{:.'+str(p)+'f}').format(float(x))
-    query_info = [{'val': sendf(query[f], 5),
+    query_info = [{'val': sendf(query[f], 4),
                    'feature': FEATURES[RESTRICTED[f]]}
                   for f in feature_order]
-    answer_info = [{'answer': sendf(answer[f], 5),
-                    'percentage': sendf(percentage[f], 4),
+    answer_info = [{'answer': sendf(answer[f], 4),
+                    'percentage': sendf(percentage[f], 3),
                     'color': get_color(float(percentage[f]))}
                    for f in feature_order]
     return query_info, answer_info, feature_order
@@ -178,15 +191,16 @@ if __name__ == '__main__':
     learned[5, 5] = 1.0
     extract = lambda r, i: np.array([one for cats_r in r.itervalues()
                                      for one in cats_r[i]])
-    for seed in range(75, 82):
+    for seed in range(85, 92):
         SEED = seed
         np.random.seed(SEED)
         random_diag = np.diag((22*np.random.random((1, 25))+0.5).ravel())
-        mats = [None, random_diag, learned]
+        mats = [None, random_diag, learned, None]
         three = []
         for idx, mat in enumerate(mats):
-            left = gather_info(args.origin, knn=1, mat=mat)
-            right = gather_info(args.dest, knn=1, mat=mat)
+            raw = idx < 3
+            left = gather_info(args.origin, knn=1, mat=mat, raw_features=raw)
+            right = gather_info(args.dest, knn=1, mat=mat, raw_features=raw)
             numres, match, txtres = loop_over_city(left, right)
             three.append(numres)
             print(idx, match)
@@ -195,7 +209,8 @@ if __name__ == '__main__':
             #     f.write('\n'.join(txtres))
         rnd = extract(three[0], 0)-extract(three[1], 0)
         itml = extract(three[0], 0)-extract(three[2], 0)
-        print(2000*np.sum(itml[np.argsort(itml)[1:]]) -
+        lmnn = extract(three[0], 0)-extract(three[3], 0)
+        print(2000*np.sum(lmnn[np.argsort(lmnn)[1:]]) -
               2000*np.sum(rnd[np.argsort(rnd)[1:]]))
     # for venue in rd.sample(left['index'], 5):
     #     print(make_loop(venue, left, right))

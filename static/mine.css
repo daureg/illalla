@@ -17,10 +17,11 @@ body {
     position: absolute;
     left 0;
 }
-table {
+#info {
 	position: absolute;
-	top: 1em;
 	left: 35%;
+}
+table {
 	text-align: center;
 	vertical-align: middle;
 }
@@ -41,14 +42,11 @@ path {fill: none;}
 .x.axis .minor { display: none;stroke-opacity: .5; }
 .x.axis path { display: none; }
 .y.axis line, .y.axis path { fill: none; stroke: #000; }
-#graph {position:fixed;top:30%;left:35%;}
 div.tooltip {
 	position: absolute;
 	text-align: center;
-	width: 150px;
-	height: 40px;
-	padding: .25em;
 	font: 10pt sans-serif;
+	padding: 0.6em;
 	color: white;
 	border: 0px;
 	border-radius: 6px;

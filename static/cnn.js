@@ -33,13 +33,14 @@ function create_map(div_id, bbox) {
     L.polygon(bbox, {fill: false, weight: 3}).addTo(map);
     return map;
 }
-var graph = create_graph('graph', 0.65, 0.7);
+var graph = create_graph('graph', 0.65, 0.4);
 // plot(graph, [[.32, .85, 1.52, .73, -.51, -.25], [.23, .58, 1.25, .37, -.15, -.52]], ["hello", 'world']);
 var left = create_map('mapl', LBBOX);
 var right = create_map('mapr', RBBOX);
 var MARKERS = [{}, {}];
 var NAMES = [{}, {}];
 var LOCS = [{}, {}];
+var CATS = [{}, {}];
 populate('right');
 populate('left');
 function populate(side) {
@@ -59,6 +60,7 @@ function populate(side) {
             MARKERS[nside][venue._id] = marker;
             NAMES[nside][venue._id] = venue.name;
             LOCS[nside][venue._id] = L.latLng(venue.loc);
+            CATS[nside][venue._id] = venue.cat;
         });
     })
     .error(function(status, statusText, responseText) {
@@ -96,7 +98,7 @@ function match(_id, side) {
     var gdata = [[], ];
     function venue_name(side, id_) {
         var res = '<a href="https://foursquare.com/v/'+id_+'" target="_blank">';
-        return res + NAMES[side][id_] + '</a>';
+        return res + NAMES[side][id_] + '</a> ('+CATS[side][id_]+')';
     }
     $.request('post', $SCRIPT_ROOT+'/match', request)
     .then(function success(result) {

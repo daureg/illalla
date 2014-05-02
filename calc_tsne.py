@@ -1,150 +1,125 @@
 #! /usr/bin/env python
+# vim: set fileencoding=utf-8
 """
-Python wrapper to execute c++ tSNE implementation
-for more information on tSNE, go to :
-http://ticc.uvt.nl/~lvdrmaaten/Laurens_van_der_Maaten/t-SNE.html
-
-HOW TO USE
-Just call the method calc_tsne(dataMatrix)
-
-Created by Philippe Hamel
-hamelphi@iro.umontreal.ca
-October 24th 2008
+simple Python wrapper for the bh_tsne binary.
+adapted from https://github.com/ninjin/barnes-hut-sne
+to deal directly with numpy array as input and output
 """
 
+# Copyright (c) 2014, Géraud Le Falher <daureg@gmail.com>
+# Copyright (c) 2013, Pontus Stenetorp <pontus stenetorp se>
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+import os.path
+import shlex
+import shutil
 import struct
+import subprocess
 import sys
-import os
+import tempfile
 import numpy as np
-xprint = lambda x: None
+
+# Constants
+BH_TSNE_BIN_PATH = os.path.join(os.path.dirname(__file__), 'bh_tsne')
+NOT_FOUND = 'Unable to find the bh_tsne binary in {}'.format(BH_TSNE_BIN_PATH)
+# Default hyper-parameter values from van der Maaten (2013)
+DEFAULT_PERPLEXITY = 30.0
+DEFAULT_THETA = 0.5
+###
 
 
 class tSNE(object):
     """Mock Scikit manifold interface (at least the part needed)"""
-    def __init__(self, n_components):
+    def __init__(self, n_components, theta=DEFAULT_THETA,
+                 perplexity=DEFAULT_PERPLEXITY):
+        """`theta` control approximation quality, 0 meaning exact algorithm"""
         self.n_components = n_components
+        self.theta = float(theta)
+        self.perplexity = float(perplexity)
 
     def fit_transform(self, data):
-        return calc_tsne(data, self.n_components)
+        return bh_tsne(data, self.perplexity, self.theta, self.n_components,
+                       False)
 
 
-def calc_tsne(dataMatrix, NO_DIMS=2, PERPLEX=30, INITIAL_DIMS=30, LANDMARKS=1):
-    """
-    This is the main function.
-    dataMatrix is a 2D numpy array containing data (each row is a data point)
-    Remark : LANDMARKS is a ratio (0<LANDMARKS<=1)
-    If LANDMARKS=1, returns the list of points in the same order as the input
-    """
+class TmpDir(object):
+    def __enter__(self):
+        self._tmp_dir_path = tempfile.mkdtemp()
+        return self._tmp_dir_path
 
-    dataMatrix = PCA(dataMatrix, INITIAL_DIMS)
-    writeDat(dataMatrix, NO_DIMS, PERPLEX, LANDMARKS)
-    call_tSNE()
-    Xmat, LM, _ = readResult()
-    clearData()
-    if LANDMARKS == 1:
-        return reOrder(Xmat, LM)
-    return Xmat, LM
+    def __exit__(self, type, value, traceback):
+        shutil.rmtree(self._tmp_dir_path)
 
 
-def PCA(dataMatrix, INITIAL_DIMS):
-    """
-    Performs PCA on data.
-    Reduces the dimensionality to INITIAL_DIMS
-    """
-    xprint('Performing PCA')
-
-    if dataMatrix.shape[1] < INITIAL_DIMS:
-        return dataMatrix
-
-    dataMatrix = dataMatrix - dataMatrix.mean(axis=0)
-    eigValues, eigVectors = np.linalg.eig(np.cov(dataMatrix.T))
-    perm = np.argsort(-eigValues)
-    eigVectors = eigVectors[:, perm[0:INITIAL_DIMS]]
-    dataMatrix = np.dot(dataMatrix, eigVectors)
-    return dataMatrix
+def _read_unpack(fmt, fh):
+    return struct.unpack(fmt, fh.read(struct.calcsize(fmt)))
 
 
-def readbin(type, file):
-    """
-    used to read binary data from a file
-    """
-    return struct.unpack(type, file.read(struct.calcsize(type)))
+def bh_tsne(samples, perplexity=DEFAULT_PERPLEXITY, theta=DEFAULT_THETA,
+            out_dims=2, verbose=False):
+    assert os.path.isfile(BH_TSNE_BIN_PATH), NOT_FOUND
+    sample_count, sample_dim = samples.shape
+
+    # bh_tsne works with fixed input and output paths, give it a temporary
+    # directory to work in so we don't clutter the filesystem
+    with TmpDir() as tmp_dir_path:
+        # Note: The binary format used by bh_tsne is roughly the same as for
+        # vanilla tsne
+        with open(os.path.join(tmp_dir_path, 'data.dat'), 'wb') as data_file:
+            # Write the bh_tsne header
+            data_file.write(struct.pack('iidd', sample_count, sample_dim,
+                                        theta, perplexity))
+            # Then write the data
+            for sample in samples:
+                data_file.write(struct.pack('{}d'.format(len(sample)),
+                                            *sample))
+
+        # Call bh_tsne and let it do its thing
+        with open('/dev/null', 'w') as dev_null:
+            # bh_tsne is very noisy on stdout, tell it to use stderr if it is
+            # to print any output
+            output = sys.stderr if verbose else dev_null
+            binary = os.path.abspath(BH_TSNE_BIN_PATH)
+            args = shlex.split('{} {}'.format(binary, out_dims))
+            try:
+                subprocess.check_call(args, cwd=tmp_dir_path, stdout=output)
+            except subprocess.CalledProcessError:
+                if not verbose:
+                    print('Enable verbose mode for more details')
+                raise
+
+        # Read and pass on the results
+        with open(os.path.join(tmp_dir_path, 'result.dat'), 'rb') as output:
+            # The first two integers are just the number of samples and the
+            # dimensionality
+            result_samples, result_dims = _read_unpack('ii', output)
+            # Collect the results, but they may be out of order
+            results = [_read_unpack('{}d'.format(result_dims), output)
+                       for _ in xrange(result_samples)]
+            # Now collect the landmark data so that we can return the data in
+            # the order it arrived
+            results = sorted([(_read_unpack('i', output), e)
+                              for e in results])
+            ordered = np.zeros((result_samples, result_dims))
+            for idx, point in results:
+                ordered[idx[0], :] = point
+            return ordered
+            # The last piece of data is the cost for each sample, we ignore it
+            # read_unpack('{}d'.format(sample_count), output_file)
 
 
-def writeDat(dataMatrix, NO_DIMS, PERPLEX, LANDMARKS):
-    """
-    Generates data.dat
-    """
-    xprint('Writing data.dat')
-    info = 'Projection: %i D \nPerplexity: %i \nLandmarks(ratio): %f'
-    xprint(info % (NO_DIMS, PERPLEX, LANDMARKS))
-    n, d = dataMatrix.shape
-    f = open('data.dat', 'wb')
-    f.write(struct.pack('=iiid', n, d, NO_DIMS, PERPLEX))
-    f.write(struct.pack('=d', LANDMARKS))
-    for inst in dataMatrix:
-        for el in inst:
-            f.write(struct.pack('=d', el))
-    f.close()
-
-
-def call_tSNE():
-    """
-    Calls the tsne c++ implementation depending on the platform
-    """
-    platform = sys.platform
-    xprint('Platform detected : %s' % platform)
-    if platform in ['mac', 'darwin']:
-        cmd = './tSNE_maci'
-    elif platform == 'win32':
-        cmd = './tSNE_win'
-    elif platform == 'linux2':
-        cmd = './tSNE_linux'
-    else:
-        xprint('Not sure about the platform, we will try linux version...')
-        cmd = './tSNE_linux'
-    xprint('Calling executable "%s"' % cmd)
-    os.system(cmd)
-
-
-def readResult():
-    """
-    Reads result from result.dat
-    """
-    xprint('Reading result.dat')
-    try:
-        f = open('result.dat', 'rb')
-    except IOError:
-        url = 'http://homepage.tudelft.nl/19j49/t-SNE.html'
-        print('Download binary from '+url)
-        raise
-    n, ND = readbin('ii', f)
-    Xmat = np.empty((n, ND))
-    for i in range(n):
-        for j in range(ND):
-            Xmat[i, j] = readbin('d', f)[0]
-    LM = readbin('%ii' % n, f)
-    costs = readbin('%id' % n, f)
-    f.close()
-    return (Xmat, LM, costs)
-
-
-def reOrder(Xmat, LM):
-    """
-    Re-order the data in the original order
-    Call only if LANDMARKS==1
-    """
-    xprint('Reordering results')
-    X = np.zeros(Xmat.shape)
-    for i, lm in enumerate(LM):
-        X[lm] = Xmat[i]
-    return X
-
-
-def clearData():
-    """
-    Clears files data.dat and result.dat
-    """
-    xprint('Clearing data.dat and result.dat')
-    os.system('rm data.dat')
-    os.system('rm result.dat')
+if __name__ == '__main__':
+    data = np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 2.5]])
+    print(data)
+    print(bh_tsne(data, out_dims=3, perplexity=0.1, verbose=True))

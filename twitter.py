@@ -82,6 +82,8 @@ def post_process(checkins):
     """use `crawler` to follow URL within `checkins` and update them with
     information regarding the actual Foursquare checkin."""
     infos = CRAWLER.checkins_from_url([c.lid for c in checkins])
+    if not infos:
+        return None
     finalized = []
     global NUM_VALID
     for checkin, info in zip(checkins, infos):
@@ -111,15 +113,20 @@ def accumulate_checkins():
             break
         waiting_for_crawling.append(checkin)
         if len(waiting_for_crawling) == INSERT_SIZE*cac.BITLY_SIZE:
-            save_checkins(post_process(waiting_for_crawling), SAVE)
+            status = save_checkins(post_process(waiting_for_crawling), SAVE)
             del waiting_for_crawling[:]
+            # status is None when CRAWLER.checkins_from_url returns None,
+            # which in turn means that Foursquare is in such a bad state that
+            # it does not make sense to try to query it anymore.
+            if status is None:
+                break
     save_checkins(post_process(waiting_for_crawling), SAVE)
 
 
 def save_checkins(complete, saving_method):
     """Save `complete` using `saving_method`."""
     if not complete:
-        return
+        return None
     saving_method(complete)
 
 
@@ -154,9 +161,10 @@ def save_checkins_json(complete):
         cac.cc.vc.logging.exception(msg)
 
 
-def read_twitter_stream(client, end):
+def read_twitter_stream(client, end, logging_step=60):
     """Iterate over tweets and put those matched by parse_tweet in a queue,
-    until current time is more than `end`."""
+    until current time is more than `end`. Log info every `logging_step` new
+    valid candidate."""
     global NB_TWEETS
     req = client.request('statuses/filter', {'track': '4sq com'})
     new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
@@ -167,7 +175,7 @@ def read_twitter_stream(client, end):
         if candidate:
             CHECKINS_QUEUE.put_nowait(candidate)
             nb_cand += 1
-            if nb_cand % 50 == 0:
+            if nb_cand % logging_step == 0:
                 cac.cc.vc.logging.info(new_tweet.format(candidate.tid,
                                                         nb_cand, NB_TWEETS,
                                                         end - clock()))
@@ -195,17 +203,21 @@ if __name__ == '__main__':
         try:
             read_twitter_stream(api, end)
         except (KeyboardInterrupt, SystemExit):
+            CHECKINS_QUEUE.put_nowait(None)
             raise
         except:
             msg = 'Fail to read or enqueue tweet\n'
             cac.cc.vc.logging.exception(msg)
             waiting_time = failures.fail()
-            if clock() + waiting_time > end or failures.nb_failures >= 5:
+            if clock() + waiting_time > end or \
+               failures.recent_failures >= 5 or \
+               not accu.is_alive():
                 # We might as well quit right now, as stars are agains us
+                CHECKINS_QUEUE.put_nowait(None)
                 break
             msg = 'Will wait for {:.0f} seconds'.format(waiting_time)
             cac.cc.vc.logging.info(msg)
-            sleep(waiting_time)
+            failures.do_sleep()
 
     CHECKINS_QUEUE.join()
     report = 'insert {} valid checkins in {:.2f}s (out of {}).'

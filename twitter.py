@@ -19,10 +19,9 @@ if ARGS.mongodb:
     DB = cm.connect_to_db('foursquare', ARGS.host, ARGS.port)[0]
 else:
     json = th.import_json()
-import read_foursquare as rf
 import CheckinAPICrawler as cac
 CRAWLER = cac.CheckinAPICrawler()
-CITIES_TREE = rf.obtain_tree()
+CITIES_TREE = th.obtain_tree()
 from Queue import Queue
 from threading import Thread
 from utils import get_nested
@@ -30,7 +29,7 @@ import cities
 import locale
 locale.setlocale(locale.LC_ALL, 'C')  # to parse date
 UTC_DATE = '%a %b %d %X +0000 %Y'
-FullCheckIn = rf.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
+FullCheckIn = th.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
                                             'time', 'tid', 'tuid', 'msg'])
 # the size of mongo bulk insert, in multiple of pool size
 INSERT_SIZE = 7
@@ -53,7 +52,7 @@ def parse_tweet(tweet):
         # (and introduce a bias toward open sharing users I guess)
         return None
     lon, lat = loc['coordinates']
-    city = rf.find_town(lat, lon, CITIES_TREE)
+    city = th.find_town(lat, lon, CITIES_TREE)
     if not (city and city in cities.SHORT_KEY):
         return None
     tid = get_nested(tweet, 'id_str')
@@ -70,7 +69,7 @@ def parse_tweet(tweet):
     uid = get_nested(tweet, ['user', 'id_str'])
     msg = get_nested(tweet, 'text')
     try:
-        time = rf.datetime.strptime(tweet['created_at'], UTC_DATE)
+        time = datetime.strptime(tweet['created_at'], UTC_DATE)
         time = cities.utc_to_local(city, time)
     except ValueError:
         print('time: {}'.format(tweet['created_at']))
@@ -128,6 +127,7 @@ def save_checkins(complete, saving_method):
     if not complete:
         return None
     saving_method(complete)
+    return True
 
 
 def save_checkins_mongo(complete):
@@ -153,12 +153,12 @@ def save_checkins_json(complete):
         with open(filename, 'w') as out:
             out.write(json.dumps(complete, ensure_ascii=False).replace('\/',
                                                                        '/'))
-            cac.cc.vc.logging.info(msg)
+            cac.logging.info(msg)
     except (KeyboardInterrupt, SystemExit):
         raise
     except:
         msg = "Fail to save {} tweets.".format(len(complete))
-        cac.cc.vc.logging.exception(msg)
+        cac.logging.exception(msg)
 
 
 def read_twitter_stream(client, end, logging_step=60):
@@ -176,7 +176,7 @@ def read_twitter_stream(client, end, logging_step=60):
             CHECKINS_QUEUE.put_nowait(candidate)
             nb_cand += 1
             if nb_cand % logging_step == 0:
-                cac.cc.vc.logging.info(new_tweet.format(candidate.tid,
+                cac.logging.info(new_tweet.format(candidate.tid,
                                                         nb_cand, NB_TWEETS,
                                                         end - clock()))
             if clock() >= end:
@@ -207,7 +207,7 @@ if __name__ == '__main__':
             raise
         except:
             msg = 'Fail to read or enqueue tweet\n'
-            cac.cc.vc.logging.exception(msg)
+            cac.logging.exception(msg)
             waiting_time = failures.fail()
             if clock() + waiting_time > end or \
                failures.recent_failures >= 5 or \
@@ -216,7 +216,7 @@ if __name__ == '__main__':
                 CHECKINS_QUEUE.put_nowait(None)
                 break
             msg = 'Will wait for {:.0f} seconds'.format(waiting_time)
-            cac.cc.vc.logging.info(msg)
+            cac.logging.info(msg)
             failures.do_sleep()
 
     CHECKINS_QUEUE.join()

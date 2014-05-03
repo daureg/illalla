@@ -8,9 +8,9 @@ import ssl
 import bitly_api
 import foursquare
 import Chunker
-import CheckinCrawler as cc
+import logging
 import twitter_helper as th
-from VenueIdCrawler import CHECKIN_URL
+CHECKIN_URL = th.CHECKIN_URL
 from api_keys import BITLY_TOKEN
 from api_keys import FOURSQUARE_ID as CLIENT_ID
 from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
@@ -46,7 +46,7 @@ class CheckinAPICrawler(object):
             try:
                 res.extend(self.get_checkins_info(batch))
             except FoursquareDown:
-                cc.vc.logging.exception("Foursquare not responding")
+                logging.exception("Foursquare not responding")
                 return None
         return res
 
@@ -57,7 +57,7 @@ class CheckinAPICrawler(object):
             expanded = [res.get('long_url', None)
                         for res in self.bitly.expand(link=urls)]
         except bitly_api.BitlyError:
-            cc.vc.logging.exception("Error expanding URL")
+            logging.exception("Error expanding URL")
             # Could also wait here, but actually, I have never seen it happen.
             # So let's trust bitly reliability for now
             expanded = itertools.repeat(None, BITLY_SIZE)
@@ -71,12 +71,12 @@ class CheckinAPICrawler(object):
         try:
             return self.client.multi()
         except (foursquare.FoursquareException, ssl.SSLError):
-            cc.vc.logging.exception("Error requesting batch checkins")
+            logging.exception("Error requesting batch checkins")
             waiting_time = self.failures.fail()
             if self.failures.recent_failures >= 5:
                 raise FoursquareDown
             msg = 'Will wait for {:.0f} seconds'.format(waiting_time)
-            cc.vc.logging.info(msg)
+            logging.info(msg)
             self.failures.do_sleep()
 
     def get_checkins_info(self, urls):
@@ -93,7 +93,7 @@ class CheckinAPICrawler(object):
             if isinstance(raw_checkin, foursquare.FoursquareException):
                 msg = 'Weird id: {}?s={}\n{}'.format(cid, sig,
                                                      str(raw_checkin))
-                cc.vc.logging.warn(msg)
+                logging.warn(msg)
                 res.append(None)
             else:
                 parsed = th.parse_json_checkin(raw_checkin)

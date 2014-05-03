@@ -53,8 +53,8 @@ def parse_tweet(tweet):
         return None
     lon, lat = loc['coordinates']
     city = th.find_town(lat, lon, CITIES_TREE)
-    # if not (city and city in cities.SHORT_KEY):
-    #     return None
+    if not (city and city in cities.SHORT_KEY):
+        return None
     tid = get_nested(tweet, 'id_str')
     urls = get_nested(tweet, ['entities', 'urls'], [])
     # short url of the checkin that need to be expand, either using bitly API
@@ -70,7 +70,7 @@ def parse_tweet(tweet):
     msg = get_nested(tweet, 'text')
     try:
         time = datetime.strptime(tweet['created_at'], UTC_DATE)
-        # time = cities.utc_to_local(city, time)
+        time = cities.utc_to_local(city, time)
     except ValueError:
         print('time: {}'.format(tweet['created_at']))
         return None
@@ -221,5 +221,5 @@ if __name__ == '__main__':
 
     CHECKINS_QUEUE.join()
     report = 'insert {} valid checkins in {:.2f}s (out of {}).'
-    print(report.format(NUM_VALID, clock() - start, NB_TWEETS))
-    sleep(1)
+    cac.logging.info(report.format(NUM_VALID, clock() - start, NB_TWEETS))
+    sleep(10)

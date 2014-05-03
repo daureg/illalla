@@ -1,42 +1,11 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Get checkin info from 4sq.com short url."""
-import ujson
+import twitter_helper as th
 from lxml import etree
 PARSER = etree.HTMLParser()
 XPATH_GET_SCRIPT = '//*[@id="container"]/script'
 import VenueIdCrawler as vc
-import pytz
-from datetime import datetime, timedelta
-from utils import get_nested
-
-
-def parse_json_checkin(json, url=None):
-    """Return salient info about a Foursquare checkin `json` that can be
-    either JSON text or already parsed as a dictionary."""
-    if not json:
-        return None
-    if not isinstance(json, dict):
-        try:
-            checkin = ujson.loads(json)
-        except (TypeError, ValueError) as not_json:
-            print(not_json, json, url)
-            return None
-    else:
-        checkin = json['checkin']
-    uid = get_nested(checkin, ['user', 'id'])
-    vid = get_nested(checkin, ['venue', 'id'])
-    time = get_nested(checkin, 'createdAt')
-    offset = get_nested(checkin, 'timeZoneOffset', 0)
-    if None in [uid, vid, time]:
-        return None
-    time = datetime.fromtimestamp(time, tz=pytz.utc)
-    # by doing this, the date is no more UTC. So why not put the correct
-    # timezone? Because in that case, pymongo will convert to UTC at
-    # insertion. Yet I want local time, but without doing the conversion
-    # when the result comes back from the DB.
-    time += timedelta(minutes=offset)
-    return int(uid), str(vid), time
 
 
 class CheckinCrawler(vc.VenueIdCrawler):
@@ -84,7 +53,7 @@ class CheckinCrawler(vc.VenueIdCrawler):
             return None
         # the HTML contains a script that in turn has a checkin JSON
         # object between these two indices.
-        checkin = parse_json_checkin(script[0].text[76:-118], url)
+        checkin = th.parse_json_checkin(script[0].text[76:-118], url)
         if not checkin:
             return None
         uid, vid, time = checkin

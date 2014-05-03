@@ -58,8 +58,14 @@ def tweets_parser():
     parser = get_parser('stream Twitter to find checkins')
     parser.add_argument("duration", help="how many hours to run",
                         type=lambda x: valid_number(x, 0, 24, float))
+    parser.add_argument("-m", "--mongodb", action="store_true", default=False,
+                        help="Store checkins in a Mongo database")
     return parser
 
 if __name__ == '__main__':
     ARGS = tweets_parser()
-    ARGS.parse_args()
+    ARGS = ARGS.parse_args()
+    if ARGS.mongodb:
+        print('mongo')
+    else:
+        print('text')

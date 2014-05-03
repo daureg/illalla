@@ -11,7 +11,8 @@ logging.basicConfig(filename=os.path.expanduser('~/venue.log'),
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 POOL_SIZE = 30
-CHECKIN_URL = re.compile(r'([0-9a-f]{24})\?s=([0-9A-Za-z_-]{27})')
+import twitter_helper as th
+CHECKIN_URL = th.CHECKIN_URL
 
 
 class VenueIdCrawler(object):

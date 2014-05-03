@@ -9,64 +9,18 @@ import pymongo
 from VenueIdCrawler import VenueIdCrawler
 from collections import namedtuple, defaultdict
 from datetime import datetime
-from numpy import median
+import twitter_helper as th
 from bisect import bisect_left
 # from calendar import timegm
 
-Point = namedtuple('Point', ['x', 'y'])
+Point = th.Point
 Location = namedtuple('Location', ['type', 'coordinates'])
 CheckIn = namedtuple('CheckIn',
                      ['tid', 'lid', 'uid', 'city', 'loc', 'time', 'place'])
-Node = namedtuple('Node', ['val', 'left', 'right'])
+Node = th.Node
 BLACKLIST = ['fst.je', 'gowal.la', 'picplz.com', 'wal.la', 'flic.kr',
              'myloc.me', 'wp.me', 'yfrog.com', 'j.mp', 'bkite.com', 'untpd.it']
 MISSING_ID = []
-
-
-def build_tree(bboxes, depth=0, max_depth=2):
-    if depth >= max_depth:
-        return bboxes
-    split_val = median([b.bottom[1] for b in bboxes])
-    left, right = [], []
-    for b in bboxes:
-        if b.bottom[1] > split_val:
-            right.append(b)
-        else:
-            left.append(b)
-    return Node(split_val,
-                build_tree(left, depth+1), build_tree(right, depth+1))
-
-
-def find_town(x, y, tree, depth=0):
-    if isinstance(tree, list):
-        for city in tree:
-            if city.contains(x, y):
-                return city.name
-        return None
-    if y > tree.val:
-        return find_town(x, y, tree.right, depth+1)
-    else:
-        return find_town(x, y, tree.left, depth+1)
-
-
-class Bbox():
-    bottom = None
-    top = None
-    center = None
-    name = None
-
-    def __init__(self, bbox, name):
-        self.bottom = Point(*bbox[:2])
-        self.top = Point(*bbox[2:])
-        self.name = name
-
-    def contains(self, x, y):
-        return self.bottom.x <= x <= self.top.x and\
-            self.bottom.y <= y <= self.top.y
-
-    def __repr__(self):
-        return '{}: {:.2f}, {:.2f}'.format(self.name, self.bottom.x,
-                                           self.bottom.y)
 
 
 def convert_checkin_for_mongo(checkin):
@@ -107,14 +61,6 @@ def id_must_be_process(_id):
     return i != len(MISSING_ID) and MISSING_ID[i] == _id
 
 
-def obtain_tree():
-    all_cities = cities.US + cities.EU
-    cities_names = [cities.short_name(c) for c in cities.NAMES]
-    bboxes = [Bbox(city, name) for city, name in zip(all_cities,
-                                                     cities_names)]
-    return build_tree(bboxes)
-
-
 def extract_url_from_msg(msg):
     last_word = msg.split()[-1]
     url = None
@@ -144,7 +90,7 @@ if __name__ == '__main__':
                            ('time', pymongo.ASCENDING)])
     import sys
     infile = 'verysmall' if len(sys.argv) < 2 else sys.argv[1]
-    tree = obtain_tree()
+    tree = th.obtain_tree()
     stats = defaultdict(lambda: 0)
 
     # def find_city(x, y):
@@ -167,7 +113,7 @@ if __name__ == '__main__':
             lat, lon = float(x), float(y)
             # city = find_city(lat, lon)
             # assert city == find_town(lat, lon, tree)
-            city = find_town(lat, lon, tree)
+            city = th.find_town(lat, lon, tree)
             lid = None
             if city is not None:
                 lid = extract_url_from_msg(msg)

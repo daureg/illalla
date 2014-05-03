@@ -9,6 +9,8 @@ import bitly_api
 import foursquare
 import Chunker
 import logging
+logging.basicConfig(filename='tweets.log', level=logging.INFO,
+                    format='%(asctime)s [%(levelname)s]: %(message)s')
 import twitter_helper as th
 CHECKIN_URL = th.CHECKIN_URL
 from api_keys import BITLY_TOKEN

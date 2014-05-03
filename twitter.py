@@ -175,22 +175,6 @@ def read_twitter_stream(client, end):
                 CHECKINS_QUEUE.put_nowait(None)
                 break
 
-
-class Failures(object):
-    """Keep track of Failures."""
-    def __init__(self):
-        self.nb_failures = 0
-        self.last_failure = clock()
-
-    def fail(self):
-        """Register a new failure"""
-        self.nb_failures += 1
-        self.last_failure = clock()
-
-    def has_failed_recently(self, small=3600):
-        """Has it failed in the last `small` seconds?"""
-        return clock() - self.last_failure < small
-
 if __name__ == '__main__':
     # pylint: disable=C0103
     if DB:
@@ -206,8 +190,7 @@ if __name__ == '__main__':
     accu.start()
     start = clock()
     end = start + ARGS.duration*60*60
-    waiting_time = 2*60.0
-    failures = Failures()
+    failures = th.Failures(initial_waiting_time=2.0)
     while clock() < end:
         try:
             read_twitter_stream(api, end)
@@ -216,9 +199,7 @@ if __name__ == '__main__':
         except:
             msg = 'Fail to read or enqueue tweet\n'
             cac.cc.vc.logging.exception(msg)
-            if failures.has_failed_recently():
-                waiting_time *= 1.5
-            failures.fail()
+            waiting_time = failures.fail()
             if clock() + waiting_time > end or failures.nb_failures >= 5:
                 # We might as well quit right now, as stars are agains us
                 break

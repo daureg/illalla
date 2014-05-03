@@ -2,6 +2,7 @@
 # vim: set fileencoding=utf-8
 """Functions used in twitter scrapper main code."""
 import functools
+from timeit import default_timer as clock
 
 
 def import_json():
@@ -37,3 +38,29 @@ def log_exception(log, reraise=False):
                     raise
         return wrapper
     return actual_decorator
+
+
+class Failures(object):
+    """Keep track of Failures."""
+    def __init__(self, initial_waiting_time):
+        """`initial_waiting_time` is in minutes."""
+        self.nb_failures = 0
+        self.last_failure = clock()
+        self.initial_waiting_time = float(initial_waiting_time)*60.0
+        self.waiting_time = self.initial_waiting_time
+
+    def fail(self):
+        """Register a new failure and return a reasonable time to wait"""
+        if self.has_failed_recently():
+            # Hopefully the golden ration will bring us luck next time
+            self.waiting_time *= 1.618
+        else:
+            # reset waiting time
+            self.waiting_time = self.initial_waiting_time
+        self.nb_failures += 1
+        self.last_failure = clock()
+        return self.waiting_time
+
+    def has_failed_recently(self, small=3600):
+        """Has it failed in the last `small` seconds?"""
+        return self.nb_failures > 0 and clock() - self.last_failure < small

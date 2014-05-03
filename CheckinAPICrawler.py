@@ -96,7 +96,7 @@ class CheckinAPICrawler(object):
                 cc.vc.logging.warn(msg)
                 res.append(None)
             else:
-                parsed = cc.parse_json_checkin(raw_checkin)
+                parsed = th.parse_json_checkin(raw_checkin)
                 checkin_info = None
                 if parsed:
                     checkin_info = (cid + '?s=' + sig, ) + parsed

@@ -4,6 +4,10 @@
 import functools
 from timeit import default_timer as clock
 import time
+import utils as u
+import pytz
+import ujson
+from datetime import datetime, timedelta
 
 
 def import_json():
@@ -76,3 +80,31 @@ class Failures(object):
     def do_sleep(self):
         """Indeed perform waiting."""
         time.sleep(self.waiting_time)
+
+
+def parse_json_checkin(json, url=None):
+    """Return salient info about a Foursquare checkin `json` that can be
+    either JSON text or already parsed as a dictionary."""
+    if not json:
+        return None
+    if not isinstance(json, dict):
+        try:
+            checkin = ujson.loads(json)
+        except (TypeError, ValueError) as not_json:
+            print(not_json, json, url)
+            return None
+    else:
+        checkin = json['checkin']
+    uid = u.get_nested(checkin, ['user', 'id'])
+    vid = u.get_nested(checkin, ['venue', 'id'])
+    time = u.get_nested(checkin, 'createdAt')
+    offset = u.get_nested(checkin, 'timeZoneOffset', 0)
+    if None in [uid, vid, time]:
+        return None
+    time = datetime.fromtimestamp(time, tz=pytz.utc)
+    # by doing this, the date is no more UTC. So why not put the correct
+    # timezone? Because in that case, pymongo will convert to UTC at
+    # insertion. Yet I want local time, but without doing the conversion
+    # when the result comes back from the DB.
+    time += timedelta(minutes=offset)
+    return int(uid), str(vid), time

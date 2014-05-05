@@ -86,8 +86,8 @@ def compare(origin, dest, knn):
     global DEST
     origin = 'barcelona' if origin not in c.SHORT_KEY else origin
     dest = 'helsinki' if dest not in c.SHORT_KEY else dest
-    ORIGIN = cn.gather_info(origin, knn, raw_features=False)
-    DEST = cn.gather_info(dest, knn, raw_features=False)
+    ORIGIN = cn.gather_info(origin, knn, raw_features=True)
+    DEST = cn.gather_info(dest, knn, raw_features=True)
     return f.render_template('cnn.html', origin=origin, dest=dest, knn=knn,
                              lbbox=c.BBOXES[origin], rbbox=c.BBOXES[dest])
 

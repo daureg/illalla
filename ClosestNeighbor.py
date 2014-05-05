@@ -24,7 +24,9 @@ for i in range(6, 15):
     FEATURES[i] += ' surrounding'
 FEATURES.extend(['activity at ' + t for t in vf.named_ticks('day', 1, 4)])
 FEATURES.append('opening')
-RESTRICTED = np.array(range(25))  # pylint: disable=E1101
+FEATURES.extend(['surrounding activity at ' + t
+                 for t in vf.named_ticks('day', 1, 4)])
+RESTRICTED = np.array(range(len(FEATURES)))  # pylint: disable=E1101
 LCATS = {}
 
 
@@ -43,7 +45,7 @@ def load_matrix(city):
         mat['v'][:, 1:3] = np.log(mat['v'][:, 1:3])
         LCATS[city] = (mat['v'][:, 5]/1e5).astype(int)
         mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
-        non_categorical = range(25)
+        non_categorical = range(len(FEATURES))
         del non_categorical[non_categorical.index(5)]
         del non_categorical[non_categorical.index(17)]
         mat['v'][:, non_categorical] = stats.zscore(mat['v'][:, non_categorical])

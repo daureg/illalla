@@ -67,7 +67,7 @@ def global_info(city):
     global TOP_CATS
     TOP_CATS = p.load_var('top_cats')
     svenues = s.Surrounding(DB.venue, {'city': city}, ['cat', 'cats'], lvenues)
-    scheckins = s.Surrounding(DB.checkin, {'city': city}, [], lcheckins)
+    scheckins = s.Surrounding(DB.checkin, {'city': city}, ['time'], lcheckins)
     sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city},
                             ['venue'], lphotos)
     surroundings = [svenues, scheckins, sphotos]
@@ -92,21 +92,23 @@ def describe_city(city):
     print("Chosen {} venues in {}.".format(len(chosen), city))
     info, _ = venues_info(chosen, visits, visitors, density, depth=1,
                           tags_freq=False)
-    numeric = np.zeros((len(info), 25), dtype=np.float32)
+    numeric = np.zeros((len(info), 31), dtype=np.float32)
     numeric[:, :5] = np.array([info['likes'], info['users'], info['checkins'],
                                info['H'], info['Den']]).T
     numeric[:, 5] = [1e5 * CATS.index(c) for c in info['cat']]
     numeric[:, 24] = np.array(info['Ht'])
     for idx, vid in enumerate(info.index):
-        cat, focus, ratio = full_surrounding(vid, lvenues, lphotos, lcheckins,
-                                             svenues, scheckins, sphotos, city)
+        surrounding = full_surrounding(vid, lvenues, lphotos, lcheckins,
+                                       svenues, scheckins, sphotos, city)
+        cat, focus, ratio, around_visits = surrounding
         numeric[idx, 6:15] = cat
         numeric[idx, 15] = focus
         numeric[idx, 16] = ratio
         own_visits = visits[vid]
         numeric[idx, 17] = is_week_end_place(own_visits)
         daily_visits = xp.aggregate_visits(own_visits, 1, 4)[0]
-        numeric[idx, 18:] = xp.to_frequency(daily_visits)
+        numeric[idx, 18:24] = xp.to_frequency(daily_visits)
+        numeric[idx, 25:31] = xp.to_frequency(around_visits)
     sio.savemat(city+'_fv', {'v': numeric, 'c': categories,
                              'i': np.array(list(info.index)),
                              'stat': [nb_visitors]}, do_compression=True)
@@ -198,10 +200,13 @@ def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
     center = vmapping[vid]
     pids, infos = sphotos.around(center, radius)
     pvenue = infos[0]
-    cids, _ = scheckins.around(center, radius)
+    cids, infos = scheckins.around(center, radius)
+    ptime = infos[0]
     focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
-    photogeny = photo_ratio(center, pids, cids, radius, pmapping, cmapping)
-    return cat_distrib, focus, photogeny
+    photogeny, c_smoothed = photo_ratio(center, pids, cids, radius, pmapping,
+                                        cmapping)
+    surround_visits = xp.aggregate_visits(ptime, 1, 4, c_smoothed)[0]
+    return cat_distrib, focus, photogeny, surround_visits
 
 
 def photo_focus(vid, center, pids, pvenue, radius, mapping):
@@ -226,7 +231,7 @@ def photo_ratio(center, pids, cids, radius, pmapping, cmapping):
     c_smoothed = smoothed_location(cids, center, radius, None, cmapping)
     # sum of c_smoothed ≠ 0 because for the venue to exist, there must be some
     # checkins around.
-    return np.sum(p_smoothed)/np.sum(c_smoothed)
+    return np.sum(p_smoothed)/np.sum(c_smoothed), c_smoothed
 
 
 def is_week_end_place(place_visits):
@@ -387,4 +392,4 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
-    # describe_city(city)
+    describe_city(city)

@@ -201,11 +201,16 @@ def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
     pids, infos = sphotos.around(center, radius)
     pvenue = infos[0]
     cids, infos = scheckins.around(center, radius)
-    ptime = infos[0]
+    ctime = infos[0]
     focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
     photogeny, c_smoothed = photo_ratio(center, pids, cids, radius, pmapping,
                                         cmapping)
-    surround_visits = xp.aggregate_visits(ptime, 1, 4, c_smoothed)[0]
+    if len(ctime) < 5:
+        print(vid + ' is anomalous.')
+    if len(ctime) == 0:
+        surround_visits = np.ones(6)
+    else:
+        surround_visits = xp.aggregate_visits(ctime, 1, 4, c_smoothed)[0]
     return cat_distrib, focus, photogeny, surround_visits
 
 

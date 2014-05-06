@@ -15,7 +15,7 @@ XPATH_QUERY = '//*[@id="container"]/div/div[2]/div[2]/div[2]/ul'
 from collections import namedtuple
 from api_keys import FOURSQUARE_ID as CLIENT_ID
 from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
-from read_foursquare import obtain_tree, find_town
+from twitter_helper import obtain_tree, find_town
 CITIES_TREE = obtain_tree()
 
 # https://developer.foursquare.com/docs/responses/venue
@@ -91,7 +91,7 @@ def venue_profile(venue):
     shortUrl = venue['shortUrl']
     canonicalUrl = venue['canonicalUrl']
     likers, likes = get_list_of('likes', venue)
-    closed = None if not 'closed' in venue else venue['closed']
+    closed = None if 'closed' not in venue else venue['closed']
 
     return Venue(vid, name, loc, cats, cat, checkinsCount, usersCount,
                  tipCount, hours, price, rating, createdAt, mayor, tags,

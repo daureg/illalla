@@ -11,8 +11,9 @@ import VenueFeature as vf
 import pandas as pd
 import matplotlib.colors as mcolor
 import matplotlib as mpl
-import scipy.stats as stats
+from scipy.stats import zscore
 import random as rd
+import persistent as p
 from collections import namedtuple
 LOOP = namedtuple('Loop', 'path dst size')
 
@@ -42,13 +43,15 @@ def load_matrix(city):
     # pylint: disable=E1101
     if filename.endswith('_fv.mat'):
         # we loaded the raw features, which need preprocessing
-        mat['v'][:, 1:3] = np.log(mat['v'][:, 1:3])
+        mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
+        is_inf = np.isinf(mat['v'][:, 0])
+        mat['v'][is_inf, 0] = 0.0
         LCATS[city] = (mat['v'][:, 5]/1e5).astype(int)
         mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
         non_categorical = range(len(FEATURES))
         del non_categorical[non_categorical.index(5)]
         del non_categorical[non_categorical.index(17)]
-        mat['v'][:, non_categorical] = stats.zscore(mat['v'][:, non_categorical])
+        mat['v'][:, non_categorical] = zscore(mat['v'][:, non_categorical])
     elif filename.endswith('_embed.mat'):
         # add a blank category feature
         mat['v'] = np.insert(mat['v'], 5, values=0, axis=1)
@@ -180,40 +183,76 @@ def loop_over_city(origin, dest):
                                                            ratio, average))
     return res, 100.0*sum(matched_cat)/sum(nb_venues), output
 
+
+def brand_awareness(brand, src, dst):
+    """For all venues of brand `brand` in `src`, return the position of the
+    first matching venue of the same brand in `dst`, along with a score
+    between 0 (best) and 1 (worst)."""
+    res = []
+    src_venues = p.load_var('{}_{}'.format(src['city'], brand))
+    dst_venues = p.load_var('{}_{}'.format(dst['city'], brand))
+    among = 0
+    for venue in src_venues:
+        pos, among = find_first(venue, src, dst, dst_venues)
+        res.append(pos)
+    chance = among/len(dst_venues)
+    # pylint: disable=E1101
+    return res, np.interp(res, [0, chance, 2*chance, among], [.0, .35, .8, 1])
+
+
+def find_first(vid, origin, dest, candidate):
+    """Match `vid` from `origin` to `dest` and return the rank of the first
+    answer that belongs to `candidate`."""
+    _, ids, _, _, among = find_closest(vid, origin, dest)
+    for pos, res_id in enumerate(ids):
+        if res_id in candidate:
+            return pos, among
+    return among, among
+
 SEED = 1234
 if __name__ == '__main__':
     # pylint: disable=C0103
+    brands = ["mcdonald's", 'starbucks']
+    # raise Exception
     args = arguments.two_cities().parse_args()
     # db, client = cm.connect_to_db('foursquare', args.host, args.port)
     import scipy.io as sio
-    learned = sio.loadmat('allthree_A.mat')['A']
+    learned = sio.loadmat('allthree_A_30.mat')['A']
     # pylint: disable=E1101
     learned = np.insert(learned, 5, values=0, axis=1)
     learned = np.insert(learned, 5, values=0, axis=0)
     learned[5, 5] = 1.0
     extract = lambda r, i: np.array([one for cats_r in r.itervalues()
                                      for one in cats_r[i]])
-    for seed in range(85, 92):
+    br_res = [{brand: [] for brand in brands}
+              for method in ['euc', 'random', 'itml', 'lmnn']]
+    res_br = [{brand: [] for brand in brands}
+              for method in ['euc', 'random', 'itml', 'lmnn']]
+    for seed in range(87, 88):
         SEED = seed
         np.random.seed(SEED)
-        random_diag = np.diag((22*np.random.random((1, 25))+0.5).ravel())
+        random_diag = np.diag((22*np.random.random((1, 31))+0.5).ravel())
         mats = [None, random_diag, learned, None]
         three = []
         for idx, mat in enumerate(mats):
             raw = idx < 3
-            left = gather_info(args.origin, knn=1, mat=mat, raw_features=raw)
-            right = gather_info(args.dest, knn=1, mat=mat, raw_features=raw)
-            numres, match, txtres = loop_over_city(left, right)
-            three.append(numres)
-            print(idx, match)
+            left = gather_info(args.origin, knn=350, mat=mat, raw_features=raw)
+            right = gather_info(args.dest, knn=350, mat=mat, raw_features=raw)
+            for brand in brands:
+                print(seed, idx, brand)
+                br_res[idx][brand] = brand_awareness(brand, left, right)
+                res_br[idx][brand] = brand_awareness(brand, right, left)
+            # numres, match, txtres = loop_over_city(left, right)
+            # three.append(numres)
+            # print(idx, match)
             # outfile = '{}_{}_{}.res'.format(args.origin, args.dest, idx)
             # with open(outfile, 'w') as f:
             #     f.write('\n'.join(txtres))
-        rnd = extract(three[0], 0)-extract(three[1], 0)
-        itml = extract(three[0], 0)-extract(three[2], 0)
-        lmnn = extract(three[0], 0)-extract(three[3], 0)
-        print(2000*np.sum(lmnn[np.argsort(lmnn)[1:]]) -
-              2000*np.sum(rnd[np.argsort(rnd)[1:]]))
+        # rnd = extract(three[0], 0)-extract(three[1], 0)
+        # itml = extract(three[0], 0)-extract(three[2], 0)
+        # lmnn = extract(three[0], 0)-extract(three[3], 0)
+        # print(2000*np.sum(lmnn[np.argsort(lmnn)[1:]]) -
+        #       2000*np.sum(rnd[np.argsort(rnd)[1:]]))
     # for venue in rd.sample(left['index'], 5):
     #     print(make_loop(venue, left, right))
     # mat = np.eye(matrix['v'].shape[1]) if mat is None else mat

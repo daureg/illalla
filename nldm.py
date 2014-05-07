@@ -13,15 +13,16 @@ import prettyplotlib as ppl
 import matplotlib as mpl
 from sklearn import manifold, decomposition  # , datasets
 import calc_tsne
+import scipy.io as sio
 
 
 def plot_embedding(figure, index, method, run_time, data, classes, dimension):
     """Scatter subplot `data` with colors corresponding to `classes` on
     `figure` at position `index` in `dimension`D. Title is made of `method`
     and `run_time`."""
-    common = dict(c=classes, cmap=mpl.cm.Spectral, alpha=0.85)
+    common = dict(c=classes, cmap=mpl.cm.Spectral, alpha=0.8, s=45)
     if dimension == 2:
-        axe = figure.add_subplot(5, 3, 1 + index)
+        axe = figure.add_subplot(1, 1, 1 + index)
         ppl.scatter(data[:, 0], data[:, 1], **common)
     elif dimension == 3:
         axe = figure.add_subplot(5, 3, 1 + index, projection="3d")
@@ -71,7 +72,7 @@ def choose_manifold_method(method, n_components, n_neighbors):
         return manifold.SpectralEmbedding(n_components=n_components,
                                           n_neighbors=n_neighbors)
     elif method == 't-sne':
-        return calc_tsne.tSNE(n_components)
+        return calc_tsne.tSNE(n_components, perplexity=18, theta=0.3)
     raise ValueError('{} is not a known method'.format(method))
 
 
@@ -87,13 +88,30 @@ def compute_embedding(high, method, n_components=2, n_neighbors=None):
     lower = projector.fit_transform(high)
     return lower, time() - start
 
+
 if __name__ == '__main__':
     from timeit import default_timer as time
     from ClosestNeighbor import load_matrix
+    import numpy as np
     # pylint: disable=C0103
     city = sys.argv[1].strip().lower()
     nb_dim = 2 if len(sys.argv) <= 2 else int(sys.argv[2])
-    features = load_matrix(city)['v']
+    features = None
+    origin = None
+    cities = ['helsinki', 'stockholm', 'prague', 'paris', 'barcelona',
+              # 'moscow', 'helsinki'
+              # 'rome', 'berlin', 'amsterdam',
+              ]
+    for idx, city in enumerate(cities):
+        mat = load_matrix(city)['v']
+        coming_from = float(idx)*np.ones((1, mat.shape[0])).ravel()
+        if features is not None:
+            features = np.vstack([features, mat])
+            origin = np.hstack([origin, coming_from]).ravel()
+        else:
+            features = mat
+            origin = coming_from
+    # features = load_matrix(city)['v']
     features[:, 5] = features[:, 5] / 8e5
     cats = (8*features[:, 5]).astype(int)
     Axes3D
@@ -102,22 +120,30 @@ if __name__ == '__main__':
     # features, cats = datasets.samples_generator.make_swiss_roll(n_points,
     #                                                             noise=0.1,
     #                                                           random_state=0)
-    fig = plt.figure(figsize=(34, 38))
-    title = "{} venues of {} projected to {} dimensions"
-    title = title.format(features.shape[0], city.title(), nb_dim)
-    print(title)
-    plt.suptitle(title, fontsize=14)
+    # fig = plt.figure(figsize=(25, 18))
+    # title = "{} venues of {} projected to {} dimensions"
+    # title = title.format(features.shape[0], city.title(), nb_dim)
+    # print(title)
+    # plt.suptitle(title, fontsize=14)
     # ax = fig.add_subplot(241, projection='3d')
     # plt.scatter(X[:, 0], X[:, 1], X[:, 2], c=color, cmap=mpl.cm.Spectral)
 
     methods = ['Standard', 'LTSA', 'Hessian', 'Modified', 'Isomap', 'MDS',
                'Spectral', 't-SNE', 'PCA', 'Randomized PCA', 'Kernel PCA',
                'Sparse PCA', 'SVD', 'Factor Analysis', 'ICA']
+    methods = ['t-SNE']
 
-    for i, method in enumerate(methods):
-        reduced, how_long = compute_embedding(features, method, nb_dim)
-        plot_embedding(fig, i, method, how_long, reduced, cats, nb_dim)
-        print("{}: {:.2g} sec".format(method, how_long))
-    outfile = '{}_DR_{}.png'.format(city, nb_dim)
-    plt.savefig(outfile, frameon=False, bbox_inches='tight',
-                pad_inches=0.05)
+    # for i, method in enumerate(methods):
+    #     reduced, how_long = compute_embedding(features, method, nb_dim)
+    #     sio.savemat('tsne_'+city, {'cl': cats, 'data': reduced})
+    #     plot_embedding(fig, i, method, how_long, reduced, cats, nb_dim)
+    #     print("{}: {:.3f} sec".format(method, how_long))
+    # outfile = '{}_DR_{}.png'.format(city, nb_dim)
+    # plt.savefig(outfile, frameon=False, bbox_inches='tight',
+    #             pad_inches=0.05)
+    city_name = np.array(map(lambda x: cities[int(x)], origin))
+    reduced, how_long = compute_embedding(features, 't-SNE', 2)
+    to_export = np.hstack([reduced, cats.reshape((reduced.shape[0], 1)),
+                           city_name.reshape((reduced.shape[0], 1))])
+    np.savetxt('EU.tsv', to_export, comments='', delimiter='\t', fmt='%s',
+               header='posx posy cat city'.replace(' ', '\t'))

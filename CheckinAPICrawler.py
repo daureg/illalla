@@ -91,7 +91,12 @@ class CheckinAPICrawler(object):
             if not cid:
                 res.append(None)
                 continue
-            raw_checkin = raw_checkins.next()
+            try:
+                raw_checkin = raw_checkins.next()
+            except foursquare.ServerError as oops:
+                logging.exception('error in getting next checkin')
+                logging.warn('status' in str(oops))
+                raise
             if isinstance(raw_checkin, foursquare.FoursquareException):
                 msg = 'Weird id: {}?s={}\n{}'.format(cid, sig,
                                                      str(raw_checkin))

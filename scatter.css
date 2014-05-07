@@ -1,0 +1,30 @@
+* {
+    margin: 0;
+    padding: 0
+}
+html {
+    width: 100%;
+    height: 100%;
+}
+.tick {display: none;}
+.axis path,
+.axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+}
+svg {
+    font: 10pt sans-serif;
+    shape-rendering: crispEdges;
+}
+
+rect {
+    fill: #111;
+}
+.legend text {fill: #eee;}
+.dot {
+    stroke: none;
+}
+.circle {border-radius: 4px;}
+#info {width:100%; text-align:center; max-height: 1.2em; height: 1.2em;}
+#info span {text-decoration: underline; cursor: pointer;}

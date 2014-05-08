@@ -9,12 +9,16 @@ cl1=[0 0 1 1];
 cl2=[0 0 0 1 1 1];
 cl1 = rand(1, n) > .6;
 cl2 = rand(1, m) > .6;
-load('tsne_barcelona.mat')
-cl1 = cl;
-c1 = data;
-load('tsne_helsinki.mat')
-cl2 = cl;
-c2 = data;
+c1 = [normrnd(1, .3, n, 2); normrnd(-1, .3, n, 2)];
+cl1 = [zeros(1, n) ones(1, n)];
+c2 = [normrnd(-1, .3, m, 1) normrnd(1, .3, m, 1); normrnd(1, .3, m, 1) normrnd(-1, .3, m, 1)];
+cl2 = [zeros(1, m) ones(1, m)];
+% load('tsne_barcelona.mat')
+% cl1 = cl;
+% c1 = data;
+% load('tsne_helsinki.mat')
+% cl2 = cl;
+% c2 = data;
 % cl1 = not(cl2);
 K=numel(unique(cl2));
 % D=2;
@@ -33,6 +37,7 @@ Aineq = zeros(2, 9);
 Aineq(1, 1) = -1;
 Aineq(2, 5) = -1;
 bineq = [ -.65*enlarge(1, 1) -.65*enlarge(2, 2)];
+Aineq = []; bineq = [];
 Aeq = zeros(3, 9);
 Aeq(1:3, 7:9) = eye(3);
 % Aeq(4, [1 2 4 5]) = -1;
@@ -46,6 +51,6 @@ toc
 % save('align', 'A');
 nA=reshape(x, 3, 3)
 pc(cl1, P, 'r')
-% hold on; pc(cl2, Q, 'b')
+hold on; pc(cl2, Q, 'b')
 enlarge = max(0, getext(P)./getext(nA*Q));
 hold on; pc(cl2, enlarge*nA*Q, 'g')

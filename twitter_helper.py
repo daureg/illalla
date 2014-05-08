@@ -3,14 +3,57 @@
 """Functions used in twitter scrapper main code."""
 import functools
 from timeit import default_timer as clock
-import time
+from time import sleep
 import utils as u
+import cities
 import pytz
 import ujson
+import logging
 from datetime import datetime, timedelta
 import re
 CHECKIN_URL = re.compile(r'([0-9a-f]{24})\?s=([0-9A-Za-z_-]{27})')
 from collections import namedtuple
+import locale
+locale.setlocale(locale.LC_ALL, 'C')  # to parse date
+UTC_DATE = '%a %b %d %X +0000 %Y'
+FullCheckIn = namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
+                                         'time', 'tid', 'tuid', 'msg'])
+
+
+def parse_tweet(tweet):
+    """Return a CheckIn from `tweet` or None if it is not located in a valid
+    city"""
+    loc = u.get_nested(tweet, 'coordinates')
+    city = None
+    if not loc:
+        # In that case, we would have to follow the link to know whether the
+        # checkin falls within our cities but that's too costly so we drop it
+        # (and introduce a bias toward open sharing users I guess)
+        return None
+    lon, lat = loc['coordinates']
+    city = find_town(lat, lon, CITIES_TREE)
+    if not (city and city in cities.SHORT_KEY):
+        return None
+    tid = u.get_nested(tweet, 'id_str')
+    urls = u.get_nested(tweet, ['entities', 'urls'], [])
+    # short url of the checkin that need to be expand, either using bitly API
+    # or by VenueIdCrawler. Once we get the full URL, we still need to request
+    # 4SQ (500 per hours) to get info (or look at page body, which contains the
+    # full checkin in a javascript field)
+    fsq_urls = [url['expanded_url'] for url in urls
+                if '4sq.com' in url['expanded_url']]
+    if not fsq_urls:
+        return None
+    lid = str(fsq_urls[0])
+    uid = u.get_nested(tweet, ['user', 'id_str'])
+    msg = u.get_nested(tweet, 'text')
+    try:
+        time = datetime.strptime(tweet['created_at'], UTC_DATE)
+        time = cities.utc_to_local(city, time)
+    except ValueError:
+        print('time: {}'.format(tweet['created_at']))
+        return None
+    return FullCheckIn('', lid, '', city, loc, time, tid, uid, msg)
 
 
 def import_json():
@@ -82,7 +125,7 @@ class Failures(object):
 
     def do_sleep(self):
         """Indeed perform waiting."""
-        time.sleep(self.waiting_time)
+        sleep(self.waiting_time)
 
 
 def parse_json_checkin(json, url=None):
@@ -113,10 +156,29 @@ def parse_json_checkin(json, url=None):
     return int(uid), str(vid), time
 
 
+def save_checkins_json(complete, prefix='tweets'):
+    """Save `complete` as JSON in a file."""
+    now = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = '{}_{}.json'.format(prefix, now)
+    msg = 'Save {} tweets in {}.'.format(len(complete), filename)
+    try:
+        for idx, checkin in enumerate(complete):
+            fmt_time = checkin['time'].strftime('%Y-%m-%dT%H:%M:%SZ')
+            complete[idx]['time'] = {'$date': fmt_time}
+        with open(filename, 'w') as out:
+            out.write(ujson.dumps(complete, ensure_ascii=False).replace('\/',
+                                                                        '/'))
+            logging.info(msg)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except:
+        msg = "Fail to save {} tweets.".format(len(complete))
+        logging.exception(msg)
+
+
 Point = namedtuple('Point', ['x', 'y'])
 Node = namedtuple('Node', ['val', 'left', 'right'])
 from numpy import median
-import cities
 
 
 def build_tree(bboxes, depth=0, max_depth=2):
@@ -171,3 +233,4 @@ def obtain_tree():
     bboxes = [Bbox(city, name) for city, name in zip(all_cities,
                                                      cities_names)]
     return build_tree(bboxes)
+CITIES_TREE = obtain_tree()

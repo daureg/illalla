@@ -3,7 +3,6 @@
 """Retrieve checkins tweets"""
 from timeit import default_timer as clock
 from time import sleep
-from datetime import datetime
 import TwitterAPI as twitter
 from api_keys import TWITTER_CONSUMER_KEY as consumer_key
 from api_keys import TWITTER_CONSUMER_SECRET as consumer_secret
@@ -21,16 +20,8 @@ else:
     json = th.import_json()
 import CheckinAPICrawler as cac
 CRAWLER = cac.CheckinAPICrawler()
-CITIES_TREE = th.obtain_tree()
 from Queue import Queue
 from threading import Thread
-from utils import get_nested
-import cities
-import locale
-locale.setlocale(locale.LC_ALL, 'C')  # to parse date
-UTC_DATE = '%a %b %d %X +0000 %Y'
-FullCheckIn = th.namedtuple('FullCheckIn', ['id', 'lid', 'uid', 'city', 'loc',
-                                            'time', 'tid', 'tuid', 'msg'])
 # the size of mongo bulk insert, in multiple of pool size
 INSERT_SIZE = 7
 CHECKINS_QUEUE = Queue((INSERT_SIZE+3)*cac.BITLY_SIZE)
@@ -39,42 +30,6 @@ CHECKINS_QUEUE = Queue((INSERT_SIZE+3)*cac.BITLY_SIZE)
 # seen so far
 NB_TWEETS = 0
 NUM_VALID = 0
-
-
-def parse_tweet(tweet):
-    """Return a CheckIn from `tweet` or None if it is not located in a valid
-    city"""
-    loc = get_nested(tweet, 'coordinates')
-    city = None
-    if not loc:
-        # In that case, we would have to follow the link to know whether the
-        # checkin falls within our cities but that's too costly so we drop it
-        # (and introduce a bias toward open sharing users I guess)
-        return None
-    lon, lat = loc['coordinates']
-    city = th.find_town(lat, lon, CITIES_TREE)
-    if not (city and city in cities.SHORT_KEY):
-        return None
-    tid = get_nested(tweet, 'id_str')
-    urls = get_nested(tweet, ['entities', 'urls'], [])
-    # short url of the checkin that need to be expand, either using bitly API
-    # or by VenueIdCrawler. Once we get the full URL, we still need to request
-    # 4SQ (500 per hours) to get info (or look at page body, which contains the
-    # full checkin in a javascript field)
-    fsq_urls = [url['expanded_url'] for url in urls
-                if '4sq.com' in url['expanded_url']]
-    if not fsq_urls:
-        return None
-    lid = str(fsq_urls[0])
-    uid = get_nested(tweet, ['user', 'id_str'])
-    msg = get_nested(tweet, 'text')
-    try:
-        time = datetime.strptime(tweet['created_at'], UTC_DATE)
-        time = cities.utc_to_local(city, time)
-    except ValueError:
-        print('time: {}'.format(tweet['created_at']))
-        return None
-    return FullCheckIn('', lid, '', city, loc, time, tid, uid, msg)
 
 
 def post_process(checkins):
@@ -141,26 +96,6 @@ def save_checkins_mongo(complete):
         print(err, err.code)
 
 
-def save_checkins_json(complete):
-    """Save `complete` as JSON in a file."""
-    now = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = 'tweets_{}.json'.format(now)
-    msg = 'Save {} tweets in {}.'.format(len(complete), filename)
-    try:
-        for idx, checkin in enumerate(complete):
-            fmt_time = checkin['time'].strftime('%Y-%m-%dT%H:%M:%SZ')
-            complete[idx]['time'] = {'$date': fmt_time}
-        with open(filename, 'w') as out:
-            out.write(json.dumps(complete, ensure_ascii=False).replace('\/',
-                                                                       '/'))
-            cac.logging.info(msg)
-    except (KeyboardInterrupt, SystemExit):
-        raise
-    except:
-        msg = "Fail to save {} tweets.".format(len(complete))
-        cac.logging.exception(msg)
-
-
 def read_twitter_stream(client, end, logging_step=60):
     """Iterate over tweets and put those matched by parse_tweet in a queue,
     until current time is more than `end`. Log info every `logging_step` new
@@ -170,15 +105,15 @@ def read_twitter_stream(client, end, logging_step=60):
     new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
     nb_cand = 0
     for item in req.get_iterator():
-        candidate = parse_tweet(item)
+        candidate = th.parse_tweet(item)
         NB_TWEETS += 1
         if candidate:
             CHECKINS_QUEUE.put_nowait(candidate)
             nb_cand += 1
             if nb_cand % logging_step == 0:
                 cac.logging.info(new_tweet.format(candidate.tid,
-                                                        nb_cand, NB_TWEETS,
-                                                        end - clock()))
+                                                  nb_cand, NB_TWEETS,
+                                                  end - clock()))
             if clock() >= end:
                 CHECKINS_QUEUE.put_nowait(None)
                 break
@@ -190,7 +125,7 @@ if __name__ == '__main__':
                                  ('lid', cm.pymongo.ASCENDING),
                                  ('city', cm.pymongo.ASCENDING),
                                  ('time', cm.pymongo.ASCENDING)])
-    SAVE = save_checkins_mongo if ARGS.mongodb else save_checkins_json
+    SAVE = save_checkins_mongo if ARGS.mongodb else th.save_checkins_json
     api = twitter.TwitterAPI(consumer_key, consumer_secret,
                              access_token, access_secret)
     accu = Thread(target=accumulate_checkins, name='AccumulateCheckins')
@@ -221,5 +156,5 @@ if __name__ == '__main__':
 
     CHECKINS_QUEUE.join()
     report = 'insert {} valid checkins in {:.2f}s (out of {}).'
-    cac.logging.info(report.format(NUM_VALID, clock() - start, NB_TWEETS))
-    sleep(10)
+    print(report.format(NUM_VALID, clock() - start, NB_TWEETS))
+    sleep(1)

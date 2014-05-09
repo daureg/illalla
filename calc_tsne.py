@@ -50,7 +50,7 @@ class tSNE(object):
 
     def fit_transform(self, data):
         return bh_tsne(data, self.perplexity, self.theta, self.n_components,
-                       False)
+                       True)
 
 
 class TmpDir(object):
@@ -92,7 +92,7 @@ def bh_tsne(samples, perplexity=DEFAULT_PERPLEXITY, theta=DEFAULT_THETA,
         with open('/dev/null', 'w') as dev_null:
             # bh_tsne is very noisy on stdout, tell it to use stderr if it is
             # to print any output
-            output = sys.stderr if verbose else dev_null
+            output = sys.stdout if verbose else dev_null
             binary = os.path.abspath(BH_TSNE_BIN_PATH)
             args = shlex.split('{} {}'.format(binary, out_dims))
             try:

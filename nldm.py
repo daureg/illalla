@@ -89,6 +89,36 @@ def compute_embedding(high, method, n_components=2, n_neighbors=None):
     return lower, time() - start
 
 
+def join_cities(cities):
+    """Concatenate matrix for all `cities` but keep track from which city each
+    point come from."""
+    features = None
+    for idx, city in enumerate(cities):
+        mat = load_matrix(city)['v']
+        coming_from = idx*np.ones((1, mat.shape[0])).ravel()
+        if features is not None:
+            features = np.vstack([features, mat])
+            origin = np.hstack([origin, coming_from]).ravel()
+        else:
+            features = mat
+            origin = coming_from
+    return features, origin
+
+
+def split_cities(cities, reduced, origin, features):
+    """Save a 2d representation (given by `reduced`) from each city of
+    `cities`."""
+    for idx, city in enumerate(cities):
+        autochthons = origin == idx
+        original = sio.loadmat(city+'_fv')
+        coords = reduced[autochthons, :]
+        cats = features[autochthons, 5] * 8e5
+        newv = np.hstack([coords, coords, cats.reshape((coords.shape[0], 1))])
+        sio.savemat(city+'_tsne', {'i': original['i'],
+                                   'c': original['c'],
+                                   'stat': original['stat'],
+                                   'v': newv})
+
 if __name__ == '__main__':
     from timeit import default_timer as time
     from ClosestNeighbor import load_matrix
@@ -98,22 +128,21 @@ if __name__ == '__main__':
     nb_dim = 2 if len(sys.argv) <= 2 else int(sys.argv[2])
     features = None
     origin = None
-    cities = ['helsinki', 'stockholm', 'prague', 'paris', 'barcelona',
-              # 'moscow', 'helsinki'
+    cities = [
+              # 'moscow', 'helsinki', 'stockholm', 'prague', 'paris',
+              # 'barcelona', 'amsterdam'
+                # 'berlin', 'rome'
+        'helsinki', 'stockholm'
+        # 'helsinki',
+              # 'stockholm', 'prague', 'paris', 'barcelona', 'rome', 'berlin'
               # 'rome', 'berlin', 'amsterdam',
               ]
-    for idx, city in enumerate(cities):
-        mat = load_matrix(city)['v']
-        coming_from = float(idx)*np.ones((1, mat.shape[0])).ravel()
-        if features is not None:
-            features = np.vstack([features, mat])
-            origin = np.hstack([origin, coming_from]).ravel()
-        else:
-            features = mat
-            origin = coming_from
+    features, origin = join_cities(cities)
     # features = load_matrix(city)['v']
     features[:, 5] = features[:, 5] / 8e5
     cats = (8*features[:, 5]).astype(int)
+    features[:, 5] *= 0.0
+    print(np.sum(features[:, 5]))
     Axes3D
     # n_points = 300
     # X, color = datasets.samples_generator.make_s_curve(n_points,
@@ -141,9 +170,10 @@ if __name__ == '__main__':
     # outfile = '{}_DR_{}.png'.format(city, nb_dim)
     # plt.savefig(outfile, frameon=False, bbox_inches='tight',
     #             pad_inches=0.05)
-    city_name = np.array(map(lambda x: cities[int(x)], origin))
     reduced, how_long = compute_embedding(features, 't-SNE', 2)
+    split_cities(cities, reduced, origin, features)
+    city_name = np.array(map(lambda x: cities[int(x)], origin))
     to_export = np.hstack([reduced, cats.reshape((reduced.shape[0], 1)),
                            city_name.reshape((reduced.shape[0], 1))])
-    np.savetxt('EU.tsv', to_export, comments='', delimiter='\t', fmt='%s',
+    np.savetxt('hs.tsv', to_export, comments='', delimiter='\t', fmt='%s',
                header='posx posy cat city'.replace(' ', '\t'))

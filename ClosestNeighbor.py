@@ -192,8 +192,8 @@ def brand_awareness(brand, src, dst):
     first matching venue of the same brand in `dst`, along with a score
     between 0 (best) and 1 (worst)."""
     res = []
-    src_venues = p.load_var('{}_{}'.format(src['city'], brand))
-    dst_venues = p.load_var('{}_{}'.format(dst['city'], brand))
+    src_venues = p.load_var('{}_{}.my'.format(src['city'], brand))
+    dst_venues = p.load_var('{}_{}.my'.format(dst['city'], brand))
     among = 0
     for venue in src_venues:
         pos, among = find_first(venue, src, dst, dst_venues)

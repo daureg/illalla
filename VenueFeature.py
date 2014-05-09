@@ -380,8 +380,6 @@ def get_distorsion(ak, kl, sval):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    import doctest
-    doctest.testmod()
     import arguments
     args = arguments.city_parser().parse_args()
     city = args.city

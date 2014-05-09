@@ -230,12 +230,12 @@ def photo_focus(vid, center, pids, pvenue, radius, mapping):
 
 
 def photo_ratio(center, pids, cids, radius, pmapping, cmapping):
-    """Return log(nb_photos/nb_checkins) around `vid`, weighted by
-    Gaussian."""
+    """Return nb_photos/nb_checkins around `vid`, weighted by Gaussian."""
     p_smoothed = smoothed_location(pids, center, radius, None, pmapping)
     c_smoothed = smoothed_location(cids, center, radius, None, cmapping)
     # sum of c_smoothed ≠ 0 because for the venue to exist, there must be some
-    # checkins around.
+    # checkins around. NOTE: actually, there are anomalous venues for which it
+    # is not the case
     return np.sum(p_smoothed)/np.sum(c_smoothed), c_smoothed
 
 

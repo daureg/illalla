@@ -44,13 +44,16 @@ def load_matrix(city):
     if filename.endswith('_fv.mat'):
         # we loaded the raw features, which need preprocessing
         mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
-        is_inf = np.isinf(mat['v'][:, 0])
+        is_inf = np.isinf(mat['v'][:, 0]).ravel()
         mat['v'][is_inf, 0] = 0.0
         LCATS[city] = (mat['v'][:, 5]/1e5).astype(int)
-        mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
+        # mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
         non_categorical = range(len(FEATURES))
         del non_categorical[non_categorical.index(5)]
         del non_categorical[non_categorical.index(17)]
+        weird = np.logical_or(np.isinf(mat['v'][:, 16]),
+                              np.isnan(mat['v'][:, 16])).ravel()
+        mat['v'][weird, 16] = 0.0
         mat['v'][:, non_categorical] = zscore(mat['v'][:, non_categorical])
     elif filename.endswith('_embed.mat'):
         # add a blank category feature

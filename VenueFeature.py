@@ -21,6 +21,7 @@ except ImportError:
     from _multivariate import multivariate_normal
 import re
 import string
+import persistent as p
 import Surrounding as s
 NOISE = re.compile(r'[\s'+string.punctuation+r']')
 DB = None
@@ -29,6 +30,12 @@ LEGEND = 'v^<>s*xo|8d+'
 CATS = ['Arts & Entertainment', 'College & University', 'Food',
         'Nightlife Spot', 'Outdoors & Recreation', 'Shop & Service',
         'Professional & Other Places', 'Residence', 'Travel & Transport']
+# top_cats = [top_cat.name for top_cat in CATS.sub if top_cat.name != 'Event']
+# cats2 = {sub_cat.name: int(1e5)*top_cats.index(top_cat.name)+idx+1
+#          for top_cat in CATS.sub if top_cat.name != 'Event'
+#          for idx, sub_cat in enumerate(top_cat.sub)}
+# p.save_var('cat_depth_2.my', cats2)
+CATS2 = p.load_var('cat_depth_2.my')
 TOP_CATS = {None: None}
 # TOP_CATS.update({_: parenting_cat(_)
 #                  for _ in fsc.get_subcategories('1')[1:]})
@@ -54,7 +61,6 @@ def is_event(cat_id):
 
 def global_info(city):
     """Gather global statistics about `city`."""
-    import persistent as p
     lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
     lcheckins = geo_project(city, DB.checkin.find({'city': city}, {'loc': 1}))
     lphotos = geo_project(city, CLIENT.world.photos.find({'hint': city},
@@ -90,12 +96,12 @@ def describe_city(city):
               len(np.unique(visitors.get(v['_id'], []))) > 1 and
               not is_event(v['cat'])]
     print("Chosen {} venues in {}.".format(len(chosen), city))
-    info, _ = venues_info(chosen, visits, visitors, density, depth=1,
+    info, _ = venues_info(chosen, visits, visitors, density, depth=2,
                           tags_freq=False)
     numeric = np.zeros((len(info), 31), dtype=np.float32)
     numeric[:, :5] = np.array([info['likes'], info['users'], info['checkins'],
                                info['H'], info['Den']]).T
-    numeric[:, 5] = [1e5 * CATS.index(c) for c in info['cat']]
+    numeric[:, 5] = [CATS2[c] for c in info['cat']]
     numeric[:, 24] = np.array(info['Ht'])
     for idx, vid in enumerate(info.index):
         surrounding = full_surrounding(vid, lvenues, lphotos, lcheckins,

@@ -46,7 +46,7 @@ def load_matrix(city):
         mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
         is_inf = np.isinf(mat['v'][:, 0]).ravel()
         mat['v'][is_inf, 0] = 0.0
-        LCATS[city] = (mat['v'][:, 5]/1e5).astype(int)
+        LCATS[city] = (mat['v'][:, 5]).astype(int)
         # mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
         non_categorical = range(len(FEATURES))
         del non_categorical[non_categorical.index(5)]
@@ -60,7 +60,7 @@ def load_matrix(city):
         mat['v'] = np.insert(mat['v'], 5, values=0, axis=1)
         # but still get the real one for evaluation purpose
         # tmp = vf.sio.loadmat(city+'_fv.mat')
-        # LCATS[city] = (tmp['v'][:, 5]/1e5).astype(int)
+        # LCATS[city] = (tmp['v'][:, 5]).astype(int)
     return mat
 
 

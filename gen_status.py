@@ -28,7 +28,7 @@ if __name__ == '__main__':
     checkins = foursquare.checkin
     venues = foursquare.venue
     photos = client.world.photos
-    newer = dt(2014, 1, 1)
+    newer = dt(2011, 2, 1)
     t = pt.PrettyTable()
     t.junction_char = '|'
     checkin = checkins.aggregate([{'$match': {'time': {'$lt': newer}}},

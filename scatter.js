@@ -11,7 +11,7 @@ var urlParams;
         urlParams[decode(match[1])] = decode(match[2]);
 })();
 
-var filename = urlParams.file || 'moscow_helsinki.tsv';
+var filename = urlParams.file || 'EU.tsv';
 if (filename.substr(filename.length - 4) !== '.tsv') {filename += '.tsv';}
 var ALL_CITIES = filename !== 'pbh.tsv';
 var city_state = -1,

@@ -38,9 +38,10 @@ def checkins_from_timeline(napi, user):
         try:
             tweet = timeline.next()
             # logging.info('tweet: {}'.format())
-        except (UnicodeError, UnicodeEncodeError):
-            tweet = None
-            logging.exception('Missed one tweet')
+        except tweepy.error.TweepError:
+            # For instance, 155877671 is not valid anymore
+            logging.exception('Issue with {}'.format(user))
+            break
         except StopIteration:
             # logging.exception('stop')
             break
@@ -69,7 +70,8 @@ def foursquare_rate_info(fs_client):
     from_http_header = int(fs_client.rate_remaining or '5000')
     if from_http_header > 500:
         from_http_header -= 4500
-    return cac.foursquare.MAX_MULTI_REQUESTS*from_http_header - NB_RESERVED_CALLS
+    multi_size = cac.foursquare.MAX_MULTI_REQUESTS
+    return multi_size*from_http_header - NB_RESERVED_CALLS
 
 
 def post_process(batch):
@@ -110,8 +112,13 @@ def checkins_from_user(user, napi, crawler, user_types):
     if len(checkins) > 1000:
         big.append(user)
         del checkins[:]
+    nb_wait = 0
     while len(checkins) > 0 and fs_remaining < len(checkins):
+        if nb_wait > 3:
+            big.append(user)
+            break
         sleep(6*60)
+        nb_wait += 1
         batch_size = min(5, len(checkins))
         batch = checkins[:batch_size]
         full_checkins = post_process(batch)
@@ -171,7 +178,7 @@ if __name__ == '__main__':
 
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
     auth.set_access_token(access_token, access_secret)
-    napi = tweepy.API(auth, compression=True, wait_on_rate_limit=True,
+    napi = tweepy.API(auth, compression=False, wait_on_rate_limit=True,
                       wait_on_rate_limit_notify=True)
 
     def load_list(name):

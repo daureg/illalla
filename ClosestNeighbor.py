@@ -27,7 +27,7 @@ FEATURES.extend(['activity at ' + t for t in vf.named_ticks('day', 1, 4)])
 FEATURES.append('opening')
 FEATURES.extend(['surrounding activity at ' + t
                  for t in vf.named_ticks('day', 1, 4)])
-RESTRICTED = np.array(range(len(FEATURES)))  # pylint: disable=E1101
+RESTRICTED = np.array(range(5))  # pylint: disable=E1101
 LCATS = {}
 
 
@@ -41,20 +41,24 @@ def load_matrix(city):
     #     vf.describe_city(city)
     mat = vf.sio.loadmat(filename)
     # pylint: disable=E1101
-    if filename.endswith('_fv.mat'):
+    if filename.endswith('_fv.mat') or filename.endswith('_tsne.mat'):
         # we loaded the raw features, which need preprocessing
-        mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
-        is_inf = np.isinf(mat['v'][:, 0]).ravel()
-        mat['v'][is_inf, 0] = 0.0
+        if filename.endswith('_tsne.mat'):
+            mat['v'] = np.insert(mat['v'], 4, values=0, axis=1)
+        else:
+            mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
+            is_inf = np.isinf(mat['v'][:, 0]).ravel()
+            mat['v'][is_inf, 0] = 0.0
         LCATS[city] = (mat['v'][:, 5]).astype(int)
-        # mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
-        non_categorical = range(len(FEATURES))
-        del non_categorical[non_categorical.index(5)]
-        del non_categorical[non_categorical.index(17)]
-        weird = np.logical_or(np.isinf(mat['v'][:, 16]),
-                              np.isnan(mat['v'][:, 16])).ravel()
-        mat['v'][weird, 16] = 0.0
-        mat['v'][:, non_categorical] = zscore(mat['v'][:, non_categorical])
+        mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
+        if filename.endswith('_fv.mat'):
+            non_categorical = range(len(FEATURES))
+            del non_categorical[non_categorical.index(5)]
+            del non_categorical[non_categorical.index(17)]
+            weird = np.logical_or(np.isinf(mat['v'][:, 16]),
+                                  np.isnan(mat['v'][:, 16])).ravel()
+            mat['v'][weird, 16] = 0.0
+            mat['v'][:, non_categorical] = zscore(mat['v'][:, non_categorical])
     elif filename.endswith('_embed.mat'):
         # add a blank category feature
         mat['v'] = np.insert(mat['v'], 5, values=0, axis=1)
@@ -71,7 +75,7 @@ def gather_info(city, knn=2, mat=None, raw_features=True):
         matrix = load_matrix(city)
     else:
         matrix = load_matrix('mLMNN2.5/'+city+'_embed.mat')
-    res = {'features': matrix['v'], 'city': city}
+    res = {'features': matrix['v'], 'city': city.split('_')[0]}
     for cat in range(len(vf.CATS)):
         cat *= 1e5
         mask = res['features'][:, 5] == cat
@@ -216,8 +220,8 @@ SEED = 1234
 if __name__ == '__main__':
     # pylint: disable=C0103
     brands = ["mcdonald's", 'starbucks']
-    # raise Exception
     args = arguments.two_cities().parse_args()
+    # raise Exception
     # db, client = cm.connect_to_db('foursquare', args.host, args.port)
     import scipy.io as sio
     learned = sio.loadmat('allthree_A_30.mat')['A']
@@ -227,20 +231,27 @@ if __name__ == '__main__':
     learned[5, 5] = 1.0
     extract = lambda r, i: np.array([one for cats_r in r.itervalues()
                                      for one in cats_r[i]])
-    br_res = [{brand: [] for brand in brands}
-              for method in ['euc', 'random', 'itml', 'lmnn']]
-    res_br = [{brand: [] for brand in brands}
-              for method in ['euc', 'random', 'itml', 'lmnn']]
+    metrics = ['euc', 'random', 'itml', 'lmnn', 'tsne']
+    br_res = [{brand: [] for brand in brands} for method in metrics]
+    res_br = [{brand: [] for brand in brands} for method in metrics]
     for seed in range(87, 88):
         SEED = seed
         np.random.seed(SEED)
         random_diag = np.diag((22*np.random.random((1, 31))+0.5).ravel())
-        mats = [None, random_diag, learned, None]
+        mats = [None, random_diag, learned, None, None]
         three = []
         for idx, mat in enumerate(mats):
-            raw = idx < 3
-            left = gather_info(args.origin, knn=350, mat=mat, raw_features=raw)
-            right = gather_info(args.dest, knn=350, mat=mat, raw_features=raw)
+            raw = idx != 3
+            if idx == 4:
+                suffix = '_tsne.mat'
+                RESTRICTED = np.arange(5)
+            else:
+                suffix = ''
+                RESTRICTED = np.arange(len(FEATURES))
+            left = gather_info(args.origin+suffix, knn=350, mat=mat,
+                               raw_features=raw)
+            right = gather_info(args.dest+suffix, knn=350, mat=mat,
+                                raw_features=raw)
             for brand in brands:
                 print(seed, idx, brand)
                 br_res[idx][brand] = brand_awareness(brand, left, right)

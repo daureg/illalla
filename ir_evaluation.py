@@ -12,13 +12,13 @@ def count_categories(raw_categories):
     ."""
     top_cat_to_sub = defaultdict(set)
     sub_count = defaultdict(int)
-    sub_cat_to_top = {}
+    sub_cat_to_top = {sub: top for top in range(0, 9*int(1e5), int(1e5))
+                      for sub in range(top, top+200)}
     for cat in raw_categories:
         sub_count[cat] += 1
         top_cat_id = 1000 * (cat/1000)
-        sub_cat_to_top[cat] = top_cat_id
         top_cat_to_sub[top_cat_id] |= set([cat])
-    top_count = {}
+    top_count = defaultdict(int)
     for sub_cats in top_cat_to_sub.itervalues():
         total = sum([sub_count[sub_cat] for sub_cat in sub_cats])
         for sub_cat in sub_cats:
@@ -59,6 +59,7 @@ def NDCG(gold_cat, results, cats_count, rank):
                                results))/coeff) / perfect_score(gold_cat)
 
 
+@profile
 def evaluate_by_NDCG(left, right, matching, all_categories):
     """Query all venues in `left` to and return their DCG score when
     `matching` them in `right`."""

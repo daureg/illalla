@@ -14,6 +14,7 @@ import matplotlib as mpl
 from scipy.stats import zscore
 import random as rd
 import persistent as p
+import ir_evaluation as ir
 from collections import namedtuple
 LOOP = namedtuple('Loop', 'path dst size')
 
@@ -49,7 +50,7 @@ def load_matrix(city):
             mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
             is_inf = np.isinf(mat['v'][:, 0]).ravel()
             mat['v'][is_inf, 0] = 0.0
-        LCATS[city] = (mat['v'][:, 5]).astype(int)
+        LCATS[city] = np.ceil(mat['v'][:, 5]).astype(int)
         mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
         if filename.endswith('_fv.mat'):
             non_categorical = range(len(FEATURES))
@@ -70,7 +71,7 @@ def load_matrix(city):
 
 def gather_info(city, knn=2, mat=None, raw_features=True):
     """Build KD-tree for each categories of venues in `city` that will return
-    `knn` results on subsequent call."""
+    `knn` results when called."""
     if raw_features:
         matrix = load_matrix(city)
     else:
@@ -83,9 +84,10 @@ def gather_info(city, knn=2, mat=None, raw_features=True):
         if len(venues) > 0:
             idx_subset = np.ix_(mask, RESTRICTED)  # pylint: disable=E1101
             algo = NN(knn) if mat is None else NN(knn, metric='mahalanobis',
-                                                  V=mat)
+                                                  VI=np.linalg.inv(mat))
             res[int(cat)] = (algo.fit(res['features'][idx_subset]), venues)
     res['index'] = list(matrix['i'])
+    res['knn'] = knn
     return res
 
 
@@ -234,13 +236,14 @@ if __name__ == '__main__':
     metrics = ['euc', 'random', 'itml', 'lmnn', 'tsne']
     br_res = [{brand: [] for brand in brands} for method in metrics]
     res_br = [{brand: [] for brand in brands} for method in metrics]
-    for seed in range(87, 88):
+    for seed in range(88, 89):
         SEED = seed
         np.random.seed(SEED)
         random_diag = np.diag((22*np.random.random((1, 31))+0.5).ravel())
         mats = [None, random_diag, learned, None, None]
         three = []
         for idx, mat in enumerate(mats):
+            print(metrics[idx])
             raw = idx != 3
             if idx == 4:
                 suffix = '_tsne.mat'
@@ -252,10 +255,14 @@ if __name__ == '__main__':
                                raw_features=raw)
             right = gather_info(args.dest+suffix, knn=350, mat=mat,
                                 raw_features=raw)
-            for brand in brands:
-                print(seed, idx, brand)
-                br_res[idx][brand] = brand_awareness(brand, left, right)
-                res_br[idx][brand] = brand_awareness(brand, right, left)
+            three.append(ir.evaluate_by_NDCG(left, right, find_closest, LCATS))
+            # Evaluation by brand
+            # for brand in brands:
+            #     print(seed, idx, brand)
+            #     br_res[idx][brand] = brand_awareness(brand, left, right)
+            #     res_br[idx][brand] = brand_awareness(brand, right, left)
+
+            # Evaluation by loopiness
             # numres, match, txtres = loop_over_city(left, right)
             # three.append(numres)
             # print(idx, match)
@@ -267,9 +274,6 @@ if __name__ == '__main__':
         # lmnn = extract(three[0], 0)-extract(three[3], 0)
         # print(2000*np.sum(lmnn[np.argsort(lmnn)[1:]]) -
         #       2000*np.sum(rnd[np.argsort(rnd)[1:]]))
-    # for venue in rd.sample(left['index'], 5):
-    #     print(make_loop(venue, left, right))
-    # mat = np.eye(matrix['v'].shape[1]) if mat is None else mat
 
     def explain(query, answer):
         """Explains distance between `query` and `answer` as a data frame."""

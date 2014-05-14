@@ -223,25 +223,31 @@ if __name__ == '__main__':
     # pylint: disable=C0103
     brands = ["mcdonald's", 'starbucks']
     args = arguments.two_cities().parse_args()
+    # mat, raw, suffix = None, True, ''
+    # left = gather_info(args.origin+suffix, 350, mat, raw)
+    # right = gather_info(args.dest+suffix, 350, mat, raw)
+    # ir.evaluate_by_NDCG(left, right, find_closest, LCATS, mat)
     # raise Exception
     # db, client = cm.connect_to_db('foursquare', args.host, args.port)
     import scipy.io as sio
-    learned = sio.loadmat('allthree_A_30.mat')['A']
+    learned = sio.loadmat('allthree_A_30_2.mat')['A']
     # pylint: disable=E1101
     learned = np.insert(learned, 5, values=0, axis=1)
     learned = np.insert(learned, 5, values=0, axis=0)
     learned[5, 5] = 1.0
     extract = lambda r, i: np.array([one for cats_r in r.itervalues()
                                      for one in cats_r[i]])
-    metrics = ['euc', 'random', 'itml', 'lmnn', 'tsne']
+    metrics = ['Euclidean', 'Random Diagonal', 'ITML', 'GB-LMNN', '2D t-SNE',
+               'Random ordering']
     br_res = [{brand: [] for brand in brands} for method in metrics]
     res_br = [{brand: [] for brand in brands} for method in metrics]
     for seed in range(88, 89):
         SEED = seed
         np.random.seed(SEED)
         random_diag = np.diag((22*np.random.random((1, 31))+0.5).ravel())
-        mats = [None, random_diag, learned, None, None]
+        mats = [None, random_diag, learned, None, None, None]
         three = []
+        four = []
         for idx, mat in enumerate(mats):
             print(metrics[idx])
             raw = idx != 3
@@ -251,11 +257,13 @@ if __name__ == '__main__':
             else:
                 suffix = ''
                 RESTRICTED = np.arange(len(FEATURES))
+            fake = idx == 5
             left = gather_info(args.origin+suffix, knn=350, mat=mat,
                                raw_features=raw)
             right = gather_info(args.dest+suffix, knn=350, mat=mat,
                                 raw_features=raw)
-            three.append(ir.evaluate_by_NDCG(left, right, find_closest, LCATS))
+            three.append(ir.evaluate_by_NDCG(left, right, LCATS, mat, fake))
+            four.append(ir.evaluate_by_NDCG(right, left, LCATS, mat, fake))
             # Evaluation by brand
             # for brand in brands:
             #     print(seed, idx, brand)

@@ -46,9 +46,10 @@ def NDCG(gold_cat, results, sub_cat_to_top, rank):
     return np.sum(np.array(map(relevance, results)) / coeff)
 
 
-def evaluate_by_NDCG(left, right, matching, all_categories, mat):
+def evaluate_by_NDCG(left, right, all_categories, mat, fake=False):
     """Query all venues in `left` to and return their DCG score when
-    `matching` them in `right`."""
+    matching them in `right` using the distance defined by `mat`. If `fake`,
+    return score of random ordering."""
     k = int(left['knn'])
     cats_count = count_categories(all_categories[right['city']])
     sub_count, top_count, sub_cat_to_top = cats_count
@@ -70,7 +71,11 @@ def evaluate_by_NDCG(left, right, matching, all_categories, mat):
     if mat is not None:
         metric = 'mahalanobis'
         mat = np.linalg.inv(mat)
-    dst = cdist(left['features'], right['features'], metric, VI=mat)
+    if fake:
+        dst = np.random.randn(left['features'].shape[0],
+                              right['features'].shape[0])
+    else:
+        dst = cdist(left['features'], right['features'], metric, VI=mat)
     for venue_order, listed in enumerate(np.argsort(dst, axis=1)):
         query_cat = all_categories[left['city']][venue_order]
         results_cat = all_categories[right['city']][listed[:k]]

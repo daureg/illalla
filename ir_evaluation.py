@@ -1,5 +1,5 @@
 from scipy.spatial.distance import cdist
-from collections import defaultdict
+from collections import defaultdict, Counter
 import utils as u
 import numpy as np
 
@@ -11,16 +11,14 @@ def count_categories(raw_categories):
                   category}
     * sub_cat_to_top: {sub category index: corresponding top category index}
     ."""
-    top_cat_to_sub = defaultdict(set)
     sub_count = defaultdict(int)
-    sub_cat_to_top = {sub: top for top in range(0, 9*int(1e5), int(1e5))
+    top_cats = range(0, 9*int(1e5), int(1e5))
+    sub_cat_to_top = {sub: top for top in top_cats
                       for sub in range(top, top+200)}
-    for cat in raw_categories:
-        sub_count[cat] += 1
-        top_cat_id = 1000 * (cat/1000)
-        top_cat_to_sub[top_cat_id] |= set([cat])
+    sub_count.update(Counter(raw_categories))
     top_count = defaultdict(int)
-    for sub_cats in top_cat_to_sub.itervalues():
+    for top_cat in top_cats:
+        sub_cats = range(top_cat, top_cat+200)
         total = sum([sub_count[sub_cat] for sub_cat in sub_cats])
         for sub_cat in sub_cats:
             top_count[sub_cat] = total - sub_count[sub_cat]

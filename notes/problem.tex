@@ -5,75 +5,98 @@
 \usepackage{amssymb}
 \usepackage{microtype}
 \DeclareMathOperator*{\argmax}{argmax}
-% \newcommand{\argmax}[1]{\arg\underset{#1}{\max}\;}
+\DeclareMathOperator*{\argmin}{argmin}
 \renewcommand{\equiv}{\Leftrightarrow}
 \newcommand{\vnorm}[1]{\left|\left|#1\right|\right|}
+% \usepackage{style=ieee,sorting=nyt,backend=biber,defernumbers=true}{biblatex}
+% \addbibresource{../../aalto/thesis.bib}
+\newcommand{\autocite}[1]{}
 \begin{document}
 \section*{Setup}
 We have two cities, $C_1$ and $C_2$. In each of them lie objects of different
 kind (in our case: photos, check-ins and venues). These objects have a
-position in $\mathbb{R}^2$ along with other attributes, like time, tags,
+position in $\mathbb{R}^2$, along with other attributes like time, tags,
 category or number of visitors.
 
 \section*{Goal}
-As an input, we are given a polygonal region $R$ contained in $C_1$
+As an input, we are given a polygonal region $R$ contained in $C_1$.
 % (this could be rectangles in the beginning and later more complicated, yet
 % reasonable, shape)
-. The goal is then to find the region $R'$ in $C_2$ that
-is the most similar to $R$.
+The goal is then to find the region $R'$ in $C_2$ that is the most similar to
+$R$.
 % (with a potential warning if no suitable candidate is found).
 Now let us see \emph{one} way to turn this objective into a problem.
 
 \section*{Formalization}
-First we need a function that transforms a region $R$, defined by all the $e$
-objects it contains, into a numeric representation. In the simplest case, we
-aggregate information from these $e$ objects into a single $d$ dimensional
-feature vector
+
+First we need a function that transforms a region $R \in \mathcal{R}$, defined
+by all the $e$ objects it contains, into a numeric representation. In the
+simplest case, we aggregate information from these $e$ objects into a single
+$d$-dimensional feature vector:
 \begin{align*}
 	\phi \colon \mathcal{R} &\to \mathbb{R}^d \\
 	R &\mapsto x
 \end{align*}
-A less appealing alternative would be to keep track of the $e$ object and having
-a representation in $\mathbb{R}^{e\times d}$. But I am not sure this choice is
-actually part of the problem.
 
-Then we need a function, parametrized by $\theta$, to asses the similarity
+But this aggregation loses information. Thus a more appealing alternative
+would be to keep track of the $e'$ main objects (the venues) and to represent
+them individually. In addition, each region have a set of $g$ global features
+that are not associated with any specific objects. This define a more flexible
+$\phi$:
+\begin{align*}
+	\phi \colon \mathcal{R} &\to
+	\mathbb{R}^{e'\times d} \times \mathbb{R}^g = \mathcal{F} \\
+	R &\mapsto (X, x)
+\end{align*}
+
+Then we need a function, parametrized by $\theta$, to assess the distance
 between two regions in different cities
 \[
-	\sigma_{\theta} \colon \mathbb{R}^d \times \mathbb{R}^d \to [0, K]
+	\delta_{\theta} \colon \mathcal{F} \times \mathcal{F} \to \mathbb{R}^+
 \]
-
-For instance, a simple class of similarity could be
-\vspace{-0.3\baselineskip}\[
-    \sigma_{\theta} (x_1, x_2) = (x_1 - x_2)^T \theta (x_1 - x_2)
-\vspace{-0.3\baselineskip} \]
-where $\theta$ is a positive definite matrix.
 
 \medskip
 
 At this stage, we can fulfill our objective by computing, for a given $R \in
 \mathcal{R}(C_1)$
 \begin{equation}
-    \argmax_{R' \in \mathcal{R}(C_2)}\; \sigma_{\theta}
+    \argmin_{R' \in \mathcal{R}(C_2)}\; \delta_{\theta}
     \left(\phi(R), \phi(R')\right)
     \label{e:onetheta}
 \end{equation}
+
 A more refined answer would acknowledge that not all regions can be compared in
 the same way and thus solve
 \begin{equation}
-    \argmax_{\theta ,\, R' \in \mathcal{R}(C_2)}\; \sigma_{\theta}
-    \left(\phi(R), \phi(R')\right) - cost(\theta)
+    \argmin_{\theta ,\, R' \in \mathcal{R}(C_2)}\; \delta_{\theta}
+    \left(\phi(R), \phi(R')\right) + cost(\theta)
     \label{e:manythetas}
 \end{equation}
 where the regularisation of $\theta$ ensures that there is still a common
 ground in the way similarity is computed.
 
-\bigskip
+\section*{Point Pattern Matching}
 
-We are almost ready to formulate the problem. Namely, let assume we have a way
-to evaluate the quality of matching (either by ground truth or from some
-generic criteria). We want to find the best $\phi$, $\sigma$ (and $\theta$ if
-we use formulation~\eqref{e:onetheta}, in which $\theta$ is a global
-parameter). A subproblem may be to perform these computations efficiently.
+\eqref{e:manythetas} can be casted as a \emph{Point Pattern
+Matching}\footnote{Also known as \emph{Point set registration}.} problem.
+Following \autocite{PointPatternMatching08}, let $P$ be the $e'$ points of
+$\mathbb{R}^d$ that make up $R$, and let $T$ be the $n$ points of
+$\mathbb{R}^d$ lying in $C_2$. The problem asks whether there is a subset $I
+\subseteq T$ such that $\delta_{\theta}\left(P, I\right) \leq \epsilon$. In
+this case, $\theta$ represents a linear transformation applied to $P$. And
+instead of explicit regularisation, it can only be drawn from a fixed class of
+transformations. Another constraint is that $I$ must be restricted
 
+\section*{Choosing a relevant $\delta$}
+
+\begin{itemize}
+\item Pairwise measures of point set, Bottleneck or sumlike the Hausdorff distance (the largest
+distance between pairs of closest point) and its variation\autocite{ModifiedHausdorff94} . How they behave in higher dimension.
+\item We also have to take global feature into account, for instance using histogram
+distance of activity across time
+\item Weighting venues, explicitly or implicitly (by interest), 0 weight allow
+removal of outliers
+\item Instead of a geometric approach, this could also be tackled by Information
+theoric distance over some probability distributions
+\end{itemize}
 \end{document}

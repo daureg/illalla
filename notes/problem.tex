@@ -1,5 +1,5 @@
 \documentclass[a4paper,11pt,draft]{scrartcl}
-% \usepackage[hmargin=4.3cm,vmargin=0.5cm]{geometry}
+\usepackage[vmargin=1.9cm]{geometry}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
@@ -8,10 +8,19 @@
 \DeclareMathOperator*{\argmin}{argmin}
 \renewcommand{\equiv}{\Leftrightarrow}
 \newcommand{\vnorm}[1]{\left|\left|#1\right|\right|}
-% \usepackage{style=ieee,sorting=nyt,backend=biber,defernumbers=true}{biblatex}
+% \usepackage[style=ieee,sorting=nyt,backend=biber,defernumbers=true]{biblatex}
 % \addbibresource{../../aalto/thesis.bib}
+% \usepackage[svgnames]{xcolor}
+% \usepackage{hyperref}
+% \hypersetup{% draft,
+%     colorlinks=true, linktocpage=true, breaklinks=true, pdfpagemode=UseNone,
+%     plainpages=false, bookmarksnumbered, hypertexnames=true, pdfhighlight=/O,
+%     urlcolor=Purple, linkcolor=RoyalBlue, citecolor=LimeGreen}
 \newcommand{\autocite}[1]{}
+\newcommand{\textcite}[1]{}
+\title{Neighborhood matching}
 \begin{document}
+\maketitle
 \section*{Setup}
 We have two cities, $C_1$ and $C_2$. In each of them lie objects of different
 kind (in our case: photos, check-ins and venues). These objects have a
@@ -79,24 +88,44 @@ ground in the way similarity is computed.
 
 \eqref{e:manythetas} can be casted as a \emph{Point Pattern
 Matching}\footnote{Also known as \emph{Point set registration}.} problem.
-Following \autocite{PointPatternMatching08}, let $P$ be the $e'$ points of
+Following \textcite{PointPatternMatching08}, let $P$ be the $e'$ points of
 $\mathbb{R}^d$ that make up $R$, and let $T$ be the $n$ points of
 $\mathbb{R}^d$ lying in $C_2$. The problem asks whether there is a subset $I
 \subseteq T$ such that $\delta_{\theta}\left(P, I\right) \leq \epsilon$. In
 this case, $\theta$ represents a linear transformation applied to $P$. And
 instead of explicit regularisation, it can only be drawn from a fixed class of
-transformations. Another constraint is that $I$ must be restricted
+transformations. Another constraint is that $I$ must be restricted to subsets
+of venues that indeed form neighborhood.
 
 \section*{Choosing a relevant $\delta$}
 
 \begin{itemize}
-\item Pairwise measures of point set, Bottleneck or sumlike the Hausdorff distance (the largest
-distance between pairs of closest point) and its variation\autocite{ModifiedHausdorff94} . How they behave in higher dimension.
-\item We also have to take global feature into account, for instance using histogram
-distance of activity across time
-\item Weighting venues, explicitly or implicitly (by interest), 0 weight allow
-removal of outliers
-\item Instead of a geometric approach, this could also be tackled by Information
-theoric distance over some probability distributions
+    \item There are different distances between two point sets. For instance,
+        the bottleneck distance\autocite{Bottleneck96} (the smallest distance
+        between pairs of farthest point), the sum of the distance of each
+        point to its closest neighbor, or the Hausdorff distance (the largest
+        distance between pairs of closest point) and its
+        variation\autocite{ModifiedHausdorff94}. From what I have seen, these
+        measures have been used mostly in 2 or 3 dimensional space.  Thus it
+        would be interesting to see how they behave in higher dimension.
+    \item We also have to take global feature into account, for instance using
+        histogram distance\autocite{HistogramDistance02} to compare the time
+        activity of different regions.
+    \item Weighting venues, either explicitly or, more likely, implicitly (for
+        instance by their relative popularity in the region) will provide more
+        flexibility. Especially, a fixed fraction of venues may have zero weight
+        because we consider they don't really belong to a given neighborhood.
+    \item Instead of a geometric approach, this could also be tackled by
+        information theoretic distance over some probability distributions,
+	like the Kullback--Leibler divergence. Or as suggested by the paper
+	from Arto\autocite{InfoMatching10}, by looking at the mutual
+	information between two regions.
+    \item Finally, we could build a graph out of venues. It may for instance
+        contains information about their relation in the original 2D space. Or
+        be tailored to take categories into account\autocite{fitting09}. Then
+        they can be compared using appropriate
+        similarity\autocite{GraphSimilarity14}. The drawback is that it seems
+        somewhat artificial and contrived.
 \end{itemize}
+% \printbibliography
 \end{document}

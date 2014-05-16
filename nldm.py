@@ -72,7 +72,7 @@ def choose_manifold_method(method, n_components, n_neighbors):
         return manifold.SpectralEmbedding(n_components=n_components,
                                           n_neighbors=n_neighbors)
     elif method == 't-sne':
-        return calc_tsne.tSNE(n_components, perplexity=18, theta=0.3)
+        return calc_tsne.tSNE(n_components, perplexity=25, theta=0.3)
     raise ValueError('{} is not a known method'.format(method))
 
 
@@ -128,28 +128,31 @@ if __name__ == '__main__':
     nb_dim = 2 if len(sys.argv) <= 2 else int(sys.argv[2])
     features = None
     origin = None
-    cities = [
-              # 'moscow', 'helsinki', 'stockholm', 'prague', 'paris',
-              # 'barcelona', 'amsterdam'
-                # 'berlin', 'rome'
-        'helsinki', 'stockholm'
-        # 'helsinki',
-              # 'stockholm', 'prague', 'paris', 'barcelona', 'rome', 'berlin'
-              # 'rome', 'berlin', 'amsterdam',
-              ]
-    features, origin = join_cities(cities)
-    # features = load_matrix(city)['v']
+    cities = ['stockholm', 'prague', 'paris', 'barcelona', 'rome', 'berlin',
+              'london', 'helsinki', 'amsterdam', 'moscow']
+    cities = ['helsinki']
+    if len(cities) > 1:
+        features, origin = join_cities(cities)
+    else:
+        features = load_matrix(city)['v']
+        origin = features.shape[0] * [0, ]
     features[:, 5] = features[:, 5] / 8e5
+    to_keep = set(range(6, 15))
+    to_keep = set(range(18, 24)+range(25, 31))
+    to_keep = set(range(0, 5))
     cats = (8*features[:, 5]).astype(int)
-    features[:, 5] *= 0.0
-    print(np.sum(features[:, 5]))
+    to_delete = set(range(features.shape[1])).difference(to_keep)
+    features = np.delete(features, list(to_delete), axis=1)
+    print(features.shape)
+    # features[:, 5] *= 0.0
+    # print(np.sum(features[:, 5]))
     Axes3D
     # n_points = 300
     # X, color = datasets.samples_generator.make_s_curve(n_points,
     # features, cats = datasets.samples_generator.make_swiss_roll(n_points,
     #                                                             noise=0.1,
     #                                                           random_state=0)
-    # fig = plt.figure(figsize=(25, 18))
+    fig = plt.figure(figsize=(25, 18))
     # title = "{} venues of {} projected to {} dimensions"
     # title = title.format(features.shape[0], city.title(), nb_dim)
     # print(title)
@@ -162,18 +165,18 @@ if __name__ == '__main__':
                'Sparse PCA', 'SVD', 'Factor Analysis', 'ICA']
     methods = ['t-SNE']
 
-    # for i, method in enumerate(methods):
-    #     reduced, how_long = compute_embedding(features, method, nb_dim)
+    for i, method in enumerate(methods):
+        reduced, how_long = compute_embedding(features, method, nb_dim)
     #     sio.savemat('tsne_'+city, {'cl': cats, 'data': reduced})
-    #     plot_embedding(fig, i, method, how_long, reduced, cats, nb_dim)
-    #     print("{}: {:.3f} sec".format(method, how_long))
+        plot_embedding(fig, i, method, how_long, reduced, cats, nb_dim)
+        print("{}: {:.3f} sec".format(method, how_long))
     # outfile = '{}_DR_{}.png'.format(city, nb_dim)
     # plt.savefig(outfile, frameon=False, bbox_inches='tight',
     #             pad_inches=0.05)
-    reduced, how_long = compute_embedding(features, 't-SNE', 2)
-    split_cities(cities, reduced, origin, features)
+    # reduced, how_long = compute_embedding(features, 't-SNE', 2)
+    # split_cities(cities, reduced, origin, features)
     city_name = np.array(map(lambda x: cities[int(x)], origin))
     to_export = np.hstack([reduced, cats.reshape((reduced.shape[0], 1)),
                            city_name.reshape((reduced.shape[0], 1))])
-    np.savetxt('hs.tsv', to_export, comments='', delimiter='\t', fmt='%s',
+    np.savetxt('rest.tsv', to_export, comments='', delimiter='\t', fmt='%s',
                header='posx posy cat city'.replace(' ', '\t'))

@@ -156,5 +156,5 @@ if __name__ == '__main__':
 
     CHECKINS_QUEUE.join()
     report = 'insert {} valid checkins in {:.2f}s (out of {}).'
-    print(report.format(NUM_VALID, clock() - start, NB_TWEETS))
-    sleep(1)
+    cac.logging.info(report.format(NUM_VALID, clock() - start, NB_TWEETS))
+    sleep(5)

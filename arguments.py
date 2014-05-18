@@ -19,7 +19,7 @@ def valid_city(city):
     """Ensure city argument is valid"""
     import cities
     city = cities.short_name(city)
-    if city in cities.SHORT_KEY:
+    if city == 'whole' or city in cities.SHORT_KEY:
         return city
     raise argparse.ArgumentTypeError('{} is not a known city'.format(city))
 

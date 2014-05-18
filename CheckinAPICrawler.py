@@ -95,8 +95,12 @@ class CheckinAPICrawler(object):
                 raw_checkin = raw_checkins.next()
             except foursquare.ServerError as oops:
                 logging.exception('error in getting next checkin')
-                logging.warn('status' in str(oops))
-                raise
+                if 'status' in str(oops):
+                    waiting_time = self.failures.fail()
+                    if self.failures.recent_failures >= 5:
+                        raise FoursquareDown
+                    msg = 'Will wait for {:.0f} seconds'.format(waiting_time)
+                    logging.info(msg)
             if isinstance(raw_checkin, foursquare.FoursquareException):
                 msg = 'Weird id: {}?s={}\n{}'.format(cid, sig,
                                                      str(raw_checkin))

@@ -1,6 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Separate tweets by cities and remove duplicate."""
+from datetime import datetime
 import ujson
 RE_TIMELINE = r'timeline_[0-9_]+\.json'
 RE_TWEETS = r'tweets_2014[0-9_]+\.json'
@@ -30,12 +31,16 @@ def load_tweets(directory, city, existing):
     ones elsewhere."""
     import os
     import re
-    file_pattern = re.compile(RE_TWEETS if city == 'whole' else RE_TIMELINE)
+    do_ntweets = city == 'whole'
+    file_pattern = re.compile(RE_TWEETS if do_ntweets else RE_TIMELINE)
     files = [_ for _ in os.listdir(directory) if file_pattern.match(_)]
     local, outside = {}, {}
     for filename in files:
-        with open(filename) as tweets:
-            for tweet in ujson.load(tweets):
+        with open(os.path.join(directory, filename)) as raw_tweets:
+            tweets = ujson.load(raw_tweets)
+            if len(tweets) < 2:
+                continue
+            for tweet in tweets:
                 if tweet['_id'] in existing:
                     continue
                 res = local if tweet['city'] == city else outside
@@ -51,12 +56,17 @@ def load_tweets(directory, city, existing):
 
 def save_checkins_json(checkins, city):
     """Write `checkins` as one JSON object per line in a file."""
+    import codecs
     if len(checkins) == 0:
         return
     local = checkins[0]['city'] == city
-    out_name = 'timeline_{}{}.json'.format('' if local else 'not_', city)
-    with open(out_name, 'w') as output:
-        output.write('\n'.join([ujson.dumps(tweet) for tweet in checkins]))
+    now = datetime.now().strftime('%Y%m%d_%H%M%S')
+    out_name = 'timeline_{}{}_{}.json'.format('' if local else 'not_', city,
+                                              now)
+    to_str = lambda x: ujson.dumps(x, ensure_ascii=False).decode('utf8')
+    with codecs.open(out_name, 'w', 'utf8') as output:
+        output.write(u'\n'.join([to_str(tweet).replace('\/', '/')
+                                 for tweet in checkins]))
 
 if __name__ == '__main__':
     import arguments

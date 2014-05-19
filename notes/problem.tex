@@ -1,14 +1,15 @@
 \documentclass[a4paper,11pt,draft]{scrartcl}
-\usepackage[vmargin=1.9cm]{geometry}
+\usepackage[vmargin=2.1cm]{geometry}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{microtype}
+\usepackage{url}
 \DeclareMathOperator*{\argmax}{argmax}
 \DeclareMathOperator*{\argmin}{argmin}
 \renewcommand{\equiv}{\Leftrightarrow}
 \newcommand{\vnorm}[1]{\left|\left|#1\right|\right|}
-% \usepackage[style=ieee,sorting=nyt,backend=biber,defernumbers=true]{biblatex}
+% \usepackage[style=ieee,backend=biber,sorting=nyt,defernumbers=true]{biblatex}
 % \addbibresource{../../aalto/thesis.bib}
 % \usepackage[svgnames]{xcolor}
 % \usepackage{hyperref}
@@ -18,6 +19,7 @@
 %     urlcolor=Purple, linkcolor=RoyalBlue, citecolor=LimeGreen}
 \newcommand{\autocite}[1]{}
 \newcommand{\textcite}[1]{}
+\newcommand{\href}[2]{#2}
 \title{Neighborhood matching}
 \begin{document}
 \maketitle
@@ -28,51 +30,55 @@ position in $\mathbb{R}^2$, along with other attributes like time, tags,
 category or number of visitors.
 
 \section*{Goal}
-As an input, we are given a polygonal region $R$ contained in $C_1$.
-% (this could be rectangles in the beginning and later more complicated, yet
-% reasonable, shape)
-The goal is then to find the region $R'$ in $C_2$ that is the most similar to
-$R$.
-% (with a potential warning if no suitable candidate is found).
-Now let us see \emph{one} way to turn this objective into a problem.
 
-\section*{Formalization}
+As an input, we are given a polygonal region $R$ contained in $C_1$. The
+desired output is the region $R'$ in $C_2$ that is closest to $R$ according
+to the metric $\delta_{\theta}$.
 
-First we need a function that transforms a region $R \in \mathcal{R}$, defined
-by all the $e$ objects it contains, into a numeric representation. In the
-simplest case, we aggregate information from these $e$ objects into a single
-$d$-dimensional feature vector:
-\begin{align*}
-	\phi \colon \mathcal{R} &\to \mathbb{R}^d \\
-	R &\mapsto x
-\end{align*}
+\section*{Problem}
 
-But this aggregation loses information. Thus a more appealing alternative
-would be to keep track of the $e'$ main objects (the venues) and to represent
-them individually. In addition, each region have a set of $g$ global features
-that are not associated with any specific objects. This define a more flexible
-$\phi$:
+A region is represented by the $e'$ main objects it contains (the venues).
+Each of these venues is in turn described by $d$ numerical features. In
+addition, each region have a set of $g$ global features that are not
+associated with any specific objects. Thus a region $R$ is fully characterized
+by
 \begin{align*}
 	\phi \colon \mathcal{R} &\to
 	\mathbb{R}^{e'\times d} \times \mathbb{R}^g = \mathcal{F} \\
 	R &\mapsto (X, x)
 \end{align*}
 
-Then we need a function, parametrized by $\theta$, to assess the distance
-between two regions in different cities
-\[
-	\delta_{\theta} \colon \mathcal{F} \times \mathcal{F} \to \mathbb{R}^+
-\]
+Inside $\mathcal{F}$, two regions can be compared using the
+$\theta$-parametrized distance
+\begin{align*}
+	\delta_{\theta} \colon &\mathcal{F} \times \mathcal{F} \to
+	\mathbb{R}^+ \\
+	&(X, x) , (X', x') \mapsto d_{R,R'}
+\end{align*}
 
-\medskip
-
-At this stage, we can fulfill our objective by computing, for a given $R \in
+and our our objective is fulfilled by computing, for a given $R \in
 \mathcal{R}(C_1)$
 \begin{equation}
-    \argmin_{R' \in \mathcal{R}(C_2)}\; \delta_{\theta}
-    \left(\phi(R), \phi(R')\right)
-    \label{e:onetheta}
+	\argmin_{R' \in \mathcal{R}(C_2)}\; \delta_{\theta}
+	\left(\phi(R), \phi(R')\right)
+	\label{e:onetheta}
 \end{equation}
+
+More precisely, $\delta_{\theta}$ is defined as follow. Let $X_i$ (respectively
+$X'_i$) be the $i$\textsuperscript{th} column of $X$ ($X'$), $P_i$ ($Q_i$) the
+associated distribution, $D_{\mathrm{KL}}(P \parallel Q) = \sum_j
+P(j)\ln\left(\frac{P(j)}{Q(j)}\right)$ the Kullback--Leibler divergence
+between $P$ and $Q$ and $ \mathrm{JSD}(P \parallel Q)=
+\frac{1}{2}D_{\mathrm{KL}}(P \parallel M)+\frac{1}{2}D_{\mathrm{KL}}(Q
+\parallel M)$ their Jensen--Shannon divergence \autocite{JensenShannon03},
+where $M=\frac{1}{2}(P+Q)$. Then
+\[
+	\delta_{\theta} \left(\phi(R), \phi(R')\right) = \sum_{i=1}^d
+	\theta_i \mathrm{JSD}(P_i \parallel Q_i) + \vnorm{x - x'}
+\]
+
+\section*{Additional considerations}
+\subsection*{Point Pattern Matching}
 
 A more refined answer would acknowledge that not all regions can be compared in
 the same way and thus solve
@@ -83,8 +89,6 @@ the same way and thus solve
 \end{equation}
 where the regularisation of $\theta$ ensures that there is still a common
 ground in the way similarity is computed.
-
-\section*{Point Pattern Matching}
 
 \eqref{e:manythetas} can be casted as a \emph{Point Pattern
 Matching}\footnote{Also known as \emph{Point set registration}.} problem.
@@ -97,35 +101,60 @@ instead of explicit regularisation, it can only be drawn from a fixed class of
 transformations. Another constraint is that $I$ must be restricted to subsets
 of venues that indeed form neighborhood.
 
-\section*{Choosing a relevant $\delta$}
+\subsection*{The choice of $\delta$}
+
+Here are presented some design alternatives for $\delta$ and why the current
+choice was made.
 
 \begin{itemize}
+    \item First, weighting venues, either explicitly or, more likely,
+        implicitly (for instance by their relative popularity in the region)
+        will provide more flexibility. Especially, a fixed fraction of venues
+        may have zero weight because we consider they don't really belong to a
+        given neighborhood.
     \item There are different distances between two point sets. For instance,
-        the bottleneck distance\autocite{Bottleneck96} (the smallest distance
+        the bottleneck distance \autocite{Bottleneck96} (the smallest distance
         between pairs of farthest point), the sum of the distance of each
         point to its closest neighbor, or the Hausdorff distance (the largest
-        distance between pairs of closest point) and its
-        variation\autocite{ModifiedHausdorff94}. From what I have seen, these
-        measures have been used mostly in 2 or 3 dimensional space.  Thus it
-        would be interesting to see how they behave in higher dimension.
-    \item We also have to take global feature into account, for instance using
-        histogram distance\autocite{HistogramDistance02} to compare the time
-        activity of different regions.
-    \item Weighting venues, either explicitly or, more likely, implicitly (for
-        instance by their relative popularity in the region) will provide more
-        flexibility. Especially, a fixed fraction of venues may have zero weight
-        because we consider they don't really belong to a given neighborhood.
-    \item Instead of a geometric approach, this could also be tackled by
-        information theoretic distance over some probability distributions,
-	like the Kullback--Leibler divergence. Or as suggested by the paper
-	from Arto\autocite{InfoMatching10}, by looking at the mutual
-	information between two regions.
+        distance between pairs of closest point) and its variation
+        \autocite{ModifiedHausdorff94}. From what I have seen, these measures
+        have been used mostly in 2 or 3 dimensional space.  Thus it would be
+        interesting to see how they behave in higher dimension.  Especially
+        since linear transformations in $\mathbb{R}^{31}$ are not very
+        intuitive.
+    \item Instead of using euclidean distance to compare global feature, some
+	    histogram distance \autocite{HistogramDistance02} may be more suited,
+        especially to compare the time activity of different regions.
+    \item Likewise, moving past the geometric approach, this could also be
+        tackled by information theoretic distance over some probability
+        distributions, like the Kullback--Leibler divergence\footnote{Or one
+        of the many others distances mentionned on Wikipedia:
+        \href{https://en.wikipedia.org/wiki/Statistical_distance}%
+        {\url{en.wikipedia.org/wiki/Statistical_distance}}}. Or as suggested
+        by the paper from Arto \autocite{InfoMatching10}, by looking at the
+        mutual information between two regions.
     \item Finally, we could build a graph out of venues. It may for instance
         contains information about their relation in the original 2D space. Or
-        be tailored to take categories into account\autocite{fitting09}. Then
-        they can be compared using appropriate
-        similarity\autocite{GraphSimilarity14}. The drawback is that it seems
-        somewhat artificial and contrived.
+        be tailored to take categories into account \autocite{fitting09}. Then
+        they can be compared using appropriate similarity
+        \autocite{GraphSimilarity14}. The drawback is that it seems somewhat
+        artificial and contrived.
 \end{itemize}
+
+Because the venues dimensions do not share a common semantic (as it is the case
+of the $x$ and $y$ axis of a plane), it feels rather awkward to use a geometric
+approach, whereas the probability distances operate over one dimension at a
+time.
+
+Yet, these three main classes of distance -- and their numerous variations --
+all measure distance between two regions. Therefore, we can consider these
+distances as scores given to a candidate region by different judges and try to
+combine them by weighted vote.
+
+One disadvantage of probabilistic distances is that since they need to
+estimate density, they would probably not perform well when there are not
+enough venues to get reliable estimation.  We also need to choose between
+simple histogram counting or more expensive kernel density estimation.
+
 % \printbibliography
 \end{document}

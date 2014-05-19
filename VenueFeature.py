@@ -36,6 +36,8 @@ CATS = ['Arts & Entertainment', 'College & University', 'Food',
 #          for idx, sub_cat in enumerate(top_cat.sub)}
 # p.save_var('cat_depth_2.my', cats2)
 CATS2 = p.load_var('cat_depth_2.my')
+# a few venues don't have level 2 categories (TODO add it manually?)
+CATS2.update({cat: int(idx*1e5) for idx, cat in enumerate(CATS)})
 TOP_CATS = {None: None}
 # TOP_CATS.update({_: parenting_cat(_)
 #                  for _ in fsc.get_subcategories('1')[1:]})
@@ -101,6 +103,8 @@ def describe_city(city):
     numeric = np.zeros((len(info), 31), dtype=np.float32)
     numeric[:, :5] = np.array([info['likes'], info['users'], info['checkins'],
                                info['H'], info['Den']]).T
+    print([info.index[i] for i, c in enumerate(info['cat'])
+           if CATS2[c] % int(1e5) == 0])
     numeric[:, 5] = [CATS2[c] for c in info['cat']]
     numeric[:, 24] = np.array(info['Ht'])
     for idx, vid in enumerate(info.index):

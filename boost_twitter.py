@@ -21,7 +21,7 @@ logging.basicConfig(filename='timeline.log', level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 OLD_DATASET_END = th.datetime(2011, 2, 1)
 START_OF_TIME = th.datetime(2007, 1, 1)
-NB_RESERVED_CALLS = 800
+NB_RESERVED_CALLS = 900
 
 
 def checkins_from_timeline(napi, user):
@@ -130,7 +130,8 @@ def checkins_from_user(user, napi, crawler, user_types):
     full_checkins = post_process(checkins)
     if full_checkins:
         fetched.extend(full_checkins)
-        th.save_checkins_json(fetched, prefix='timeline_'+user)
+        if len(fetched) > 1:
+            th.save_checkins_json(fetched, prefix='timeline_'+user)
         done.append(user)
     elif len(checkins) > 0:
         # In that case, we probably got some trouble with Foursquare
@@ -193,7 +194,13 @@ if __name__ == '__main__':
     users_id = set(users_id).difference(EMPTY, DONE, BIG)
     crawler = cac.CheckinAPICrawler()
     # raise Exception('do it yourself!')
+    print('Still {} users to process.'.format(len(users_id)))
     import random
-    for user in random.sample(users_id, 35):
+    start = time.time()
+    end = start + 6*60*60
+    for user in users_id:  # random.sample(users_id, 35):
         print(user)
         time.sleep(checkins_from_user(user, napi, crawler, [EMPTY, BIG, DONE]))
+        print(foursquare_rate_info(crawler.client))
+        if time.time() > end:
+            break

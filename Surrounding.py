@@ -52,13 +52,12 @@ class Surrounding(object):
     def idx_to_infos(self, idxs):
         """Return info about object with index in `idxs`."""
         neighbors_ids = [self.index_to_id(idx) for idx in idxs]
-        # neighbors_locs = [self.loc[idx] for idx in idxs]
+        neighbors_locs = [self.loc[idx] for idx in idxs]
         extra = []
         if self.fields:
             extra = u.xzip([self.info[id_] for id_ in neighbors_ids],
                            self.fields)
-        # TODO return neighbors_locs first
-        return neighbors_ids, extra
+        return neighbors_ids, extra, neighbors_locs
 
 if __name__ == '__main__':
     # pylint: disable=C0103

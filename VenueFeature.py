@@ -35,9 +35,6 @@ CATS = ['Arts & Entertainment', 'College & University', 'Food',
 #          for top_cat in CATS.sub if top_cat.name != 'Event'
 #          for idx, sub_cat in enumerate(top_cat.sub)}
 # p.save_var('cat_depth_2.my', cats2)
-CATS2 = p.load_var('cat_depth_2.my')
-# a few venues don't have level 2 categories (TODO add it manually?)
-CATS2.update({cat: int(idx*1e5) for idx, cat in enumerate(CATS)})
 TOP_CATS = {None: None}
 # TOP_CATS.update({_: parenting_cat(_)
 #                  for _ in fsc.get_subcategories('1')[1:]})
@@ -84,6 +81,9 @@ def global_info(city):
 
 def describe_city(city):
     """Compute feature vector for selected venue in `city`."""
+    CATS2 = p.load_var('cat_depth_2.my')
+    # a few venues don't have level 2 categories (TODO add it manually?)
+    CATS2.update({cat: int(idx*1e5) for idx, cat in enumerate(CATS)})
     info = global_info(city)
     lvenues, lcheckins, lphotos = info[:3]
     visits, visitors, density = info[3:6]
@@ -208,9 +208,9 @@ def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
     around `vid`, within `city`. The mappings are dict({id: 2dpos})"""
     cat_distrib = categories_repartition(city, svenues, vmapping, radius, vid)
     center = vmapping[vid]
-    pids, infos = sphotos.around(center, radius)
+    pids, infos, _ = sphotos.around(center, radius)
     pvenue = infos[0]
-    cids, infos = scheckins.around(center, radius)
+    cids, infos, _ = scheckins.around(center, radius)
     ctime = infos[0]
     focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
     photogeny, c_smoothed = photo_ratio(center, pids, cids, radius, pmapping,
@@ -263,7 +263,7 @@ def categories_repartition(city, svenues, vmapping, radius, vid=None):
     None)."""
     smoothed_loc = itertools.cycle([1.0])
     if vid:
-        vids, vcats = svenues.around(vmapping[vid], radius)
+        vids, vcats, _ = svenues.around(vmapping[vid], radius)
         smoothed_loc = smoothed_location(vids, vmapping[vid], radius, city,
                                          vmapping)
     else:

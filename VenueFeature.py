@@ -71,11 +71,13 @@ def global_info(city):
     activity = [visits, visitors, density]
     global TOP_CATS
     TOP_CATS = p.load_var('top_cats')
-    svenues = s.Surrounding(DB.venue, {'city': city}, ['cat', 'cats'], lvenues)
+    svenues = s.Surrounding(DB.venue, {'city': city}, [], lvenues)
     scheckins = s.Surrounding(DB.checkin, {'city': city}, ['time'], lcheckins)
-    sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city},
-                            ['venue'], lphotos)
+    sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city}, ['taken'],
+                            lphotos)
     surroundings = [svenues, scheckins, sphotos]
+    for name, var in zip(['venue', 'checkin', 'photo'], surroundings):
+        p.save_var('{}_s{}s.my'.format(city, name), var)
     return local_projection + activity + surroundings
 
 
@@ -405,4 +407,5 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
-    describe_city(city)
+    # describe_city(city)
+    global_info(city)

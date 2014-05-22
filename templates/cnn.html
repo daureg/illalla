@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
 	<title>From {{ origin|safe }} to {{ dest|safe }}</title>
+        <link  rel='stylesheet' type='text/css' href="{{ url_for('static', filename='cnn.css') }}">
         <script type="text/javascript" src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
         <script type="text/javascript" src="{{ url_for('static', filename='colorbrewer.js') }}"></script>
 	<script type="text/javascript">
@@ -16,6 +17,7 @@
     <table></table>
     <div id="graph"></div>
     </div>
+	<script src="{{ url_for('static', filename='common.js') }}"></script>
 	<script src="{{ url_for('static', filename='plot.js') }}"></script>
 	<script src="{{ url_for('static', filename='cnn.js') }}"></script>
 {% endblock %}

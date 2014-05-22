@@ -1,9 +1,12 @@
 SOURCES_JS = static/minified-src.js \
-	     static/leaflet-src.js
+	     static/leaflet-src.js \
+	     static/fullcanvas.js \
+	     static/leaflet.draw-src.js
 SOURCES_CSS = static/normalize.css \
-	      static/leaflet.css
+	      static/leaflet.css \
+	      static/leaflet.draw.css
 PROD = 0
-NODE=../node_modules
+NODE=node_modules
 
 all: app.css app.js
 
@@ -29,7 +32,7 @@ else
 	$(NODE)/uglify-js/bin/uglifyjs $(SOURCES_JS) -b > $@
 	sed -i  "s/='rcnn.js'/='cnn.js'/" templates/cnn.html
 endif
-	# mv app.js static/app.js
+	mv app.js static/app.js
 
 clean:
 	rm -f static/app.css* static/app.js*

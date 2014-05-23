@@ -58,7 +58,7 @@ def is_event(cat_id):
     return cat_id in fsc.get_subcategories('Event', fsc.Field.id)
 
 
-def global_info(city):
+def global_info(city, standalone=False):
     """Gather global statistics about `city`."""
     lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
     lcheckins = geo_project(city, DB.checkin.find({'city': city}, {'loc': 1}))
@@ -71,13 +71,16 @@ def global_info(city):
     activity = [visits, visitors, density]
     global TOP_CATS
     TOP_CATS = p.load_var('top_cats')
-    svenues = s.Surrounding(DB.venue, {'city': city}, [], lvenues)
+    infos = {'venue': [] if standalone else ['cat', 'cats'],
+             'photo': ['taken'] if standalone else ['venue']}
+    svenues = s.Surrounding(DB.venue, {'city': city}, infos['venue'], lvenues)
     scheckins = s.Surrounding(DB.checkin, {'city': city}, ['time'], lcheckins)
-    sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city}, ['taken'],
-                            lphotos)
+    sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city},
+                            infos['photo'], lphotos)
     surroundings = [svenues, scheckins, sphotos]
-    for name, var in zip(['venue', 'checkin', 'photo'], surroundings):
-        p.save_var('{}_s{}s.my'.format(city, name), var)
+    if standalone:
+        for name, var in zip(['venue', 'checkin', 'photo'], surroundings):
+            p.save_var('{}_s{}s.my'.format(city, name), var)
     return local_projection + activity + surroundings
 
 
@@ -269,7 +272,7 @@ def categories_repartition(city, svenues, vmapping, radius, vid=None):
         smoothed_loc = smoothed_location(vids, vmapping[vid], radius, city,
                                          vmapping)
     else:
-        vids, vcats = svenues.all()
+        vids, vcats, _ = svenues.all()
     vcats = vcats[0]
     distrib = defaultdict(int)
     for own_cat, weight in zip(vcats, smoothed_loc):
@@ -408,4 +411,4 @@ if __name__ == '__main__':
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
     # describe_city(city)
-    global_info(city)
+    global_info(city, standalone=True)

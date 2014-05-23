@@ -28,7 +28,7 @@ FEATURES.extend(['activity at ' + t for t in vf.named_ticks('day', 1, 4)])
 FEATURES.append('opening')
 FEATURES.extend(['surrounding activity at ' + t
                  for t in vf.named_ticks('day', 1, 4)])
-RESTRICTED = np.array(range(5))  # pylint: disable=E1101
+RESTRICTED = np.array(range(len(FEATURES)))  # pylint: disable=E1101
 LCATS = {}
 
 
@@ -51,7 +51,8 @@ def load_matrix(city):
             is_inf = np.isinf(mat['v'][:, 0]).ravel()
             mat['v'][is_inf, 0] = 0.0
         LCATS[city] = np.ceil(mat['v'][:, 5]).astype(int)
-        mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
+        # mat['v'][:, 5] = np.divide(LCATS[city], 1000)*1000
+        # mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
         if filename.endswith('_fv.mat'):
             non_categorical = range(len(FEATURES))
             del non_categorical[non_categorical.index(5)]
@@ -59,7 +60,7 @@ def load_matrix(city):
             weird = np.logical_or(np.isinf(mat['v'][:, 16]),
                                   np.isnan(mat['v'][:, 16])).ravel()
             mat['v'][weird, 16] = 0.0
-            mat['v'][:, non_categorical] = zscore(mat['v'][:, non_categorical])
+            # mat['v'][:, non_categorical] = zscore(mat['v'][:, non_categorical])
     elif filename.endswith('_embed.mat'):
         # add a blank category feature
         mat['v'] = np.insert(mat['v'], 5, values=0, axis=1)

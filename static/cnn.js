@@ -81,9 +81,9 @@ function match(_id, side) {
             table += _.formatHtml(cell_begin, query[f]);
             feature_idx = FMAP[query[f].feature];
             gdata[0][feature_idx] = parseFloat(query[f].val);
-            for (var i=0; i<KNN; i++) {
-                table += _.formatHtml(cell_end, explanations[i][f]);
-                gdata[i+1][feature_idx] = parseFloat(explanations[i][f].answer);
+            for (var j=0; j<KNN; j++) {
+                table += _.formatHtml(cell_end, explanations[j][f]);
+                gdata[j+1][feature_idx] = parseFloat(explanations[j][f].answer);
             }
             table += '</tr>';
         }

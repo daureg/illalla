@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block body %}
+	<title>From {{ origin|safe }} to {{ dest|safe }}</title>
+    <link  rel='stylesheet' type='text/css' href="{{ url_for('static', filename='nei.css') }}">
+        <script type="text/javascript">
+            var LBBOX={{ lbbox|safe }},
+                RBBOX={{ rbbox|safe }},
+		origin="{{ origin|safe }}",
+		dest="{{ dest|safe }}";
+        </script>
+</head>
+<body>
+    <form id="presets">
+        <label>Paris neighborhood:
+            <select name="neighborhood" required id="neighborhood" autofocus>
+                <option value="latin">Quartier Latin</option>
+                <option value="montmartre">Montmartre</option>
+                <option value="triangle">Golden Triangle</option>
+                <option value="pigalle">Pigalle</option>
+                <option value="marais">Le Marais</option>
+                <option value="official">Officials</option>
+            </select>
+        </label>
+        <button>Match!</button>
+    </form>
+    <div id="result">
+    <span id="res"></span>
+    <progress id="status" value="0.0"></progress>
+</div>
+	<div id="mapl" class="map"></div>
+	<div id="mapr" class="map"></div>
+	<div><p style="margin-left: 55%; width: 40%;" id="log"></p></div>
+	<script src="{{ url_for('static', filename='presets.js') }}"></script>
+	<script src="{{ url_for('static', filename='common.js') }}"></script>
+	<script src="{{ url_for('static', filename='nei.js') }}"></script>
+{% endblock %}

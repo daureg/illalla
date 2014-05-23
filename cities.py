@@ -10,6 +10,7 @@ import LocalCartesian as lc
 from datetime import datetime as dt
 import pytz
 import bidict
+import tempfile
 
 
 def photos_request(bbox):
@@ -78,6 +79,27 @@ GEO_TO_2D = {name: lc.LocalCartesian(*middle(city)).forward
 BBOXES = dict(zip(SHORT_KEY, [bbox_to_polygon(b) for b in US+EU]))
 
 
+def euclidean_to_geo(city, coords):
+    """Convert back from 2D `coords` to latitude and longitude whithin `city`
+    using an external program (so it's not fast)."""
+    import subprocess as sp
+    import os
+    bounds = (US+EU)[SHORT_KEY.index(city)]
+    center = list(middle(bounds))
+    if isinstance(coords, lc.numpy.ndarray):
+        _, fpath = tempfile.mkstemp(text=True)
+        lc.numpy.savetxt(fpath, coords, fmt='%.10f %.10f 0')
+        cmd = 'CartConvert -r -l {} {} 0 --input-file {}'
+        output = sp.check_output(cmd.format(*(center + [fpath])), shell=True)
+        os.remove(fpath)
+        raw = [float(c) for line in output.split('\n')
+               for c in line.split()[:2]]
+        return lc.numpy.array(raw).reshape(len(coords), 2)
+    cmd = 'echo {} {} 0 |CartConvert -r -l {} {} 0'
+    output = sp.check_output(cmd.format(*(coords + center)), shell=True)
+    return [float(c) for c in output.split()[:2]]
+
+
 def utc_to_local(city, time):
     """Takes `time`, which represents a datetime in UTC (maybe implicitely) and
     return the naive datetime representing local time in `city`.
@@ -110,7 +132,7 @@ if __name__ == '__main__':
     city = HOU
     name = 'houston'
     place = lambda: (uniform(city[0], city[2]), uniform(city[1], city[3]))
-    photos_request(NYC)
+    # photos_request(NYC)
     print(bbox_to_polygon(PAR))
     for i in range(0):
         year, month, hour = randint(2007, 2014), randint(1, 12), randint(0, 23)

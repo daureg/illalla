@@ -2,7 +2,6 @@ Leaflet-Fullcanvas/
 archive/
 ntweets/
 static/leaflet.draw*
-static/fullcanvas.js
 tml*
 *.tsv
 *.my

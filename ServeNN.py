@@ -7,6 +7,9 @@ import flask as f
 import cities as c
 import ClosestNeighbor as cn
 import FSCategories as fsc
+import neighborhood as nb
+import time
+import threading
 
 app = f.Flask(__name__)
 app.config.update(dict(
@@ -20,6 +23,40 @@ app.secret_key = os.environ['SECRET_KEY']
 # http://pythonhosted.org/Flask-Cache/#flask.ext.cache.Cache.memoize
 ORIGIN = {}
 DEST = {}
+SEARCH_STATUS = {}
+
+
+def perform_search(from_city, to_city, region):
+    start = time.clock()
+    for res, _, progress in nb.best_match(from_city, to_city, region,
+                                          progressive=True):
+        # print(progress)
+        distance, _, center, radius = res
+        if len(center) == 2:
+            center = c.euclidean_to_geo(to_city, center)
+        relevant = [distance, radius, center]
+        SEARCH_STATUS.update(dict(seen=False, progress=progress, res=relevant))
+    print("done search in {:.3f}".format(time.clock() - start))
+    SEARCH_STATUS.update(dict(seen=False, progress=1.0, done=True,
+                              res=relevant))
+
+
+@app.route('/status')
+def send_status():
+    while SEARCH_STATUS['seen']:
+        time.sleep(0.05)
+    SEARCH_STATUS['seen'] = True
+    return f.jsonify(r=SEARCH_STATUS)
+
+
+@app.route('/match_neighborhood', methods=['POST'])
+def start_search():
+    geo = f.json.loads(f.request.form['geo'])
+    args = (ORIGIN['city'], DEST['city'], geo)
+    SEARCH_STATUS.update({'done': False, 'seen': False, 'progress': 0.0,
+                          'res': [1e3, 600, []]})
+    threading.Thread(target=perform_search, args=args, name="search").start()
+    return "ok"
 
 
 def connect_db():
@@ -77,6 +114,19 @@ def get_venues():
             '_id': v['_id'], 'url': v['canonicalUrl'],
             'loc': list(reversed(v['loc']['coordinates']))} for v in res]
     return f.jsonify(r=ven)
+
+
+@app.route('/n/<origin>/<dest>')
+def neighborhoods(origin, dest):
+    """Match neighborhoods."""
+    global ORIGIN
+    global DEST
+    origin = 'paris' if origin not in c.SHORT_KEY else origin
+    dest = 'helsinki' if dest not in c.SHORT_KEY else dest
+    ORIGIN = cn.gather_info(origin, 1, raw_features=True)
+    DEST = cn.gather_info(dest, 1, raw_features=True)
+    return f.render_template('nei.html', origin=origin, dest=dest,
+                             lbbox=c.BBOXES[origin], rbbox=c.BBOXES[dest])
 
 
 @app.route('/<origin>/<dest>/<int:knn>')

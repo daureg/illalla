@@ -7,6 +7,7 @@ Input:
 Output:
     a list of coordinates that make up a polygon in the other city
 """
+from __future__ import print_function
 import cities
 import ClosestNeighbor as cn
 # import explore as xp
@@ -27,8 +28,9 @@ def load_surroundings(city):
     """Load projected coordinates and extra field of all venues, checkins and
     photos within `city`, as well as returning city geographical bounds."""
     import persistent as p
-    surroundings = [p.load_var('{}_s{}s.my'.format(city, kind))
-                    for kind in ['venue', 'checkin', 'photo']]
+    surroundings = [p.load_var('{}_svenues.my'.format(city)), None, None]
+    # surroundings = [p.load_var('{}_s{}s.my'.format(city, kind))
+    #                 for kind in ['venue', 'checkin', 'photo']]
     venues_pos = np.vstack(surroundings[0].loc)
     city_extent = list(np.min(venues_pos, 0)) + list(np.max(venues_pos, 0))
     return surroundings, city_extent
@@ -88,7 +90,7 @@ def features_as_density(features, weights, support, bins=10):
     def get_bins(dim):
         extent = support[dim][1] - support[dim][0]
         size = 1.0/bins
-        return [support[dim][0] + j*size*extent for j in xrange(bins+1)]
+        return [support[dim][0] + j*size*extent for j in range(bins+1)]
 
     return np.vstack([np.histogram(features[:, i], weights=weights,
                                    bins=get_bins(i))[0]
@@ -142,34 +144,23 @@ def proba_distance(density1, global1, density2, global2, theta):
 
 
 @profile
-def enclose_venues(ids, args):
-    """ Get coordinates of all venues and return their bounding box as
-    GeoJSON."""
-    import CommonMongo as cm
-    import json
-    venues = cm.connect_to_db('foursquare', args.host, args.port)[0].venue
-    positions = [v['loc']['coordinates']
-                 for v in venues.find({'_id': {'$in': ids}}, {'loc': 1})]
-    bounds = list(np.min(positions, 0)) + list(np.max(positions, 0))
-    return json.dumps(geo.mapping(geo.box(*bounds)))
-
-
-@profile
-def brute_search(city_desc, hsize, distance_function):
+def brute_search(city_desc, hsize, distance_function, threshold):
     """Move a sliding circle over the whole city and keep track of the best
     result."""
     radius = hsize
     city_size, city_support, city_features, city_infos = city_desc
     surroundings, bounds = city_infos
     minx, miny, maxx, maxy = bounds
-    nb_x_step = int(2*np.floor(city_size[0]) / hsize + 1)
-    nb_y_step = int(2*np.floor(city_size[1]) / hsize + 1)
-    best = [1e9, 0, 0, radius]
+    nb_x_step = int(3*np.floor(city_size[0]) / hsize + 1)
+    nb_y_step = int(3*np.floor(city_size[1]) / hsize + 1)
+    best = [1e4, [], [], radius]
     res_map = []
     for idx, cx in enumerate(np.linspace(minx+hsize, maxx-hsize, nb_x_step)):
-        print('{}/{}'.format(idx, nb_x_step))
-        for cy in np.linspace(miny+hsize, maxy-hsize, nb_y_step):
+        for idy, cy in enumerate(np.linspace(miny+hsize, maxy-hsize,
+                                             nb_y_step)):
             center = [cx, cy]
+            cell = idx*nb_y_step+idy+1
+            progress = cell/(nb_x_step*nb_y_step*1.0)
             # contains = lambda p: cx - hsize <= p.x <= cx + hsize and \
             #     cy - hsize <= p.y <= cy + hsize
             contains = None
@@ -177,41 +168,38 @@ def brute_search(city_desc, hsize, distance_function):
                                         surroundings, city_features,
                                         threshold)
             features, c_times, weights, c_vids = candidate
-            if features is None:
-                continue
-            # print('found {} candidate venues'.format(len(c_vids)))
-            c_density = features_as_density(features, weights, city_support)
-            distance = regions_distance(c_density, c_times)
-            res_map.append([cx, cy, distance])
-            if distance < best[0]:
-                best = [distance, c_vids, center, radius]
-    return best, res_map
+            if features is not None:
+                # print('found {} candidate venues'.format(len(c_vids)))
+                c_density = features_as_density(features, weights,
+                                                city_support)
+                distance = distance_function(c_density, c_times)
+                res_map.append([cx, cy, distance])
+                if distance < best[0]:
+                    best = [distance, c_vids, center, radius]
+            if cell % 10 == 0:
+                yield best, None, progress
+    yield best, res_map, 1.0
 
-if __name__ == '__main__':
-    # pylint: disable=C0103
-    import arguments
-    args = arguments.two_cities().parse_args()
-    origin, dest = args.origin, args.dest
-    user_input = {"type": "Polygon",
-                  "coordinates": [[[2.35015, 48.85893], [2.35615, 48.85893],
-                                   [2.35615, 48.85293], [2.35015, 48.85293],
-                                   [2.35015, 48.85893]]]}
+
+def best_match(from_city, to_city, region, progressive=False):
+    """Try to match a `region` from `from_city` to `to_city`. If progressive,
+    yield intermediate result."""
     # Load info of the first city
-    left = cn.gather_info(args.origin, knn=1)
-    left_infos = load_surroundings(origin)
+    left = cn.gather_info(from_city, knn=1)
+    left_infos = load_surroundings(from_city)
     minx, miny, maxx, maxy = left_infos[1]
-    left_city_size = (maxx - minx, maxy - miny)
+    # left_city_size = (maxx - minx, maxy - miny)
     left_support = features_support(left['features'])
 
     # Compute info about the query region
-    center, radius, bounds, contains = polygon_to_local(origin, user_input)
+    center, radius, bounds, contains = polygon_to_local(from_city, region)
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
     query_num = features_as_density(features, weights, left_support)
     venue_proportion = 1.0*len(vids) / left['features'].shape[0]
     minx, miny, maxx, maxy = bounds
-    average_dim = ((maxx - minx)/left_city_size[0] +
-                   (maxy - miny)/left_city_size[1])*0.5
+    # average_dim = ((maxx - minx)/left_city_size[0] +
+    #                (maxy - miny)/left_city_size[1])*0.5
 
     # And use them to define the metric that will be used
     theta = np.ones((1, left['features'].shape[1]))
@@ -222,8 +210,8 @@ if __name__ == '__main__':
         return proba_distance(query_num, times, r_density, r_global, theta)
 
     # Load info of the target city
-    right = cn.gather_info(args.dest, knn=1)
-    right_infos = load_surroundings(dest)
+    right = cn.gather_info(to_city, knn=1)
+    right_infos = load_surroundings(to_city)
     minx, miny, maxx, maxy = right_infos[1]
     right_city_size = (maxx - minx, maxy - miny)
     right_support = features_support(right['features'])
@@ -231,9 +219,48 @@ if __name__ == '__main__':
     # given extents, compute treshold and size of candidate
     threshold = 0.7 * venue_proportion * right['features'].shape[0]
     hsize = 600  # TODO function of average_dim and right_city_size
-    # city_size, city_support, city_features, surroundings = city_desc
     right_desc = [right_city_size, right_support, right, right_infos]
-    res, values = brute_search(right_desc, hsize, regions_distance)
+    # Use case for https://docs.python.org/3/whatsnew/3.3.html#pep-380
+    res, vals = None, None
+    for res, vals, progress in brute_search(right_desc, hsize,
+                                            regions_distance, threshold):
+        if progressive:
+            yield res, vals, progress
+        else:
+            print(progress, end='\t')
+    yield res, vals, 1.0
+
+
+def interpolate_distances(values_map):
+    """Plot the distance at every circle center and interpolate between"""
+    from scipy.interpolate import griddata
+    from matplotlib import pyplot as plt
+    x, y, z = [np.array(dim) for dim in zip(*[a for a in values_map])]
+    x_ext = [x.min(), x.max()]
+    y_ext = [y.min(), y.max()]
+    xi = np.linspace(x_ext[0], x_ext[1], 100)
+    yi = np.linspace(y_ext[0], y_ext[1], 100)
+    zi = griddata((x, y), z, (xi[None, :], yi[:, None]), method='cubic')
+    plt.contour(xi, yi, zi, 20, linewidths=0.8, colors='#282828')
+    plt.contourf(xi, yi, zi, 20, cmap=plt.cm.Greens)
+    plt.colorbar()
+    plt.scatter(x, y, marker='o', c='#282828', s=5)
+    plt.tight_layout(pad=0)
+    plt.xlim(*x_ext)
+    plt.ylim(*y_ext)
+
+if __name__ == '__main__':
+    # pylint: disable=C0103
+    import arguments
+    args = arguments.two_cities().parse_args()
+    origin, dest = args.origin, args.dest
+    user_input = {"type": "Polygon",
+                  "coordinates": [[[2.344851493835449, 48.849885789269926],
+                                   [2.358841896057129, 48.84813489353067],
+                                   [2.3505163192749023, 48.837486999797896],
+                                   [2.333221435546875, 48.843503196731405],
+                                   [2.344851493835449, 48.849885789269926]]]}
+    res, values, _ = best_match(origin, dest, user_input).next()
     distance, r_vids, center, radius = res
-    print(enclose_venues(r_vids, args))
-    print(distance, center)
+    print(distance, cities.euclidean_to_geo(dest, center))
+    interpolate_distances(values)

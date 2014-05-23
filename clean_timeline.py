@@ -59,6 +59,8 @@ def save_checkins_json(checkins, city):
     import codecs
     if len(checkins) == 0:
         return
+    else:
+        print('{} unique check-ins'.format(len(checkins)))
     local = checkins[0]['city'] == city
     now = datetime.now().strftime('%Y%m%d_%H%M%S')
     out_name = 'timeline_{}{}_{}.json'.format('' if local else 'not_', city,

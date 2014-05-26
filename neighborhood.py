@@ -97,6 +97,12 @@ def features_as_density(features, weights, support, bins=10):
                       for i in range(features.shape[1])])
 
 
+def features_as_lists(features):
+    """Turn numpy `features` into a list of list, suitable for emd
+    function."""
+    return [list(row) for row in features]
+
+
 @profile
 def weighting_venues(values):
     """Transform `values` into a list of positive weights that sum up to 1."""
@@ -144,16 +150,17 @@ def proba_distance(density1, global1, density2, global2, theta):
 
 
 @profile
-def brute_search(city_desc, hsize, distance_function, threshold):
+def brute_search(city_desc, hsize, distance_function, threshold,
+                 use_emd=False):
     """Move a sliding circle over the whole city and keep track of the best
     result."""
     radius = hsize
     city_size, city_support, city_features, city_infos = city_desc
     surroundings, bounds = city_infos
     minx, miny, maxx, maxy = bounds
-    nb_x_step = int(3*np.floor(city_size[0]) / hsize + 1)
-    nb_y_step = int(3*np.floor(city_size[1]) / hsize + 1)
-    best = [1e4, [], [], radius]
+    nb_x_step = int(1.5*np.floor(city_size[0]) / hsize + 1)
+    nb_y_step = int(1.5*np.floor(city_size[1]) / hsize + 1)
+    best = [1e14, [], [], radius]
     res_map = []
     for idx, cx in enumerate(np.linspace(minx+hsize, maxx-hsize, nb_x_step)):
         for idy, cy in enumerate(np.linspace(miny+hsize, maxy-hsize,
@@ -170,9 +177,13 @@ def brute_search(city_desc, hsize, distance_function, threshold):
             features, c_times, weights, c_vids = candidate
             if features is not None:
                 # print('found {} candidate venues'.format(len(c_vids)))
-                c_density = features_as_density(features, weights,
-                                                city_support)
-                distance = distance_function(c_density, c_times)
+                if use_emd:
+                    c_density = features_as_lists(features)
+                else:
+                    c_density = features_as_density(features, weights,
+                                                    city_support)
+                distance = distance_function(c_density,
+                                             weights if use_emd else c_times)
                 res_map.append([cx, cy, distance])
                 if distance < best[0]:
                     best = [distance, c_vids, center, radius]
@@ -181,9 +192,11 @@ def brute_search(city_desc, hsize, distance_function, threshold):
     yield best, res_map, 1.0
 
 
-def best_match(from_city, to_city, region, progressive=False):
+def best_match(from_city, to_city, region, progressive=False, use_emd=False):
     """Try to match a `region` from `from_city` to `to_city`. If progressive,
     yield intermediate result."""
+    from emd import emd
+    from emd_dst import dist_for_emd
     # Load info of the first city
     left = cn.gather_info(from_city, knn=1)
     left_infos = load_surroundings(from_city)
@@ -195,7 +208,10 @@ def best_match(from_city, to_city, region, progressive=False):
     center, radius, bounds, contains = polygon_to_local(from_city, region)
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
-    query_num = features_as_density(features, weights, left_support)
+    if use_emd:
+        query_num = features_as_lists(features)
+    else:
+        query_num = features_as_density(features, weights, left_support)
     venue_proportion = 1.0*len(vids) / left['features'].shape[0]
     minx, miny, maxx, maxy = bounds
     # average_dim = ((maxx - minx)/left_city_size[0] +
@@ -204,10 +220,18 @@ def best_match(from_city, to_city, region, progressive=False):
     # And use them to define the metric that will be used
     theta = np.ones((1, left['features'].shape[1]))
 
-    @profile
-    def regions_distance(r_density, r_global):
-        """Return distance of a region from `query_num`."""
-        return proba_distance(query_num, times, r_density, r_global, theta)
+    if use_emd:
+        @profile
+        def regions_distance(r_features, r_weigths):
+            return emd((query_num, map(float, weights)),
+                       (r_features, map(float, r_weigths)),
+                       lambda a, b: float(dist_for_emd(a, b)))
+    else:
+        @profile
+        def regions_distance(r_density, r_global):
+            """Return distance of a region from `query_num`."""
+            return proba_distance(query_num, times, r_density, r_global,
+                                  theta)
 
     # Load info of the target city
     right = cn.gather_info(to_city, knn=1)
@@ -218,12 +242,13 @@ def best_match(from_city, to_city, region, progressive=False):
 
     # given extents, compute treshold and size of candidate
     threshold = 0.7 * venue_proportion * right['features'].shape[0]
-    hsize = 600  # TODO function of average_dim and right_city_size
+    hsize = 1000  # TODO function of average_dim and right_city_size
     right_desc = [right_city_size, right_support, right, right_infos]
     # Use case for https://docs.python.org/3/whatsnew/3.3.html#pep-380
     res, vals = None, None
     for res, vals, progress in brute_search(right_desc, hsize,
-                                            regions_distance, threshold):
+                                            regions_distance, threshold,
+                                            use_emd):
         if progressive:
             yield res, vals, progress
         else:
@@ -260,7 +285,7 @@ if __name__ == '__main__':
                                    [2.3505163192749023, 48.837486999797896],
                                    [2.333221435546875, 48.843503196731405],
                                    [2.344851493835449, 48.849885789269926]]]}
-    res, values, _ = best_match(origin, dest, user_input).next()
+    res, values, _ = best_match(origin, dest, user_input, use_emd=True).next()
     distance, r_vids, center, radius = res
     print(distance, cities.euclidean_to_geo(dest, center))
     interpolate_distances(values)

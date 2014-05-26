@@ -312,19 +312,20 @@ def batch_matching():
         for city in ['helsinki', 'barcelona']:
             print(city)
             regions[neighborhood][city] = []
-            for emd in [False, True]:
-                print(emd)
+            for metric in ['jsd', 'emd']:
+                print(metric)
                 for radius in np.linspace(350, 1100, 7):
                     print(radius)
                     res, values, _ = best_match('paris', city, rgeo, radius,
-                                                emd).next()
+                                                metric == 'emd').next()
                     distance, r_vids, center, radius = res
                     center = cities.euclidean_to_geo(city, center)
-                    result = {'geo': {'type': 'circle', 'center': center},
-                              'dst': distance, 'radius': radius, 'emd': emd}
+                    result = {'geo': {'type': 'circle',
+                                      'center': center, 'radius': radius},
+                              'dst': distance, 'metric': metric}
                     regions[neighborhood][city].append(result)
                     outname = '{}_{}_{}_{}.png'.format(city, neighborhood,
-                                                       int(radius), emd)
+                                                       int(radius), metric)
                     interpolate_distances(values, outname)
     with open('static/apresets.js', 'w') as out:
         out.write('var PRESETS =' + ujson.dumps(regions) + ';')

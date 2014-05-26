@@ -21,6 +21,12 @@
                 <option value="official">Officials</option>
             </select>
         </label>
+        <label>Metric:
+            <select name="metric" id="metric" required>
+                <option value="jsd" selected="selected">JSD</option>
+                <option value="emd">EMD</option>
+            </select>
+        </label>
         <button>Match!</button>
     </form>
     <div id="result">
@@ -30,7 +36,7 @@
 	<div id="mapl" class="map"></div>
 	<div id="mapr" class="map"></div>
 	<div><p style="margin-left: 55%; width: 40%;" id="log"></p></div>
-	<script src="{{ url_for('static', filename='presets.js') }}"></script>
+	<script src="{{ url_for('static', filename='apresets.js') }}"></script>
 	<script src="{{ url_for('static', filename='common.js') }}"></script>
 	<script src="{{ url_for('static', filename='nei.js') }}"></script>
 {% endblock %}

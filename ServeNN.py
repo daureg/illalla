@@ -26,10 +26,11 @@ DEST = {}
 SEARCH_STATUS = {}
 
 
-def perform_search(from_city, to_city, region):
+def perform_search(from_city, to_city, region, metric):
     start = time.clock()
     for res, _, progress in nb.best_match(from_city, to_city, region, 900,
-                                          progressive=True):
+                                          progressive=True,
+                                          use_emd=metric == "emd"):
         # print(progress)
         distance, _, center, radius = res
         if len(center) == 2:
@@ -52,7 +53,8 @@ def send_status():
 @app.route('/match_neighborhood', methods=['POST'])
 def start_search():
     geo = f.json.loads(f.request.form['geo'])
-    args = (ORIGIN['city'], DEST['city'], geo)
+    metric = f.json.loads(f.request.form['metric'])
+    args = (ORIGIN['city'], DEST['city'], geo, metric)
     SEARCH_STATUS.update({'done': False, 'seen': False, 'progress': 0.0,
                           'res': [1e3, 600, []]})
     threading.Thread(target=perform_search, args=args, name="search").start()

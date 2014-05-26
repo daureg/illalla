@@ -95,8 +95,9 @@ left.on('draw:created', function (e) {
     var query = {id: lid, type: type, geo: geo, radius: radius, center: center};
     // $('#log').fill(JSON.stringify(geo))
     // $('.leaflet-draw-section').hide();
+    var metric = $('#presets').values().metric;
     $.request('post', $SCRIPT_ROOT+'/match_neighborhood',
-            {geo: JSON.stringify(geo)})
+            {geo: JSON.stringify(geo), metric: metric})
     .then(function success(result){
         poll_until_done();
     })
@@ -145,29 +146,43 @@ function poll_until_done() {
 function draw_preset_query(name) {
     var query = PRESETS[name];
     var coords = query.geo.coordinates[0], latlngs = [];
-    for (var i=0; i < coords.length-1; i++) {
+    var i = 0;
+    for (i = 0; i < coords.length-1; i++) {
 	    latlngs.push([coords[i][1], coords[i][0]]);
     }
     var poly = L.polygon(latlngs, {color: '#b22222'});
     drawnItems.clearLayers();
     drawnItems.addLayer(poly);
     left.fitBounds(poly.getBounds(), {maxZoom: 14});
-    // to get the initial matching (better to automate it with python)
-    // $.request('post', $SCRIPT_ROOT+'/match_neighborhood',
-	// 	    {geo: JSON.stringify(query.geo)})
-    // .then(function success(result){
-    //     poll_until_done(); });
     res = query[dest];
-    $('#res').fill('Smallest distance: ' + res.dst.toFixed(3));
-    var center = res.geo.center, radius = res.geo.radius,
-	circle = L.circle(center, radius, {color: '#2ecc40'});
     answers.clearLayers();
-    answers.addLayer(circle);
-    right.fitBounds(circle.getBounds(), {maxZoom: 14});
+    var metric = $('#presets').values().metric;
+    var smallest_dst = 1e15;
+    console.log(metric);
+    console.log(query);
+    for (i = 0; i < res.length-1; i++) {
+        var dst = res[i].dst,
+            center = res[i].geo.center,
+            // radius = res[i].geo.radius,
+            radius = res[i].radius,
+            r_metric = res[i].metric;
+        if (r_metric === metric) {
+            circle = L.circle(center, radius, {color: '#2ecc40'});
+            answers.addLayer(circle);
+            if (dst < smallest_dst) {
+                msg = 'Smallest distance of  ' + dst.toFixed(3);
+                msg += ' for a radius of ' + radius.toFixed(0);
+                $('#res').fill(msg);
+                smallest_dst = dst;
+            }
+        }
+    }
+    // right.fitBounds(circle.getBounds(), {maxZoom: 14});
 }
 var presets = $('#presets');
 if (origin !== 'paris') {presets.hide();}
 presets.on('submit', function match_preset(e) {
     console.log(presets.values());
     draw_preset_query(presets.values().neighborhood);
+    return false;
 });

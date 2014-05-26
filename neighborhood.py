@@ -190,9 +190,9 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     SURROUNDINGS, bounds = city_infos
     DISTANCE_FUNCTION = distance_function
     minx, miny, maxx, maxy = bounds
-    nb_x_step = int(2.5*np.floor(city_size[0]) / hsize + 1)
-    nb_y_step = int(2.5*np.floor(city_size[1]) / hsize + 1)
-    best = [1e14, [], [], RADIUS]
+    nb_x_step = int(3.5*np.floor(city_size[0]) / hsize + 1)
+    nb_y_step = int(3.5*np.floor(city_size[1]) / hsize + 1)
+    best = [1e20, [], [], RADIUS]
     res_map = []
     pool = multiprocessing.Pool(4)
 
@@ -324,7 +324,7 @@ def batch_matching():
                               'dst': distance, 'radius': radius, 'emd': emd}
                     regions[neighborhood][city].append(result)
                     outname = '{}_{}_{}_{}.png'.format(city, neighborhood,
-                                                       radius, emd)
+                                                       int(radius), emd)
                     interpolate_distances(values, outname)
     with open('static/apresets.js', 'w') as out:
         out.write('var PRESETS =' + ujson.dumps(regions) + ';')
@@ -332,7 +332,8 @@ def batch_matching():
 if __name__ == '__main__':
     # pylint: disable=C0103
     batch_matching()
-    raise Exception
+    import sys
+    sys.exit()
     import arguments
     args = arguments.two_cities().parse_args()
     origin, dest = args.origin, args.dest

@@ -28,7 +28,7 @@ SEARCH_STATUS = {}
 
 def perform_search(from_city, to_city, region):
     start = time.clock()
-    for res, _, progress in nb.best_match(from_city, to_city, region,
+    for res, _, progress in nb.best_match(from_city, to_city, region, 900,
                                           progressive=True):
         # print(progress)
         distance, _, center, radius = res
@@ -44,7 +44,7 @@ def perform_search(from_city, to_city, region):
 @app.route('/status')
 def send_status():
     while SEARCH_STATUS['seen']:
-        time.sleep(0.05)
+        time.sleep(0.25)
     SEARCH_STATUS['seen'] = True
     return f.jsonify(r=SEARCH_STATUS)
 

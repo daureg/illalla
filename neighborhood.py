@@ -149,46 +149,68 @@ def proba_distance(density1, global1, density2, global2, theta):
     return proba[0] + np.linalg.norm(global1 - global2)
 
 
+SURROUNDINGS, CITY_FEATURES, THRESHOLD = None, None, None
+USE_EMD, CITY_SUPPORT, DISTANCE_FUNCTION, RADIUS = None, None, None, None
+
+
+@profile
+def one_cell(args):
+    cx, cy, idx, idy = args
+    center = [cx, cy]
+    contains = None
+    candidate = describe_region(center, RADIUS, contains,
+                                SURROUNDINGS, CITY_FEATURES,
+                                THRESHOLD)
+    features, c_times, weights, c_vids = candidate
+    if features is not None:
+        if USE_EMD:
+            c_density = features_as_lists(features)
+        else:
+            c_density = features_as_density(features, weights,
+                                            CITY_SUPPORT)
+        distance = DISTANCE_FUNCTION(c_density,
+                                     weights if USE_EMD else c_times)
+        return [cx, cy, distance, c_vids]
+    else:
+        return [None, None, None, None]
+
+
 @profile
 def brute_search(city_desc, hsize, distance_function, threshold,
                  use_emd=False):
     """Move a sliding circle over the whole city and keep track of the best
     result."""
-    radius = hsize
-    city_size, city_support, city_features, city_infos = city_desc
-    surroundings, bounds = city_infos
+    global SURROUNDINGS, CITY_FEATURES, THRESHOLD, RADIUS
+    global USE_EMD, CITY_SUPPORT, DISTANCE_FUNCTION
+    import multiprocessing
+    RADIUS = hsize
+    THRESHOLD = threshold
+    USE_EMD = use_emd
+    city_size, CITY_SUPPORT, CITY_FEATURES, city_infos = city_desc
+    SURROUNDINGS, bounds = city_infos
+    DISTANCE_FUNCTION = distance_function
     minx, miny, maxx, maxy = bounds
-    nb_x_step = int(1.5*np.floor(city_size[0]) / hsize + 1)
-    nb_y_step = int(1.5*np.floor(city_size[1]) / hsize + 1)
-    best = [1e14, [], [], radius]
+    nb_x_step = int(2.5*np.floor(city_size[0]) / hsize + 1)
+    nb_y_step = int(2.5*np.floor(city_size[1]) / hsize + 1)
+    best = [1e14, [], [], RADIUS]
     res_map = []
-    for idx, cx in enumerate(np.linspace(minx+hsize, maxx-hsize, nb_x_step)):
-        for idy, cy in enumerate(np.linspace(miny+hsize, maxy-hsize,
-                                             nb_y_step)):
-            center = [cx, cy]
-            cell = idx*nb_y_step+idy+1
-            progress = cell/(nb_x_step*nb_y_step*1.0)
-            # contains = lambda p: cx - hsize <= p.x <= cx + hsize and \
-            #     cy - hsize <= p.y <= cy + hsize
-            contains = None
-            candidate = describe_region(center, radius, contains,
-                                        surroundings, city_features,
-                                        threshold)
-            features, c_times, weights, c_vids = candidate
-            if features is not None:
-                # print('found {} candidate venues'.format(len(c_vids)))
-                if use_emd:
-                    c_density = features_as_lists(features)
-                else:
-                    c_density = features_as_density(features, weights,
-                                                    city_support)
-                distance = distance_function(c_density,
-                                             weights if use_emd else c_times)
-                res_map.append([cx, cy, distance])
-                if distance < best[0]:
-                    best = [distance, c_vids, center, radius]
-            if cell % 10 == 0:
-                yield best, None, progress
+    pool = multiprocessing.Pool(4)
+
+    x_steps = np.linspace(minx+hsize, maxx-hsize, nb_x_step)
+    y_steps = np.linspace(miny+hsize, maxy-hsize, nb_y_step)
+    x_vals, y_vals = np.meshgrid(x_steps, y_steps)
+    to_cell_arg = lambda _: (float(_[1][0]), float(_[1][1]), _[0] % nb_x_step,
+                             _[0]/nb_y_step)
+    cells = i.imap(to_cell_arg, enumerate(i.izip(np.nditer(x_vals),
+                                                 np.nditer(y_vals))))
+    res = pool.map(one_cell, cells)
+    res_map = []
+    for cell in res:
+        if cell[0] is None:
+            continue
+        res_map.append(cell[:3])
+        if cell[2] < best[0]:
+            best = [cell[2], cell[3], [cell[0], cell[1]], RADIUS]
     yield best, res_map, 1.0
 
 
@@ -242,7 +264,7 @@ def best_match(from_city, to_city, region, progressive=False, use_emd=False):
 
     # given extents, compute treshold and size of candidate
     threshold = 0.7 * venue_proportion * right['features'].shape[0]
-    hsize = 1000  # TODO function of average_dim and right_city_size
+    hsize = 700  # TODO function of average_dim and right_city_size
     right_desc = [right_city_size, right_support, right, right_infos]
     # Use case for https://docs.python.org/3/whatsnew/3.3.html#pep-380
     res, vals = None, None

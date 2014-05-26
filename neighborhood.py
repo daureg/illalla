@@ -214,7 +214,8 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     yield best, res_map, 1.0
 
 
-def best_match(from_city, to_city, region, progressive=False, use_emd=False):
+def best_match(from_city, to_city, region, tradius, progressive=False,
+               use_emd=False):
     """Try to match a `region` from `from_city` to `to_city`. If progressive,
     yield intermediate result."""
     from emd import emd
@@ -264,7 +265,7 @@ def best_match(from_city, to_city, region, progressive=False, use_emd=False):
 
     # given extents, compute treshold and size of candidate
     threshold = 0.7 * venue_proportion * right['features'].shape[0]
-    hsize = 700  # TODO function of average_dim and right_city_size
+    hsize = tradius  # TODO function of average_dim and right_city_size
     right_desc = [right_city_size, right_support, right, right_infos]
     # Use case for https://docs.python.org/3/whatsnew/3.3.html#pep-380
     res, vals = None, None
@@ -278,7 +279,7 @@ def best_match(from_city, to_city, region, progressive=False, use_emd=False):
     yield res, vals, 1.0
 
 
-def interpolate_distances(values_map):
+def interpolate_distances(values_map, filename):
     """Plot the distance at every circle center and interpolate between"""
     from scipy.interpolate import griddata
     from matplotlib import pyplot as plt
@@ -288,6 +289,7 @@ def interpolate_distances(values_map):
     xi = np.linspace(x_ext[0], x_ext[1], 100)
     yi = np.linspace(y_ext[0], y_ext[1], 100)
     zi = griddata((x, y), z, (xi[None, :], yi[:, None]), method='cubic')
+    plt.figure(figsize=(25, 18))
     plt.contour(xi, yi, zi, 20, linewidths=0.8, colors='#282828')
     plt.contourf(xi, yi, zi, 20, cmap=plt.cm.Greens)
     plt.colorbar()
@@ -295,9 +297,42 @@ def interpolate_distances(values_map):
     plt.tight_layout(pad=0)
     plt.xlim(*x_ext)
     plt.ylim(*y_ext)
+    plt.savefig(filename, transparent=False, frameon=False,
+                bbox_inches='tight', pad_inches=0.01)
+
+
+def batch_matching():
+    """Match preselected region of Paris into Helsinki and Barcelona"""
+    import ujson
+    with open('static/presets.json') as infile:
+        regions = ujson.load(infile)
+    for neighborhood in regions.keys()[:2]:
+        print(neighborhood)
+        rgeo = regions[neighborhood].get('geo')
+        for city in ['helsinki', 'barcelona']:
+            print(city)
+            regions[neighborhood][city] = []
+            for emd in [False, True]:
+                print(emd)
+                for radius in np.linspace(350, 1100, 7):
+                    print(radius)
+                    res, values, _ = best_match('paris', city, rgeo, radius,
+                                                emd).next()
+                    distance, r_vids, center, radius = res
+                    center = cities.euclidean_to_geo(city, center)
+                    result = {'geo': {'type': 'circle', 'center': center},
+                              'dst': distance, 'radius': radius, 'emd': emd}
+                    regions[neighborhood][city].append(result)
+                    outname = '{}_{}_{}_{}.png'.format(city, neighborhood,
+                                                       radius, emd)
+                    interpolate_distances(values, outname)
+    with open('static/apresets.js', 'w') as out:
+        out.write('var PRESETS =' + ujson.dumps(regions) + ';')
 
 if __name__ == '__main__':
     # pylint: disable=C0103
+    batch_matching()
+    raise Exception
     import arguments
     args = arguments.two_cities().parse_args()
     origin, dest = args.origin, args.dest
@@ -307,7 +342,8 @@ if __name__ == '__main__':
                                    [2.3505163192749023, 48.837486999797896],
                                    [2.333221435546875, 48.843503196731405],
                                    [2.344851493835449, 48.849885789269926]]]}
-    res, values, _ = best_match(origin, dest, user_input, use_emd=True).next()
+    res, values, _ = best_match(origin, dest, user_input, 800,
+                                use_emd=True).next()
     distance, r_vids, center, radius = res
     print(distance, cities.euclidean_to_geo(dest, center))
-    interpolate_distances(values)
+    interpolate_distances(values, origin+dest+'.png')

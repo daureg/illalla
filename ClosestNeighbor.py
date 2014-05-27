@@ -38,8 +38,6 @@ def load_matrix(city):
     filename = city
     if not filename.endswith('.mat'):
         filename = city + '_fv.mat'
-    # if not os.path.exists(filename):
-    #     vf.describe_city(city)
     mat = vf.sio.loadmat(filename)
     # pylint: disable=E1101
     if filename.endswith('_fv.mat') or filename.endswith('_tsne.mat'):
@@ -51,10 +49,12 @@ def load_matrix(city):
             is_inf = np.isinf(mat['v'][:, 0]).ravel()
             mat['v'][is_inf, 0] = 0.0
         LCATS[city] = np.ceil(mat['v'][:, 5]).astype(int)
-        # mat['v'][:, 5] = np.divide(LCATS[city], 1000)*1000
+        # keep only top level category
+        mat['v'][:, 5] = np.divide(LCATS[city], 1000)*1000
         # mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
         if filename.endswith('_fv.mat'):
             non_categorical = range(len(FEATURES))
+            del non_categorical[non_categorical.index(1)]
             del non_categorical[non_categorical.index(5)]
             del non_categorical[non_categorical.index(17)]
             weird = np.logical_or(np.isinf(mat['v'][:, 16]),

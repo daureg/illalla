@@ -177,7 +177,7 @@ def one_cell(args):
 
 @profile
 def brute_search(city_desc, hsize, distance_function, threshold,
-                 use_emd=False):
+                 metric='jsd'):
     """Move a sliding circle over the whole city and keep track of the best
     result."""
     global SURROUNDINGS, CITY_FEATURES, THRESHOLD, RADIUS
@@ -185,7 +185,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     import multiprocessing
     RADIUS = hsize
     THRESHOLD = threshold
-    USE_EMD = use_emd
+    USE_EMD = metric == 'emd'
     city_size, CITY_SUPPORT, CITY_FEATURES, city_infos = city_desc
     SURROUNDINGS, bounds = city_infos
     DISTANCE_FUNCTION = distance_function
@@ -215,9 +215,10 @@ def brute_search(city_desc, hsize, distance_function, threshold,
 
 
 def best_match(from_city, to_city, region, tradius, progressive=False,
-               use_emd=False):
+               metric='jsd'):
     """Try to match a `region` from `from_city` to `to_city`. If progressive,
     yield intermediate result."""
+    assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy']
     from emd import emd
     from emd_dst import dist_for_emd
     # Load info of the first city
@@ -232,7 +233,7 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
     print('{} venues in query region.'.format(len(vids)))
-    if use_emd:
+    if 'emd' in metric:
         query_num = features_as_lists(features)
     else:
         query_num = features_as_density(features, weights, left_support)
@@ -244,7 +245,7 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     # And use them to define the metric that will be used
     theta = np.ones((1, left['features'].shape[1]))
 
-    if use_emd:
+    if 'emd' in metric:
         @profile
         def regions_distance(r_features, r_weigths):
             dst = emd((query_num, map(float, weights)),
@@ -259,7 +260,7 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
                                   theta)
 
     # Load info of the target city
-    right = cn.gather_info(to_city, knn=1)
+    right = cn.gather_info(to_city, knn=2)
     right_infos = load_surroundings(to_city)
     minx, miny, maxx, maxy = right_infos[1]
     right_city_size = (maxx - minx, maxy - miny)
@@ -269,16 +270,79 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     threshold = 0.7 * venue_proportion * right['features'].shape[0]
     hsize = tradius  # TODO function of average_dim and right_city_size
     right_desc = [right_city_size, right_support, right, right_infos]
-    # Use case for https://docs.python.org/3/whatsnew/3.3.html#pep-380
+
     res, vals = None, None
-    for res, vals, progress in brute_search(right_desc, hsize,
-                                            regions_distance, threshold,
-                                            use_emd):
-        if progressive:
-            yield res, vals, progress
-        else:
-            print(progress, end='\t')
+    if metric.endswith('-nospace'):
+        res, vals = search_no_space(vids, 10.0/7*threshold, regions_distance,
+                                    left, right, right_support)
+    elif metric.endswith('-greedy'):
+        res, vals = greedy_search(10.0/7*threshold, regions_distance, right,
+                                  right_support)
+    else:
+        # Use case for https://docs.python.org/3/whatsnew/3.3.html#pep-380
+        for res, vals, progress in brute_search(right_desc, hsize,
+                                                regions_distance, threshold,
+                                                metric=metric):
+            if progressive:
+                yield res, vals, progress
+            else:
+                print(progress, end='\t')
     yield res, vals, 1.0
+
+
+@profile
+def greedy_search(nb_venues, distance_function, right_knn, support):
+    """Find `nb_venues` in `right_knn` that optimize the total distance
+    according to `distance_function`."""
+    import random as r
+    candidates_idx = []
+    nb_venues = int(nb_venues)+3
+    while len(candidates_idx) < nb_venues:
+        best_dst, best_idx = 1e15, 0
+        for ridx in range(len(right_knn['index'])):
+            if ridx in candidates_idx or r.random() > 0.3:
+                continue
+            mask = np.array([ridx] + candidates_idx)
+            weights = weighting_venues(right_knn['features'][mask, 1])
+            activities = np.ones((12, 1))
+            features = right_knn['features'][mask, :]
+            density = features_as_density(features, weights, support)
+            distance = distance_function(density, activities)
+            if distance < best_dst:
+                best_dst, best_idx = distance, ridx
+        candidates_idx.append(best_idx)
+        print('add: {}. dst = {:.4f}'.format(right_knn['index'][best_idx],
+                                             best_dst))
+    r_vids = [right_knn['index'][_] for _ in candidates_idx]
+    return [best_dst, r_vids, [], -1], None
+
+
+def search_no_space(vids, nb_venues, distance_function, left_knn, right_knn,
+                    support):
+    """Find `nb_venues` in `right_knn` that are close to those in `vids` (in
+    the sense of euclidean distance) and return the distance with this
+    “virtual” neighborhood (for comparaison purpose)"""
+    import heapq
+    candidates = []
+    candidates_id = []
+    knn = right_knn['knn']
+    nb_venues = min(len(vids)*knn, int(nb_venues)+30)
+    for idx, vid in enumerate(vids):
+        _, rid, ridx, dst, _ = cn.find_closest(vid, left_knn, right_knn)
+        for dst_, rid_, ridx_, idx_ in zip(dst, rid, ridx, range(knn)):
+            if rid_ not in candidates_id:
+                candidates_id.append(rid_)
+                heapq.heappush(candidates, (dst_, idx*knn+idx_,
+                                            (rid_, ridx_)))
+    closest = heapq.nsmallest(nb_venues, candidates)
+    mask = np.array([v[2][1] for v in closest])
+    r_vids = np.array([v[2][0] for v in closest])
+    weights = weighting_venues(right_knn['features'][mask, 1])
+    activities = np.ones((12, 1))
+    features = right_knn['features'][mask, :]
+    density = features_as_density(features, weights, support)
+    distance = distance_function(density, activities)
+    return [distance, r_vids, [], -1], None
 
 
 def interpolate_distances(values_map, filename):
@@ -324,7 +388,7 @@ def batch_matching():
                 for radius in np.linspace(350, 1100, 6):
                     print(radius)
                     res, values, _ = best_match('paris', city, rgeo, radius,
-                                                use_emd=metric == 'emd').next()
+                                                metric=metric).next()
                     distance, r_vids, center, radius = res
                     print(distance)
                     center = cities.euclidean_to_geo(city, center)
@@ -348,13 +412,15 @@ if __name__ == '__main__':
     args = arguments.two_cities().parse_args()
     origin, dest = args.origin, args.dest
     user_input = {"type": "Polygon",
-                  "coordinates": [[[2.344851493835449, 48.849885789269926],
-                                   [2.358841896057129, 48.84813489353067],
-                                   [2.3505163192749023, 48.837486999797896],
-                                   [2.333221435546875, 48.843503196731405],
-                                   [2.344851493835449, 48.849885789269926]]]}
+                  "coordinates": [[[2.3006272315979004, 48.86419005209702],
+                                   [2.311570644378662, 48.86941264251879],
+                                   [2.2995758056640625, 48.872983451383305],
+                                   [2.3006272315979004, 48.86419005209702]]]}
     res, values, _ = best_match(origin, dest, user_input, 800,
-                                use_emd=True).next()
+                                metric='jsd-greedy').next()
     distance, r_vids, center, radius = res
-    print(distance, cities.euclidean_to_geo(dest, center))
-    interpolate_distances(values, origin+dest+'.png')
+    print(distance)
+    for _ in sorted(r_vids):
+        print(str(_))
+    # print(distance, cities.euclidean_to_geo(dest, center))
+    # interpolate_distances(values, origin+dest+'.png')

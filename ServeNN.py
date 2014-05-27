@@ -31,7 +31,7 @@ def perform_search(from_city, to_city, region, metric):
     start = clock()
     for res, _, progress in nb.best_match(from_city, to_city, region, 900,
                                           progressive=True,
-                                          use_emd=metric == "emd"):
+                                          metric=metric):
         # print(progress)
         distance, r_vids, center, radius = res
         if len(center) == 2:

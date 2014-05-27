@@ -283,13 +283,16 @@ def interpolate_distances(values_map, filename):
     """Plot the distance at every circle center and interpolate between"""
     from scipy.interpolate import griddata
     from matplotlib import pyplot as plt
+    import persistent as p
+    import os
+    filename = os.path.join('distance_map', filename)
     x, y, z = [np.array(dim) for dim in zip(*[a for a in values_map])]
     x_ext = [x.min(), x.max()]
     y_ext = [y.min(), y.max()]
     xi = np.linspace(x_ext[0], x_ext[1], 100)
     yi = np.linspace(y_ext[0], y_ext[1], 100)
     zi = griddata((x, y), z, (xi[None, :], yi[:, None]), method='cubic')
-    plt.figure(figsize=(22, 18))
+    fig = plt.figure(figsize=(22, 18))
     plt.contour(xi, yi, zi, 20, linewidths=0.8, colors='#282828')
     plt.contourf(xi, yi, zi, 20, cmap=plt.cm.Greens)
     plt.colorbar()
@@ -299,6 +302,8 @@ def interpolate_distances(values_map, filename):
     plt.ylim(*y_ext)
     plt.savefig(filename, dpi=96, transparent=False, frameon=False,
                 bbox_inches='tight', pad_inches=0.01)
+    p.save_var(filename.replace('.png', '.my'), values_map)
+    plt.close(fig)
 
 
 def batch_matching():

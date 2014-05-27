@@ -231,6 +231,7 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     center, radius, bounds, contains = polygon_to_local(from_city, region)
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
+    print('{} venues in query region.'.format(len(vids)))
     if use_emd:
         query_num = features_as_lists(features)
     else:
@@ -308,7 +309,7 @@ def interpolate_distances(values_map, filename):
 
 
 def batch_matching():
-    """Match preselected region of Paris into Helsinki and Barcelona"""
+    """Match preselected regions of Paris into Helsinki and Barcelona"""
     import ujson
     with open('static/presets.json') as infile:
         regions = ujson.load(infile)
@@ -329,7 +330,8 @@ def batch_matching():
                     center = cities.euclidean_to_geo(city, center)
                     result = {'geo': {'type': 'circle',
                                       'center': center, 'radius': radius},
-                              'dst': distance, 'metric': metric}
+                              'dst': distance, 'metric': metric,
+                              'nb_venues': len(r_vids)}
                     regions[neighborhood][city].append(result)
                     outname = '{}_{}_{}_{}.png'.format(city, neighborhood,
                                                        int(radius), metric)

@@ -9,6 +9,7 @@ import ClosestNeighbor as cn
 import FSCategories as fsc
 import neighborhood as nb
 import time
+from timeit import default_timer as clock
 import threading
 
 app = f.Flask(__name__)
@@ -27,17 +28,18 @@ SEARCH_STATUS = {}
 
 
 def perform_search(from_city, to_city, region, metric):
-    start = time.clock()
+    start = clock()
     for res, _, progress in nb.best_match(from_city, to_city, region, 900,
                                           progressive=True,
                                           use_emd=metric == "emd"):
         # print(progress)
-        distance, _, center, radius = res
+        distance, r_vids, center, radius = res
         if len(center) == 2:
             center = c.euclidean_to_geo(to_city, center)
-        relevant = [distance, radius, center]
+        relevant = {'dst': distance, 'radius': radius, 'center': center,
+                    'nb_venues': len(r_vids)}
         SEARCH_STATUS.update(dict(seen=False, progress=progress, res=relevant))
-    print("done search in {:.3f}".format(time.clock() - start))
+    print("done search in {:.3f}".format(clock() - start))
     SEARCH_STATUS.update(dict(seen=False, progress=1.0, done=True,
                               res=relevant))
 
@@ -53,10 +55,11 @@ def send_status():
 @app.route('/match_neighborhood', methods=['POST'])
 def start_search():
     geo = f.json.loads(f.request.form['geo'])
-    metric = f.json.loads(f.request.form['metric'])
+    metric = str(f.request.form['metric'])
     args = (ORIGIN['city'], DEST['city'], geo, metric)
     SEARCH_STATUS.update({'done': False, 'seen': False, 'progress': 0.0,
-                          'res': [1e3, 600, []]})
+                          'res': {'dst': 1e5, 'radius': 600, 'center': [],
+                                  'nb_venues': 0}})
     threading.Thread(target=perform_search, args=args, name="search").start()
     return "ok"
 

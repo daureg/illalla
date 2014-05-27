@@ -4,6 +4,7 @@ var map_right_toggle = $('#mapr').toggle({$$fade: 1}, {$$fade: 0}, 150);
 populate('left', canvas_display);
 populate('right', canvas_display);
 var LEFT_CANVAS = null, LC_VISIBLE = false;
+var RIGHT_CANVAS = null, RC_VISIBLE = false;
 function canvas_display(result, nside, map) {
     var venues = $.parseJSON(result).r;
     var points = [];
@@ -16,6 +17,10 @@ function canvas_display(result, nside, map) {
     if (nside === 0) {
         LEFT_CANVAS = venue_dots;
         LC_VISIBLE = true;
+    }
+    else {
+        RIGHT_CANVAS = venue_dots;
+        RC_VISIBLE = true;
     }
     map.addLayer(venue_dots);
 }
@@ -39,6 +44,15 @@ document.addEventListener('keydown', function(event) {
     }
     if (event.keyCode === 68) {
 	    map_right_toggle();
+    }
+    if (event.keyCode === 69) {
+        if (RC_VISIBLE) {
+            right.removeLayer(RIGHT_CANVAS);
+        }
+        else {
+            right.addLayer(RIGHT_CANVAS);
+        }
+        RC_VISIBLE = !RC_VISIBLE;
     }
 }, false);
 var drawnItems = new L.FeatureGroup();
@@ -96,6 +110,7 @@ left.on('draw:created', function (e) {
     // $('#log').fill(JSON.stringify(geo))
     // $('.leaflet-draw-section').hide();
     var metric = $('#presets').values().metric;
+    left.fitBounds(zone.getBounds(), {maxZoom: 14});
     $.request('post', $SCRIPT_ROOT+'/match_neighborhood',
             {geo: JSON.stringify(geo), metric: metric})
     .then(function success(result){
@@ -109,16 +124,17 @@ left.on('draw:created', function (e) {
 	    LC_VISIBLE = true;
     }
 });
+var RESULT_FMT = 'Smallest distance of {{dst}} for {{nb_venues}} venues in a radius of {{radius}}m.';
 var result_circle = null;
 function poll_until_done() {
     $.request('get', $SCRIPT_ROOT+'/status', {})
     .then(function success(result){
         var answer = $.parseJSON(result).r;
-        // console.log(answer);
         $('#status').set('@value', answer.progress);
-        $('#res').fill('Smallest distance: ' + answer.res[0].toFixed(3));
-        var radius = answer.res[1],
-            center = answer.res[2];
+        answer.res.dst = answer.res.dst.toFixed(3);
+        var radius = answer.res.radius,
+            center = answer.res.center;
+        $('#res').fill(HTML(RESULT_FMT, answer.res));
         if (center.length === 2) {
             if (result_circle !== null) {
                 result_circle.setLatLng(center).setRadius(radius);
@@ -145,6 +161,7 @@ function poll_until_done() {
 }
 function draw_preset_query(name) {
     var query = PRESETS[name];
+    $('#orig-venues').fill(query.nb_venues + ' venues.');
     var coords = query.geo.coordinates[0], latlngs = [];
     var i = 0;
     for (i = 0; i < coords.length-1; i++) {
@@ -158,8 +175,6 @@ function draw_preset_query(name) {
     answers.clearLayers();
     var metric = $('#presets').values().metric;
     var smallest_dst = 1e15;
-    console.log(metric);
-    console.log(query);
     for (i = 0; i < res.length-1; i++) {
         var dst = res[i].dst,
             center = res[i].geo.center,
@@ -167,11 +182,14 @@ function draw_preset_query(name) {
             radius = res[i].radius,
             r_metric = res[i].metric;
         if (r_metric === metric) {
-            circle = L.circle(center, radius, {color: '#2ecc40'});
+            var circle = L.circle(center, radius, {color: '#2ecc40', fillOpacity: 0.05});
             answers.addLayer(circle);
+            var dot = L.marker(center, {clickable: false, title: radius.toFixed(0),
+                opacity: 0.7, riseOnHover: true});
+            answers.addLayer(dot);
             if (dst < smallest_dst) {
-                msg = 'Smallest distance of  ' + dst.toFixed(3);
-                msg += ' for a radius of ' + radius.toFixed(0);
+                msg = HTML(RESULT_FMT, {dst: dst.toFixed(3), nb_venues: 0,
+                                        radius: radius.toFixed(0)});
                 $('#res').fill(msg);
                 smallest_dst = dst;
             }
@@ -182,7 +200,6 @@ function draw_preset_query(name) {
 var presets = $('#presets');
 if (origin !== 'paris') {presets.hide();}
 presets.on('submit', function match_preset(e) {
-    console.log(presets.values());
     draw_preset_query(presets.values().neighborhood);
     return false;
 });

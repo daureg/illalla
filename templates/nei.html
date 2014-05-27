@@ -13,9 +13,9 @@
     <form id="presets">
         <label>Paris neighborhood:
             <select name="neighborhood" required id="neighborhood" autofocus>
+                <option value="triangle" selected="selected">Golden Triangle</option>
                 <option value="latin">Quartier Latin</option>
                 <option value="montmartre">Montmartre</option>
-                <option value="triangle">Golden Triangle</option>
                 <option value="pigalle">Pigalle</option>
                 <option value="marais">Le Marais</option>
                 <option value="official">Officials</option>
@@ -28,6 +28,7 @@
             </select>
         </label>
         <button>Match!</button>
+        <span id="orig-venues"></span>
     </form>
     <div id="result">
     <span id="res"></span>

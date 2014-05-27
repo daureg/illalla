@@ -246,9 +246,10 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     if use_emd:
         @profile
         def regions_distance(r_features, r_weigths):
-            return emd((query_num, map(float, weights)),
-                       (r_features, map(float, r_weigths)),
-                       lambda a, b: float(dist_for_emd(a, b)))
+            dst = emd((query_num, map(float, weights)),
+                      (r_features, map(float, r_weigths)),
+                      lambda a, b: float(dist_for_emd(a, b)))
+            return np.sqrt(dst)
     else:
         @profile
         def regions_distance(r_density, r_global):

@@ -190,8 +190,8 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     SURROUNDINGS, bounds = city_infos
     DISTANCE_FUNCTION = distance_function
     minx, miny, maxx, maxy = bounds
-    nb_x_step = int(3.5*np.floor(city_size[0]) / hsize + 1)
-    nb_y_step = int(3.5*np.floor(city_size[1]) / hsize + 1)
+    nb_x_step = int(3*np.floor(city_size[0]) / hsize + 1)
+    nb_y_step = int(3*np.floor(city_size[1]) / hsize + 1)
     best = [1e20, [], [], RADIUS]
     res_map = []
     pool = multiprocessing.Pool(4)
@@ -289,7 +289,7 @@ def interpolate_distances(values_map, filename):
     xi = np.linspace(x_ext[0], x_ext[1], 100)
     yi = np.linspace(y_ext[0], y_ext[1], 100)
     zi = griddata((x, y), z, (xi[None, :], yi[:, None]), method='cubic')
-    plt.figure(figsize=(25, 18))
+    plt.figure(figsize=(22, 18))
     plt.contour(xi, yi, zi, 20, linewidths=0.8, colors='#282828')
     plt.contourf(xi, yi, zi, 20, cmap=plt.cm.Greens)
     plt.colorbar()
@@ -297,7 +297,7 @@ def interpolate_distances(values_map, filename):
     plt.tight_layout(pad=0)
     plt.xlim(*x_ext)
     plt.ylim(*y_ext)
-    plt.savefig(filename, transparent=False, frameon=False,
+    plt.savefig(filename, dpi=96, transparent=False, frameon=False,
                 bbox_inches='tight', pad_inches=0.01)
 
 
@@ -306,7 +306,7 @@ def batch_matching():
     import ujson
     with open('static/presets.json') as infile:
         regions = ujson.load(infile)
-    for neighborhood in regions.keys()[:2]:
+    for neighborhood in regions.iterkeys():
         print(neighborhood)
         rgeo = regions[neighborhood].get('geo')
         for city in ['helsinki', 'barcelona']:
@@ -314,11 +314,12 @@ def batch_matching():
             regions[neighborhood][city] = []
             for metric in ['jsd', 'emd']:
                 print(metric)
-                for radius in np.linspace(350, 1100, 7):
+                for radius in np.linspace(350, 1100, 6):
                     print(radius)
                     res, values, _ = best_match('paris', city, rgeo, radius,
-                                                metric == 'emd').next()
+                                                use_emd=metric == 'emd').next()
                     distance, r_vids, center, radius = res
+                    print(distance)
                     center = cities.euclidean_to_geo(city, center)
                     result = {'geo': {'type': 'circle',
                                       'center': center, 'radius': radius},
@@ -327,7 +328,7 @@ def batch_matching():
                     outname = '{}_{}_{}_{}.png'.format(city, neighborhood,
                                                        int(radius), metric)
                     interpolate_distances(values, outname)
-    with open('static/apresets.js', 'w') as out:
+    with open('static/fapresets.js', 'w') as out:
         out.write('var PRESETS =' + ujson.dumps(regions) + ';')
 
 if __name__ == '__main__':

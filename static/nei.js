@@ -204,15 +204,16 @@ function draw_preset_query(name) {
     left.fitBounds(poly.getBounds(), {maxZoom: 14});
     res = query[dest];
     answers.clearLayers();
-    marks_venues();
-    return false;
+    // marks_venues();
+    // return false;
     var metric = $('#presets').values().metric;
     var smallest_dst = 1e15;
-    for (i = 0; i < res.length-1; i++) {
+    console.log(res);
+    for (i = 0; i < res.length; i++) {
         var dst = res[i].dst,
             center = res[i].geo.center,
-            // radius = res[i].geo.radius,
-            radius = res[i].radius,
+            radius = res[i].geo.radius,
+            // radius = res[i].radius,
             r_metric = res[i].metric;
         if (r_metric === metric) {
             var circle = L.circle(center, radius, {color: '#2ecc40', fillOpacity: 0.05});
@@ -221,7 +222,7 @@ function draw_preset_query(name) {
                 opacity: 0.7, riseOnHover: true, icon: smallIcon});
             answers.addLayer(dot);
             if (dst < smallest_dst) {
-                msg = HTML(RESULT_FMT, {dst: dst.toFixed(3), nb_venues: 0,
+                msg = HTML(RESULT_FMT, {dst: dst.toFixed(3), nb_venues: res[i].nb_venues,
                                         radius: radius.toFixed(0)});
                 $('#res').fill(msg);
                 smallest_dst = dst;

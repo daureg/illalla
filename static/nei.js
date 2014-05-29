@@ -1,15 +1,4 @@
-var ratio = 3/5;
-var length = parseInt(41*ratio),
-    width = parseInt(25*ratio),
-    middle = parseInt(12.5*ratio);
-L.Icon.Small = L.Icon.Default.extend({
-    options: {
-        iconSize: [width, length],
-        shadowSize: [length, length],
-        iconAnchor: [middle, length],
-    }});
 var VENUES_LOC = {};
-var smallIcon = new L.Icon.Small();
 var left = create_map('mapl', LBBOX, {zoomAnimation: false});
 var right = create_map('mapr', RBBOX, {zoomAnimation: false});
 var map_right_toggle = $('#mapr').toggle({$$fade: 1}, {$$fade: 0}, 150);

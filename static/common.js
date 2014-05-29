@@ -1,6 +1,17 @@
 var MINI = require('minified');
 var _=MINI._, $=MINI.$, $$=MINI.$$, EE=MINI.EE, HTML=MINI.HTML;
 L.Icon.Default.imagePath = '/static/images';
+var ratio = 2/5;
+var length = parseInt(41*ratio),
+    width = parseInt(25*ratio),
+    middle = parseInt(12.5*ratio);
+L.Icon.Small = L.Icon.Default.extend({
+    options: {
+        iconSize: [width, length],
+        shadowSize: [length, length],
+        iconAnchor: [middle, length],
+    }});
+var smallIcon = new L.Icon.Small();
 
 /* return the LatLng in the middle of an array of LatLng */
 function barycenter(points) {

@@ -15,7 +15,7 @@ function display_venues(result, nside, map){
     var venues = $.parseJSON(result).r;
     _.each(venues, function add_venue(venue) {
         venue.nside = nside;
-        var marker = L.marker(venue.loc, {title: venue.name})
+        var marker = L.marker(venue.loc, {title: venue.name, icon: smallIcon})
         .bindPopup(_.formatHtml(CARD, venue))
         .addTo(map);
     MARKERS[nside][venue._id] = marker;

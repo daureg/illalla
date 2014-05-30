@@ -97,7 +97,8 @@ def describe_city(city):
     svenues, scheckins, sphotos = info[6:]
     categories = categories_repartition(city, svenues, lvenues, RADIUS)
     venues = DB.venue.find({'city': city, 'closed': {'$ne': True},
-                            'cat': {'$ne': None}}, {'cat': 1})
+                            'cat': {'$ne': None}, 'usersCount': {'$gt': 1}},
+                           {'cat': 1})
     chosen = [v['_id'] for v in venues
               if len(visits.get(v['_id'], [])) > 4 and
               len(np.unique(visitors.get(v['_id'], []))) > 1 and
@@ -105,6 +106,7 @@ def describe_city(city):
     print("Chosen {} venues in {}.".format(len(chosen), city))
     info, _ = venues_info(chosen, visits, visitors, density, depth=2,
                           tags_freq=False)
+    print("{} of them will be in the matrix.".format(len(info)))
     numeric = np.zeros((len(info), 31), dtype=np.float32)
     numeric[:, :5] = np.array([info['likes'], info['users'], info['checkins'],
                                info['H'], info['Den']]).T

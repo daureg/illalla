@@ -33,7 +33,17 @@ def perform_search(from_city, to_city, region, metric):
                                           progressive=True,
                                           metric=metric):
         # print(progress)
-        distance, r_vids, center, radius = res
+        try:
+            distance, r_vids, center, radius = res
+        except TypeError:
+            import json
+            desc = {"type": "Feature", "properties":
+                    {"nb_venues": res,
+                     "ref": from_city+' '+SEARCH_STATUS['name']},
+                    "geometry": region}
+            with open('scratch.json', 'a') as out:
+                out.write(json.dumps(desc)+'\n')
+            return
         if len(center) == 2:
             center = c.euclidean_to_geo(to_city, center)
         relevant = {'dst': distance, 'radius': radius, 'center': center,
@@ -58,6 +68,7 @@ def start_search():
     metric = str(f.request.form['metric'])
     args = (ORIGIN['city'], DEST['city'], geo, metric)
     SEARCH_STATUS.update({'done': False, 'seen': False, 'progress': 0.0,
+                          'name': str(f.request.form['name']),
                           'res': {'dst': 1e5, 'radius': 600, 'center': [],
                                   'nb_venues': 0}})
     threading.Thread(target=perform_search, args=args, name="search").start()

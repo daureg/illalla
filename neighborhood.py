@@ -233,6 +233,8 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
     print('{} venues in query region.'.format(len(vids)))
+    yield len(vids), None, None
+    raise Exception('done!')
     if 'emd' in metric:
         query_num = features_as_lists(features)
     else:
@@ -404,9 +406,9 @@ def batch_matching():
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    batch_matching()
-    import sys
-    sys.exit()
+    # batch_matching()
+    # import sys
+    # sys.exit()
     import arguments
     args = arguments.two_cities().parse_args()
     origin, dest = args.origin, args.dest
@@ -416,10 +418,32 @@ if __name__ == '__main__':
                                    [2.2995758056640625, 48.872983451383305],
                                    [2.3006272315979004, 48.86419005209702]]]}
     res, values, _ = best_match(origin, dest, user_input, 800,
-                                metric='jsd-greedy').next()
+                                metric='jsd-nospace').next()
     distance, r_vids, center, radius = res
     print(distance)
     for _ in sorted(r_vids):
-        print(str(_))
+        print("'{}',".format(str(_)))
     # print(distance, cities.euclidean_to_geo(dest, center))
     # interpolate_distances(values, origin+dest+'.png')
+
+    # KDE preprocessing
+    # given all tweets, bin them according to time.
+    # Then run KDE on each bin, and compute a normalized grid in both cities
+    # (it's not cheap, but it's amortized over all queries)
+    # Then, when given a query, compute its average value for each time
+    # set a narrow range around each value and take the intersection of all
+    # point within this range in the other city.
+    # Increase range until we get big enough surface (or at least starting point)
+
+    # Better quality
+    # best_match()
+    # gather query and cities info
+    # reweight query venues to remove outliers
+    # get individual candidate (at_least, at_most, distance ∈ emd, jsd, knn)
+    # find seed among candidate (DBSCAN, K-means, discrepancy)
+    # grow seeds into region (in a greedy manner)
+    # return polygonal geo hull
+
+    # Metric Learning
+    # I have six points in Paris, find close and distant ones in San Francisco
+    # and Barcelona to tune theta in JSD and EMD.

@@ -3,15 +3,22 @@ var left = create_map('mapl', LBBOX, {zoomAnimation: false});
 var right = create_map('mapr', RBBOX, {zoomAnimation: false});
 var map_right_toggle = $('#mapr').toggle({$$fade: 1}, {$$fade: 0}, 150);
 populate('left', canvas_display);
-populate('right', canvas_display);
+// populate('right', canvas_display);
+map_right_toggle();
+var VENUE_CARD = '<a href="{{url}}" target="_blank">{{name}}</a>, <small>{{cat}}</small>';
 var LEFT_CANVAS = null, LC_VISIBLE = false;
 var RIGHT_CANVAS = null, RC_VISIBLE = false;
+var VENUES_MARKERS = [new L.FeatureGroup(), new L.FeatureGroup()];
 function canvas_display(result, nside, map) {
     var venues = $.parseJSON(result).r;
     var points = [];
+    var marker = null;
     _.each(venues, function add_venue(venue) {
         VENUES_LOC[venue._id] = venue.loc;
         var d = {"slat": venue.loc[0], "slon": venue.loc[1]};
+        // marker = L.marker(venue.loc, {title: venue.name, icon: smallIcon})
+        // .bindPopup(_.formatHtml(VENUE_CARD, venue));
+        // VENUES_MARKERS[nside].addLayer(marker);
         points.push(d);
     });
     var venue_dots = new MyLayer();
@@ -24,6 +31,7 @@ function canvas_display(result, nside, map) {
         RIGHT_CANVAS = venue_dots;
         RC_VISIBLE = true;
     }
+    // map.addLayer(VENUES_MARKERS[nside]);
     map.addLayer(venue_dots);
 }
 var MyLayer = L.FullCanvas.extend({
@@ -111,16 +119,24 @@ left.on('draw:created', function (e) {
     var query = {id: lid, type: type, geo: geo, radius: radius, center: center};
     // $('#log').fill(JSON.stringify(geo))
     // $('.leaflet-draw-section').hide();
-    var metric = $('#presets').values().metric;
+    var form_infos = $('#presets').values();
+    var metric = form_infos.metric,
+	region_name = form_infos.neighborhood;
     left.fitBounds(zone.getBounds(), {maxZoom: 14});
+    var fgeo = zone.toGeoJSON();
+    fgeo.properties.nb_venues = 0;
+    fgeo.properties.ref = "";
+    var ans = JSON.stringify(fgeo).replace(/,/g, ', ').replace(/:/g, ': ');
     $.request('post', $SCRIPT_ROOT+'/match_neighborhood',
-            {geo: JSON.stringify(geo), metric: metric})
+            {geo: JSON.stringify(geo), metric: metric, name: region_name})
     .then(function success(result){
-        poll_until_done();
+        // poll_until_done();
     })
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);
     });
+    /*
+    */
     if (!LC_VISIBLE) {
 	    left.addLayer(LEFT_CANVAS);
 	    LC_VISIBLE = true;
@@ -172,6 +188,28 @@ var TRIANGLE_VENUES = [
     '4c26fcae5c5ca593cb2f47fe', '4adcdb23f964a520ab6021e3',
     '4ba221fbf964a5200ede37e3', '4adcdb21f964a520056021e3',
     '4c097ac53c70b713fdd3275b'];
+var TRIANGLE_VENUES = ['4adcdb1ef964a5204f5f21e3', '4adcdb1ef964a520585f21e3',
+    '4adcdb1ff964a5207b5f21e3', '4adcdb1ff964a520815f21e3',
+    '4adcdb1ff964a520855f21e3', '4adcdb1ff964a5208d5f21e3',
+    '4adcdb1ff964a520a65f21e3', '4adcdb21f964a520e55f21e3',
+    '4adcdb21f964a520eb5f21e3', '4adcdb21f964a520f35f21e3',
+    '4adcdb21f964a520f65f21e3', '4adcdb23f964a520af6021e3',
+    '4adcdb24f964a520fb6021e3', '4adcdb25f964a520506121e3',
+    '4adcdb25f964a5205e6121e3', '4afaa120f964a5202f1822e3',
+    '4b07dc1ef964a5208f0023e3', '4b0b8ca3f964a520333223e3',
+    '4b0e51faf964a520c75623e3', '4b18032ff964a5206dcb23e3',
+    '4b18e708f964a52069d623e3', '4b1aa6ebf964a52068ee23e3',
+    '4b253f95f964a520ae6e24e3', '4b2cfb32f964a520bfcb24e3',
+    '4b59976af964a520f28d28e3', '4b5abb30f964a52061d228e3',
+    '4b62b0bdf964a520204f2ae3', '4ba5d2c9f964a520422439e3',
+    '4baa99a3f964a52068783ae3', '4baf5d61f964a5207ffa3be3',
+    '4c0e5b822466a5936de17821', '4c19d3cc4ff90f47168d1049',
+    '4c91d1bb57e5b60c7acd631c', '4cd40a7da61c46881eb7b628',
+    '4e68d3f41838d179b127207e', '4f2a8588e4b0114e618db8df',
+    '5079cea8e4b0dad8227f29e3', '50edb02be4b0de6bf9c94534',
+    '5173df84e4b0bb056be47496', '51dedf2d498e9dd2706d5b72',
+    '5238643c11d2c1029cc5e106', '528b11db11d2330ae60ef113',
+    '52f2130c498e7c57f7b0abab', '52fe522b11d256f8b35186c4'];
 function marks_venues() {
     for (var i = 0; i < TRIANGLE_VENUES.length; i++) {
         var venue_id = TRIANGLE_VENUES[i];
@@ -179,22 +217,42 @@ function marks_venues() {
         answers.addLayer(dot);
     }
 }
-function draw_preset_query(name) {
-    var query = PRESETS[name];
-    $('#orig-venues').fill(query.nb_venues + ' venues.');
-    var coords = query.geo.coordinates[0], latlngs = [];
-    var i = 0;
-    for (i = 0; i < coords.length-1; i++) {
+function geojson_to_polygon(geo) {
+    //TODO: use GeoJSON Layer
+    //http://leafletjs.com/reference.html#geojson
+	var coords = geo.coordinates[0], latlngs = [];
+    for (var i = 0; i < coords.length-1; i++) {
 	    latlngs.push([coords[i][1], coords[i][0]]);
     }
-    var poly = L.polygon(latlngs, {color: '#b22222'});
+    return L.polygon(latlngs, {color: '#b22222'});
+}
+function draw_preset_query(name) {
+    var query = PRESETS[name];
     drawnItems.clearLayers();
-    drawnItems.addLayer(poly);
-    left.fitBounds(poly.getBounds(), {maxZoom: 14});
+    var i = 0;
+    if (origin === 'paris' || query.gold[origin].length === 1) {
+        var tmp = query;
+        if (origin !== 'paris') {
+            tmp = query.gold[origin][0];
+            tmp.nb_venues = tmp.properties.nb_venues;
+            tmp.geo = tmp.geometry;
+        }
+        $('#orig-venues').fill(tmp.nb_venues + ' venues.');
+        var poly = geojson_to_polygon(tmp.geo);
+        drawnItems.addLayer(poly);
+        left.fitBounds(poly.getBounds(), {maxZoom: 14});
+    }
+    else {
+        for (i = 0; i<query.gold[origin].length; i++) {
+            drawnItems.addLayer(geojson_to_polygon(query.gold[origin][i].geometry));
+        }
+    }
     res = query[dest];
     answers.clearLayers();
     // marks_venues();
-    // return false;
+    if (origin !== 'paris') {
+        return false;
+    }
     var metric = $('#presets').values().metric;
     var smallest_dst = 1e15;
     console.log(res);
@@ -221,8 +279,13 @@ function draw_preset_query(name) {
     // right.fitBounds(circle.getBounds(), {maxZoom: 14});
 }
 var presets = $('#presets');
-if (origin !== 'paris') {presets.hide();}
+// if (origin !== 'paris') {presets.hide();}
 presets.on('submit', function match_preset(e) {
     draw_preset_query(presets.values().neighborhood);
     return false;
+});
+$(function() {
+    $("#switch").onClick(function() {
+        window.location.replace('/n/'+dest+'/'+origin);
+    });
 });

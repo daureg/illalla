@@ -73,6 +73,7 @@ def global_info(city, standalone=False):
     TOP_CATS = p.load_var('top_cats')
     infos = {'venue': [] if standalone else ['cat', 'cats'],
              'photo': ['taken'] if standalone else ['venue']}
+    lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
     svenues = s.Surrounding(DB.venue, {'city': city}, infos['venue'], lvenues)
     scheckins = s.Surrounding(DB.checkin, {'city': city}, ['time'], lcheckins)
     sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city},
@@ -411,4 +412,7 @@ if __name__ == '__main__':
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
     # describe_city(city)
-    global_info(city, standalone=True)
+    # global_info(city, standalone=True)
+    lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
+    svenues = s.Surrounding(DB.venue, {'city': city}, [], lvenues)
+    p.save_var('{}_s{}s.my'.format(city, 'venue'), svenues)

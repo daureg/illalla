@@ -12,7 +12,7 @@ BBOX = SF_BBOX
 CSS = '#{} {{fill: {}; opacity: 0.5; stroke: {}; stroke-width: 0.5px;}}'
 from more_query import k_split_bbox, bbox_to_polygon, compute_frequency, clock
 from utils import to_css_hex
-from shapely.geometry import shape, mapping, Point
+from shapely.geometry import shape, mapping  # , Point
 from shapely import speedups
 if speedups.available:
     speedups.enable()
@@ -23,20 +23,20 @@ from ProgressBar import AnimatedProgressBar
 import persistent
 from os.path import join as mkpath
 import pymongo
-from multiprocessing import Pool
+# from multiprocessing import Pool
 ALLD = []
 
 
 def get_discrepancy_function(total_m, total_b, support):
     """Return a binary function computing the Kulldorff discrepancy, given
-    that there is total_m measured data, total_b background data and we want
-    at least support points (otherwise return None)."""
+    that there is `total_m` measured data, `total_b` background data and we
+    want at least `support` points (otherwise return None)."""
     def discrepancy(m, b):
-        global Reject
+        global REJECTED
         """Compute d(m, b) or return None if it lacks support."""
         assert m <= total_m, "common!"
         if m < support or b < support:
-            Reject += 1
+            REJECTED += 1
             return None
         m_ratio = 1.0*m/total_m
         b_ratio = 1.0*b/total_b
@@ -55,8 +55,8 @@ def get_discrepancy_function(total_m, total_b, support):
 
 
 def add_maybe(new_value, values_so_far, max_nb_values):
-    """Consider adding new_value to values_so_far if it is one of the largest
-    max_nb_values."""
+    """Consider adding `new_value` to `values_so_far` if it is one of the
+    largest `max_nb_values`."""
     real_value = new_value[0]
     if real_value is None:
         return values_so_far
@@ -69,24 +69,6 @@ def add_maybe(new_value, values_so_far, max_nb_values):
     if len(values_so_far) == 0:
         return [new_value]
     if len(values_so_far) < max_nb_values or real_value > values_so_far[0][0]:
-        # need_heapify = False
-        # discard = False
-        # for i, previous in enumerate(values_so_far):
-        #     if poly.intersects(previous[1]) and not poly.touches(previous[1]):
-        #         if poly.area > previous[1].area:
-        #             del values_so_far[i]
-        #             print('\ndelete\n')
-        #             need_heapify = True
-        #         else:
-        #             discard = True
-        #             break
-        # if discard:
-        #     return [new_value]
-        # if not all([(previous[1].disjoint(poly) or previous[1].touches(poly))
-        #             for previous in values_so_far]):
-        #     return values_so_far
-        # if need_heapify:
-        #     heapq.heapify(values_so_far)
         if len(values_so_far) < max_nb_values:
             heapq.heappush(values_so_far, new_value)
         else:
@@ -96,9 +78,9 @@ def add_maybe(new_value, values_so_far, max_nb_values):
 
 def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
     """Given the two g×g arrays representing the measure of interest and the
-    background data, find the nb_loc region that have the most discrepancy
+    background data, find the `nb_loc` regions that have the most `discrepancy`
     according to the provided binary function to compute it. Consider only
-    region with side smaller than g/max_size."""
+    region with side smaller than g/`max_size`."""
     assert np.size(measured) == np.size(background), "use same size input"
     grid_size = np.size(measured, 0)
     assert grid_size == GRID_SIZE, "GRID_SIZE conflict with provided data"
@@ -120,7 +102,8 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
                 cum_m += np.cumsum(measured[j, :])
                 cum_b += np.cumsum(background[j, :])
             for k in range(grid_size):  # bottom line
-                for l in range(k+min_height-1, min(grid_size, k+side)):  # top line
+                # top line
+                for l in range(k+min_height-1, min(grid_size, k+side)):
                     if k == 0:
                         m = cum_m[l]
                         b = cum_b[l]
@@ -137,7 +120,7 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
 def plot_regions(regions, bbox, tag):
     """Output one shapefile for each region (represented by its bottom left and
     upper right index in the grid) with color depending of its discrepancy."""
-    #TODO not unicode safe
+    # TODO not unicode safe
     discrepancies = [v[0] for v in regions]
     colormap = cm.ScalarMappable(mcolor.Normalize(min(discrepancies),
                                                   max(discrepancies)),
@@ -157,8 +140,6 @@ def plot_regions(regions, bbox, tag):
         # style.append(CSS.format(name, color, color))
         with fiona.collection(mkpath('disc', name+'.shp'),
                               "w", "ESRI Shapefile", schema) as f:
-            poly = {'geometry': mapping(r[1]), 'properties': {}}
-            # f.write(poly)
             f.writerecords(polys)
         break
 
@@ -170,7 +151,7 @@ def plot_regions(regions, bbox, tag):
 
 def spatial_scan(tag):
     """The main method loads the data from the disk (or compute them) and
-    calls appropriate methods to find top discrepancy regions."""
+    calls appropriate methods to find top discrepancy regions for `tag`."""
     print(tag)
     grid_size = GRID_SIZE
     background_name = u'mfreq/freq_{}_{}.mat'.format(grid_size, '_background')
@@ -263,14 +244,13 @@ def post_process(tag):
 
 
 def consolidate(tags):
-    import os
     d = {tag: persistent.load_var(u'disc/post_{}_{}'.format(tag, GRID_SIZE))
          for tag in tags}
     persistent.save_var(u'disc/all_{}'.format(GRID_SIZE), d)
 
 
 def get_best_tags(point):
-    tags = persistent.load_var(u'disc/all_{}'.format(GRID_SIZE), d)
+    tags = persistent.load_var(u'disc/all_{}'.format(GRID_SIZE))
     res = []
     size = point.area
     for tag, polys in tags.items():
@@ -287,11 +267,11 @@ MIN_WIDTH = 1
 MIN_HEIGHT = 1
 MAX_SIZE = 4
 MAX_SUPPORT = 250
-Reject = 0
+REJECTED = 0
 rectangles, dummy, index_to_rect = k_split_bbox(BBOX, GRID_SIZE)
 if __name__ == '__main__':
     import sys
-    import random
+    # import random
     # random.seed(135)
     tag = 'museum' if len(sys.argv) <= 1 else sys.argv[1]
     tt = clock()
@@ -307,7 +287,7 @@ if __name__ == '__main__':
     # print(get_best_tags(Point(-122.409615, 37.7899132)))
     spatial_scan(tag)
     # sio.savemat('alld', {'d': ALLD})
-    print(Reject)
+    print(REJECTED)
     print('done in {:.2f}.'.format(clock() - tt))
     # plot_regions(merged, BBOX, tag)
     # persistent.save_var('alld', ALLD)

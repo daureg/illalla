@@ -82,16 +82,24 @@ def features_support(features):
     return zip(np.min(features, 0), np.max(features, 0))
 
 
+@u.memodict
+def right_bins(dim):
+    extent = RIGHT_SUPPORT[dim][1] - RIGHT_SUPPORT[dim][0]
+    bins = 10
+    size = 1.0/bins
+    return [RIGHT_SUPPORT[dim][0] + j*size*extent for j in range(bins+1)]
+
+
 @profile
 def features_as_density(features, weights, support, bins=10):
     """Turn raw `features` into probability distribution over each dimension,
     with respect to `weights`."""
-    @profile
-    def get_bins(dim):
+    def get_bins_full(dim):
         extent = support[dim][1] - support[dim][0]
         size = 1.0/bins
         return [support[dim][0] + j*size*extent for j in range(bins+1)]
 
+    get_bins = right_bins if support is RIGHT_SUPPORT else get_bins_full
     return np.vstack([np.histogram(features[:, i], weights=weights,
                                    bins=get_bins(i))[0]
                       for i in range(features.shape[1])])
@@ -151,6 +159,7 @@ def proba_distance(density1, global1, density2, global2, theta):
 
 SURROUNDINGS, CITY_FEATURES, THRESHOLD = None, None, None
 USE_EMD, CITY_SUPPORT, DISTANCE_FUNCTION, RADIUS = None, None, None, None
+RIGHT_SUPPORT = None
 
 
 @profile
@@ -266,6 +275,8 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     minx, miny, maxx, maxy = right_infos[1]
     right_city_size = (maxx - minx, maxy - miny)
     right_support = features_support(right['features'])
+    global RIGHT_SUPPORT
+    RIGHT_SUPPORT = right_support
 
     # given extents, compute treshold and size of candidate
     threshold = 0.7 * venue_proportion * right['features'].shape[0]

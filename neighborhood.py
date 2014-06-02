@@ -242,8 +242,6 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
     print('{} venues in query region.'.format(len(vids)))
-    yield len(vids), None, None
-    raise Exception('done!')
     if 'emd' in metric:
         query_num = features_as_lists(features)
     else:
@@ -259,6 +257,8 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     if 'emd' in metric:
         @profile
         def regions_distance(r_features, r_weigths):
+            if len(r_features) >= 500:
+                return 1e20
             return emd((query_num, map(float, weights)),
                        (r_features, map(float, r_weigths)),
                        lambda a, b: float(dist_for_emd(a, b)))
@@ -385,29 +385,33 @@ def interpolate_distances(values_map, filename):
 
 
 def batch_matching():
-    """Match preselected regions of Paris into Helsinki and Barcelona"""
+    """Match preselected regions of Paris into a few target cities"""
     import ujson
-    with open('static/presets.json') as infile:
+    with open('static/cpresets.json') as infile:
         regions = ujson.load(infile)
-    for neighborhood in regions.iterkeys():
-        print(neighborhood)
-        rgeo = regions[neighborhood].get('geo')
-        for city in ['helsinki', 'barcelona']:
-            print(city)
-            regions[neighborhood][city] = []
-            for metric in ['jsd', 'emd']:
-                print(metric)
-                for radius in np.linspace(350, 1100, 6):
+    for metric in ['jsd', 'emd']:
+        print(metric)
+        for neighborhood in regions.iterkeys():
+            print(neighborhood)
+            rgeo = regions[neighborhood].get('geo')
+            for city in ['helsinki', 'barcelona', 'sanfrancisco']:
+                print(city)
+                # regions[neighborhood][city] = []
+                for radius in np.linspace(200, 650, 5):
                     print(radius)
                     res, values, _ = best_match('paris', city, rgeo, radius,
                                                 metric=metric).next()
                     distance, r_vids, center, radius = res
                     print(distance)
-                    center = cities.euclidean_to_geo(city, center)
-                    result = {'geo': {'type': 'circle',
-                                      'center': center, 'radius': radius},
-                              'dst': distance, 'metric': metric,
-                              'nb_venues': len(r_vids)}
+                    if center is None:
+                        result = {'dst': distance, 'metric': metric,
+                                  'nb_venues': 0}
+                    else:
+                        center = cities.euclidean_to_geo(city, center)
+                        result = {'geo': {'type': 'circle',
+                                          'center': center, 'radius': radius},
+                                  'dst': distance, 'metric': metric,
+                                  'nb_venues': len(r_vids)}
                     regions[neighborhood][city].append(result)
                     outname = '{}_{}_{}_{}.png'.format(city, neighborhood,
                                                        int(radius), metric)

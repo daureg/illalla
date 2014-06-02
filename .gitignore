@@ -1,3 +1,14 @@
+static/apresets.js
+static/apresets.json
+static/cpresets.js
+static/cpresets.json
+static/fapresets.js
+static/fapresets.json
+static/font-awesome.css
+static/fonts/*
+static/leaflet.awesome-markers.css
+static/leaflet.awesome-markers.js
+static/presets.json
 Leaflet-Fullcanvas/
 archive/
 ntweets/

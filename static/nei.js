@@ -1,10 +1,24 @@
 var VENUES_LOC = {};
+function make_icon(color) {
+    var ratio = 4/5;
+    var length = parseInt(45*ratio),
+        width = parseInt(35*ratio),
+        middle = parseInt(17.5*ratio);
+    return L.AwesomeMarkers.icon({
+        icon: 'home',
+        markerColor: color,
+        prefix: 'fa',
+        // iconSize: [width, length],
+        // shadowSize: [length, length],
+        // iconAnchor: [middle, length-2],
+    });
+}
 var left = create_map('mapl', LBBOX, {zoomAnimation: false});
 var right = create_map('mapr', RBBOX, {zoomAnimation: false});
 var map_right_toggle = $('#mapr').toggle({$$fade: 1}, {$$fade: 0}, 150);
-populate('left', canvas_display);
-// populate('right', canvas_display);
-map_right_toggle();
+// populate('left', canvas_display);
+populate('right', canvas_display);
+// map_right_toggle();
 var VENUE_CARD = '<a href="{{url}}" target="_blank">{{name}}</a>, <small>{{cat}}</small>';
 var LEFT_CANVAS = null, LC_VISIBLE = false;
 var RIGHT_CANVAS = null, RC_VISIBLE = false;
@@ -177,7 +191,7 @@ function poll_until_done() {
         console.log(status, statusText, responseText);
     });
 }
-var TRIANGLE_VENUES = [
+var TRIANGLE_VENUES = [[
     '4adcdb1ef964a520485f21e3', '4b66e9aaf964a520f02f2be3',
     '4b04208bf964a520835122e3', '4ae9ebcbf964a520a8b721e3',
     '4bd68a9e5631c9b66013a630', '4adcdb24f964a520fb6021e3',
@@ -187,8 +201,8 @@ var TRIANGLE_VENUES = [
     '4b78f93ef964a520dbe72ee3', '4adcdb21f964a5201e6021e3',
     '4c26fcae5c5ca593cb2f47fe', '4adcdb23f964a520ab6021e3',
     '4ba221fbf964a5200ede37e3', '4adcdb21f964a520056021e3',
-    '4c097ac53c70b713fdd3275b'];
-var TRIANGLE_VENUES = ['4adcdb1ef964a5204f5f21e3', '4adcdb1ef964a520585f21e3',
+    '4c097ac53c70b713fdd3275b'],
+    ['4adcdb1ef964a5204f5f21e3', '4adcdb1ef964a520585f21e3',
     '4adcdb1ff964a5207b5f21e3', '4adcdb1ff964a520815f21e3',
     '4adcdb1ff964a520855f21e3', '4adcdb1ff964a5208d5f21e3',
     '4adcdb1ff964a520a65f21e3', '4adcdb21f964a520e55f21e3',
@@ -199,7 +213,7 @@ var TRIANGLE_VENUES = ['4adcdb1ef964a5204f5f21e3', '4adcdb1ef964a520585f21e3',
     '4b07dc1ef964a5208f0023e3', '4b0b8ca3f964a520333223e3',
     '4b0e51faf964a520c75623e3', '4b18032ff964a5206dcb23e3',
     '4b18e708f964a52069d623e3', '4b1aa6ebf964a52068ee23e3',
-    '4b253f95f964a520ae6e24e3', '4b2cfb32f964a520bfcb24e3',
+    '4b253f95f964a520ae6e24e3', '4b2cfb32f964a520bfcb24e3',],[
     '4b59976af964a520f28d28e3', '4b5abb30f964a52061d228e3',
     '4b62b0bdf964a520204f2ae3', '4ba5d2c9f964a520422439e3',
     '4baa99a3f964a52068783ae3', '4baf5d61f964a5207ffa3be3',
@@ -209,12 +223,18 @@ var TRIANGLE_VENUES = ['4adcdb1ef964a5204f5f21e3', '4adcdb1ef964a520585f21e3',
     '5079cea8e4b0dad8227f29e3', '50edb02be4b0de6bf9c94534',
     '5173df84e4b0bb056be47496', '51dedf2d498e9dd2706d5b72',
     '5238643c11d2c1029cc5e106', '528b11db11d2330ae60ef113',
-    '52f2130c498e7c57f7b0abab', '52fe522b11d256f8b35186c4'];
+    '52f2130c498e7c57f7b0abab', '52fe522b11d256f8b35186c4']];
+var icon_color = ['red', 'blue', 'green', 'orange', 'purple', 'darkpuple',
+                  'cadetblue', 'darkred', 'darkgreen'];
 function marks_venues() {
-    for (var i = 0; i < TRIANGLE_VENUES.length; i++) {
-        var venue_id = TRIANGLE_VENUES[i];
-        var dot = L.marker(VENUES_LOC[venue_id], {clickable: false, icon: smallIcon});
-        answers.addLayer(dot);
+    for (var j = 0; j < TRIANGLE_VENUES.length; j++) {
+        var marker = make_icon(icon_color[j]);
+        console.log(marker);
+        for (var i = 0; i < TRIANGLE_VENUES[j].length; i++) {
+            var venue_id = TRIANGLE_VENUES[j][i];
+            var dot = L.marker(VENUES_LOC[venue_id], {clickable: false, icon: marker});
+            answers.addLayer(dot);
+        }
     }
 }
 function geojson_to_polygon(geo) {
@@ -249,7 +269,8 @@ function draw_preset_query(name) {
     }
     res = query[dest];
     answers.clearLayers();
-    // marks_venues();
+    marks_venues();
+    return false;
     if (origin !== 'paris') {
         return false;
     }
@@ -257,6 +278,8 @@ function draw_preset_query(name) {
     var smallest_dst = 1e15;
     console.log(res);
     for (i = 0; i < res.length; i++) {
+	    var nb_venues = res[i].nb_venues;
+        if (nb_venues === 0) {continue;}
         var dst = res[i].dst,
             center = res[i].geo.center,
             radius = res[i].geo.radius,
@@ -288,4 +311,5 @@ $(function() {
     $("#switch").onClick(function() {
         window.location.replace('/n/'+dest+'/'+origin);
     });
+    // draw_preset_query('triangle');
 });

@@ -223,22 +223,15 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     yield best, res_map, 1.0
 
 
-def best_match(from_city, to_city, region, tradius, progressive=False,
-               metric='jsd'):
-    """Try to match a `region` from `from_city` to `to_city`. If progressive,
-    yield intermediate result."""
-    assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy']
-    from emd import emd
-    from emd_dst import dist_for_emd
+def interpret_query(from_city, to_city, region, metric):
+    """Load informations about cities and compute useful quantities."""
     # Load info of the first city
     left = cn.gather_info(from_city, knn=1)
     left_infos = load_surroundings(from_city)
-    minx, miny, maxx, maxy = left_infos[1]
-    # left_city_size = (maxx - minx, maxy - miny)
     left_support = features_support(left['features'])
 
     # Compute info about the query region
-    center, radius, bounds, contains = polygon_to_local(from_city, region)
+    center, radius, _, contains = polygon_to_local(from_city, region)
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
     print('{} venues in query region.'.format(len(vids)))
@@ -247,14 +240,14 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     else:
         query_num = features_as_density(features, weights, left_support)
     venue_proportion = 1.0*len(vids) / left['features'].shape[0]
-    minx, miny, maxx, maxy = bounds
-    # average_dim = ((maxx - minx)/left_city_size[0] +
-    #                (maxy - miny)/left_city_size[1])*0.5
 
     # And use them to define the metric that will be used
     theta = np.ones((1, left['features'].shape[1]))
 
     if 'emd' in metric:
+        from emd import emd
+        from emd_dst import dist_for_emd
+
         @profile
         def regions_distance(r_features, r_weigths):
             if len(r_features) >= 500:
@@ -278,21 +271,32 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     global RIGHT_SUPPORT
     RIGHT_SUPPORT = right_support
 
-    # given extents, compute treshold and size of candidate
+    # given extents, compute treshold of candidate
     threshold = 0.7 * venue_proportion * right['features'].shape[0]
-    hsize = tradius  # TODO function of average_dim and right_city_size
     right_desc = [right_city_size, right_support, right, right_infos]
+
+    return [left, right, right_desc, regions_distance, vids, threshold]
+
+
+def best_match(from_city, to_city, region, tradius, progressive=False,
+               metric='jsd'):
+    """Try to match a `region` from `from_city` to `to_city`. If progressive,
+    yield intermediate result."""
+    assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy']
+
+    infos = interpret_query(from_city, to_city, region, metric)
+    left, right, right_desc, regions_distance, vids, threshold = infos
 
     res, vals = None, None
     if metric.endswith('-nospace'):
         res, vals = search_no_space(vids, 10.0/7*threshold, regions_distance,
-                                    left, right, right_support)
+                                    left, right, RIGHT_SUPPORT)
     elif metric.endswith('-greedy'):
         res, vals = greedy_search(10.0/7*threshold, regions_distance, right,
-                                  right_support)
+                                  RIGHT_SUPPORT)
     else:
         # Use case for https://docs.python.org/3/whatsnew/3.3.html#pep-380
-        for res, vals, progress in brute_search(right_desc, hsize,
+        for res, vals, progress in brute_search(right_desc, tradius,
                                                 regions_distance, threshold,
                                                 metric=metric):
             if progressive:
@@ -300,6 +304,21 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
             else:
                 print(progress, end='\t')
     yield res, vals, 1.0
+
+
+def get_seed_regions(from_city, to_city, region):
+    for metric in ['jsd']:#, 'emd']:
+        infos = interpret_query(from_city, to_city, region, metric)
+        left, right, right_desc, regions_distance, vids, threshold = infos
+        knn_cds = get_knn_candidates(vids, left, right, threshold, at_most=250)
+        ngh_cds = get_neighborhood_candidates(regions_distance, right, metric,
+                                              at_most=250)
+        for _, candidates in [knn_cds, ngh_cds]:
+            for scan in ['dbscan', 'discrepancy']:
+                clusters = find_promising_seed(candidates, right_desc[3][0][0],
+                                               scan, right)
+                for cl in clusters:
+                    print(metric, scan, cl[1])
 
 
 @profile
@@ -466,12 +485,16 @@ def find_promising_seed(good_ids, venues_infos, method, right):
     bad_ids = [v for v in significant_id.iterkeys() if v not in good_ids]
     bad_loc = np.array([significant_id[v] for v in bad_ids])
     if method == 'discrepancy':
-        return discrepancy_seeds((good_ids, good_loc), (bad_ids, bad_loc),
-                                 np.array(venues_loc))
+        hulls, gcluster, bcluster = discrepancy_seeds((good_ids, good_loc),
+                                                      (bad_ids, bad_loc),
+                                                      np.array(venues_loc))
     elif method == 'dbscan':
-        return dbscan_seeds((good_ids, good_loc), (bad_ids, bad_loc))
+        hulls, gcluster, bcluster = dbscan_seeds((good_ids, good_loc),
+                                                 (bad_ids, bad_loc))
     else:
         raise ValueError('{} is not supported'.format(method))
+    clusters = zip(hulls, gcluster, bcluster)
+    return sorted(clusters, key=lambda x: len(x[1]))
 
 
 def discrepancy_seeds(goods, bads, all_locs):
@@ -545,7 +568,7 @@ def dbscan_seeds(goods, bads):
 if __name__ == '__main__':
     # pylint: disable=C0103
     # batch_matching()
-    # import sys
+    import sys
     # sys.exit()
     import arguments
     args = arguments.two_cities().parse_args()
@@ -555,6 +578,8 @@ if __name__ == '__main__':
                                    [2.311570644378662, 48.86941264251879],
                                    [2.2995758056640625, 48.872983451383305],
                                    [2.3006272315979004, 48.86419005209702]]]}
+    get_seed_regions(origin, dest, user_input)
+    sys.exit()
     res, values, _ = best_match(origin, dest, user_input, 800,
                                 metric='jsd-nospace').next()
     distance, r_vids, center, radius = res

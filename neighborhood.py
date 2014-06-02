@@ -14,7 +14,7 @@ import ClosestNeighbor as cn
 import numpy as np
 import utils as u
 import itertools as i
-import shapely.geometry as geo
+import shapely.geometry as sgeo
 # pylint: disable=E1101
 # pylint: disable=W0621
 
@@ -42,7 +42,7 @@ def polygon_to_local(city, geojson):
     return its center, radius and a predicate indicating membership."""
     assert geojson['type'] == 'Polygon'
     coords = np.fliplr(np.array(geojson['coordinates'][0]))
-    projected = geo.Polygon(cities.GEO_TO_2D[city](coords))
+    projected = sgeo.Polygon(cities.GEO_TO_2D[city](coords))
     minx, miny, maxx, maxy = projected.bounds
     center = list(projected.centroid.coords[0])
     radius = max(maxx - minx, maxy - miny)*0.5
@@ -130,7 +130,7 @@ def gather_entities(surrounding, center, radius, belongs_to, threshold=0):
         return None, None
     if belongs_to is None:
         return ids, info
-    is_inside = lambda t: belongs_to(geo.Point(t[2]))
+    is_inside = lambda t: belongs_to(sgeo.Point(t[2]))
     res = zip(*(i.ifilter(is_inside, i.izip(ids, info, locs))))
     if len(res) != 3:
         return None, None
@@ -329,16 +329,16 @@ def greedy_search(nb_venues, distance_function, right_knn, support):
     return [best_dst, r_vids, [], -1], None
 
 
-def search_no_space(vids, nb_venues, distance_function, left_knn, right_knn,
-                    support):
-    """Find `nb_venues` in `right_knn` that are close to those in `vids` (in
-    the sense of euclidean distance) and return the distance with this
-    “virtual” neighborhood (for comparaison purpose)"""
+def get_knn_candidates(vids, left_knn, right_knn, at_least, at_most=None):
+    """Return between `at_least` and `at_most` venue in right that are close (in
+    the sense of euclidean distance) of the `vids` in left. Namely, it return
+    their row number and their ids."""
     import heapq
     candidates = []
     candidates_id = []
     knn = right_knn['knn']
-    nb_venues = min(len(vids)*knn, int(nb_venues)+30)
+    at_most = at_most or 50000
+    nb_venues = min(at_most, max(len(vids)*knn, at_least))
     for idx, vid in enumerate(vids):
         _, rid, ridx, dst, _ = cn.find_closest(vid, left_knn, right_knn)
         for dst_, rid_, ridx_, idx_ in zip(dst, rid, ridx, range(knn)):
@@ -349,6 +349,39 @@ def search_no_space(vids, nb_venues, distance_function, left_knn, right_knn,
     closest = heapq.nsmallest(nb_venues, candidates)
     mask = np.array([v[2][1] for v in closest])
     r_vids = np.array([v[2][0] for v in closest])
+    return mask, r_vids
+
+
+def get_neighborhood_candidates(distance_function, right_knn, metric,
+                                at_most=None):
+    candidates = []
+    activities = np.ones((12, 1))
+    weights = [1.0]
+    nb_dims = right_knn['features'].shape[1]
+    for idx, vid in enumerate(right_knn['index']):
+        features = right_knn['features'][idx, :].reshape(1, nb_dims)
+        if 'jsd' in metric:
+            density = features_as_density(features, weights, RIGHT_SUPPORT)
+            dst = distance_function(density, activities)
+        elif 'emd' in metric:
+            dst = distance_function(list(features.ravel()), weights)
+        else:
+            raise ValueError('unknown metric {}'.format(metric))
+        candidates.append((dst, idx, vid))
+
+    nb_venues = min(at_most, len(candidates))
+    closest = sorted(candidates, key=lambda x: x[0])[:nb_venues]
+    mask = np.array([v[1] for v in closest])
+    r_vids = np.array([v[2] for v in closest])
+    return mask, r_vids
+
+
+def search_no_space(vids, nb_venues, distance_function, left_knn, right_knn,
+                    support):
+    """Find `nb_venues` in `right_knn` that are close to those in `vids` (in
+    the sense of euclidean distance) and return the distance with this
+    “virtual” neighborhood (for comparaison purpose)"""
+    mask, r_vids = get_knn_candidates(vids, left_knn, right_knn, nb_venues)
     weights = weighting_venues(right_knn['features'][mask, 1])
     activities = np.ones((12, 1))
     features = right_knn['features'][mask, :]
@@ -413,11 +446,101 @@ def batch_matching():
                                   'dst': distance, 'metric': metric,
                                   'nb_venues': len(r_vids)}
                     regions[neighborhood][city].append(result)
-                    outname = '{}_{}_{}_{}.png'.format(city, neighborhood,
-                                                       int(radius), metric)
-                    interpolate_distances(values, outname)
-    with open('static/fapresets.js', 'w') as out:
-        out.write('var PRESETS =' + ujson.dumps(regions) + ';')
+                    # outname = '{}_{}_{}_{}.png'.format(city, neighborhood,
+                    #                                    int(radius), metric)
+                    # interpolate_distances(values, outname)
+                with open('static/cpresets.js', 'w') as out:
+                    out.write('var PRESETS =' + ujson.dumps(regions) + ';')
+
+
+def find_promising_seed(good_ids, venues_infos, method, right):
+    """Try to find high concentration of `good_ids` venues among all
+    `venues_infos` using one of the following methods:
+    ['dbscan'|'discrepancy'].
+    Return a list of convex hulls with associated list of good and bad
+    venues id"""
+    vids, _, venues_loc = venues_infos.all()
+    significant_id = {vid: loc for vid, loc in i.izip(vids, venues_loc)
+                      if vid in right['index']}
+    good_loc = np.array([significant_id[v] for v in good_ids])
+    bad_ids = [v for v in significant_id.iterkeys() if v not in good_ids]
+    bad_loc = np.array([significant_id[v] for v in bad_ids])
+    if method == 'discrepancy':
+        return discrepancy_seeds((good_ids, good_loc), (bad_ids, bad_loc),
+                                 np.array(venues_loc))
+    elif method == 'dbscan':
+        return dbscan_seeds((good_ids, good_loc), (bad_ids, bad_loc))
+    else:
+        raise ValueError('{} is not supported'.format(method))
+
+
+def discrepancy_seeds(goods, bads, all_locs):
+    """Find regions with concentration of good points compared with bad
+    ones."""
+    import spatial_scan as sps
+    size = 50
+    support = 8
+    sps.GRID_SIZE = size
+    sps.TOP_K = 500
+
+    xedges, yedges = [np.linspace(low, high, size+1)
+                      for low, high in zip(np.min(all_locs, 0),
+                                           np.max(all_locs, 0))]
+    bins = (xedges, yedges)
+    good_ids, good_loc = goods
+    bad_ids, bad_loc = bads
+    count, _, _ = np.histogram2d(good_loc[:, 0], good_loc[:, 1], bins=bins)
+    measured = count.T.ravel()
+    count, _, _ = np.histogram2d(bad_loc[:, 0], bad_loc[:, 1], bins=bins)
+    background = count.T.ravel()
+    total_b = np.sum(background)
+    total_m = np.sum(measured)
+    discrepancy = sps.get_discrepancy_function(total_m, total_b, support)
+
+    def euc_index_to_rect(idx):
+        """Return the bounding box of a grid's cell defined by its
+        `idx`"""
+        i = idx % size
+        j = idx / size
+        return [xedges[i], yedges[j], xedges[i+1], yedges[j+1]]
+    sps.index_to_rect = euc_index_to_rect
+
+    top_loc = sps.exact_grid(np.reshape(measured, (size, size)),
+                             np.reshape(background, (size, size)),
+                             discrepancy, sps.TOP_K,
+                             sps.GRID_SIZE/sps.MAX_SIZE)
+    merged = sps.merge_regions(top_loc)
+
+    gcluster = []
+    bcluster = []
+    hulls = []
+    for region in merged:
+        gcluster.append([id_ for id_, loc in zip(good_ids, good_loc)
+                         if region[1].contains(sgeo.Point(loc))])
+        bcluster.append([id_ for id_, loc in zip(bad_ids, bad_loc)
+                         if region[1].contains(sgeo.Point(loc))])
+        hulls.append(region[1].convex_hull)
+    return hulls, gcluster, bcluster
+
+
+def dbscan_seeds(goods, bads):
+    """Find regions with concentration of good points."""
+    from scipy.spatial import ConvexHull
+    import sklearn.cluster as cl
+    good_ids, good_loc = goods
+    bad_ids, bad_loc = bads
+    labels = cl.DBSCAN(eps=200, min_samples=8).fit_predict(good_loc)
+    gcluster = []
+    bcluster = []
+    hulls = []
+    for cluster in range(len(np.unique(labels))-1):
+        points = good_loc[labels == cluster, :]
+        hull = sgeo.Polygon(points[ConvexHull(points).vertices])
+        gcluster.append(list(i.compress(good_ids, labels == cluster)))
+        bcluster.append([id_ for id_, loc in zip(bad_ids, bad_loc)
+                         if hull.contains(sgeo.Point(loc))])
+        hulls.append(hull)
+    return hulls, gcluster, bcluster
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -448,12 +571,13 @@ if __name__ == '__main__':
     # Then, when given a query, compute its average value for each time
     # set a narrow range around each value and take the intersection of all
     # point within this range in the other city.
-    # Increase range until we get big enough surface (or at least starting point)
+    # Increase range until we get big enough surface
+    # (or at least starting point)
 
     # Better quality
     # best_match()
     # gather query and cities info
-    # reweight query venues to remove outliers
+    # OPTIONNAL: reweight query venues to remove outliers
     # get individual candidate (at_least, at_most, distance ∈ emd, jsd, knn)
     # find seed among candidate (DBSCAN, K-means, discrepancy)
     # grow seeds into region (in a greedy manner)

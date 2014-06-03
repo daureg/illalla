@@ -57,9 +57,20 @@ def perform_search(from_city, to_city, region, metric):
 @app.route('/status')
 def send_status():
     while SEARCH_STATUS['seen']:
-        time.sleep(0.25)
+        time.sleep(0.4)
     SEARCH_STATUS['seen'] = True
     return f.jsonify(r=SEARCH_STATUS)
+
+
+@app.route('/seed_region', methods=['POST'])
+def seed_region():
+    geo = f.json.loads(f.request.form['geo'])
+    fields = ['metric', 'candidate', 'clustering']
+    metric, candidate, clustering = [str(f.request.form[field])
+                                     for field in fields]
+    res = nb.one_method_seed_regions(ORIGIN['city'], DEST['city'], geo,
+                                     metric, candidate, clustering)
+    return f.jsonify(r=res)
 
 
 @app.route('/match_neighborhood', methods=['POST'])

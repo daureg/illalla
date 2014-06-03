@@ -16,7 +16,7 @@ body {
 	font-size: 12pt;
 	line-height: 1.5;
 }
-#mapl {left: 0; width: 49.8% !important;}
+#mapl {left: 0;}
 #mapr {left: 50%;}
 .map {
 	width: 49.85%;
@@ -26,12 +26,13 @@ body {
 	top: 3.5%;
 }
 #result {
-	width: 50%;
+	width: 40%;
 	position: absolute;
-	left: 50%;
+	left: 60%;
 }
 form, #result {
 	display: inline;
+    font-size: 10pt;
 }
 progress {
 	width: 22%;

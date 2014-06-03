@@ -14,7 +14,7 @@
 </head>
 <body>
     <form id="presets">
-        <label>Paris neighborhood:
+        <label>Neighborhood:
             <select name="neighborhood" required id="neighborhood" autofocus>
                 <option value="triangle" selected="selected">Golden Triangle</option>
                 <option value="latin">Quartier Latin</option>
@@ -30,6 +30,19 @@
                 {# <option value="jsd-nospace">JSD (No Space)</option> #}
                 <option value="jsd" selected="selected">JSD</option>
                 <option value="emd">EMD</option>
+            </select>
+        </label>
+        <label>Candidates:
+            <select name="candidates" id="candidates" required>
+                <option value="full" selected="selected">Full search</option>
+                <option value="knn">kNN</option>
+                <option value="dst">metric</option>
+            </select>
+        </label>
+        <label>Clustering:
+            <select name="cluster" id="cluster" required>
+                <option value="dbscan" selected="selected">DBSCAN</option>
+                <option value="discrepancy">Discrepancy</option>
             </select>
         </label>
         <button>Match!</button>

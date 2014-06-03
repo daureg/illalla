@@ -17,6 +17,7 @@ import itertools as i
 import shapely.geometry as sgeo
 # pylint: disable=E1101
 # pylint: disable=W0621
+JUST_READING = False
 
 
 def profile(func):
@@ -286,6 +287,9 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
 
     infos = interpret_query(from_city, to_city, region, metric)
     left, right, right_desc, regions_distance, vids, threshold = infos
+    if JUST_READING:
+        yield len(vids), None, None
+        raise Exception()
 
     res, vals = None, None
     if metric.endswith('-nospace'):
@@ -306,8 +310,29 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     yield res, vals, 1.0
 
 
+def one_method_seed_regions(from_city, to_city, region, metric,
+                            candidate_generation, clustering):
+    """Return promising clusters matching `region`."""
+    assert candidate_generation in ['knn', 'dst']
+    assert clustering in ['discrepancy', 'dbscan']
+    infos = interpret_query(from_city, to_city, region, metric)
+    left, right, right_desc, regions_distance, vids, threshold = infos
+    if candidate_generation == 'knn':
+        candidates = get_knn_candidates(vids, left, right, threshold,
+                                        at_most=15*threshold)
+    elif candidate_generation == 'dst':
+        candidates = get_neighborhood_candidates(regions_distance, right,
+                                                 metric, at_most=15*threshold)
+
+    clusters = find_promising_seeds(candidates[1], right_desc[3][0][0],
+                                    clustering, right)
+    how_many = min(len(clusters), 6)
+    print([len(_[1]) for _ in clusters])
+    return [_[1] for _ in clusters[:how_many]]
+
+
 def get_seed_regions(from_city, to_city, region):
-    for metric in ['jsd']:#, 'emd']:
+    for metric in ['jsd', 'emd']:
         infos = interpret_query(from_city, to_city, region, metric)
         left, right, right_desc, regions_distance, vids, threshold = infos
         knn_cds = get_knn_candidates(vids, left, right, threshold, at_most=250)
@@ -315,8 +340,9 @@ def get_seed_regions(from_city, to_city, region):
                                               at_most=250)
         for _, candidates in [knn_cds, ngh_cds]:
             for scan in ['dbscan', 'discrepancy']:
-                clusters = find_promising_seed(candidates, right_desc[3][0][0],
-                                               scan, right)
+                clusters = find_promising_seeds(candidates,
+                                                right_desc[3][0][0], scan,
+                                                right)
                 for cl in clusters:
                     print(metric, scan, cl[1])
 
@@ -356,7 +382,7 @@ def get_knn_candidates(vids, left_knn, right_knn, at_least, at_most=None):
     candidates = []
     candidates_id = []
     knn = right_knn['knn']
-    at_most = at_most or 50000
+    at_most = int(at_most) or 50000
     nb_venues = min(at_most, max(len(vids)*knn, at_least))
     for idx, vid in enumerate(vids):
         _, rid, ridx, dst, _ = cn.find_closest(vid, left_knn, right_knn)
@@ -365,6 +391,7 @@ def get_knn_candidates(vids, left_knn, right_knn, at_least, at_most=None):
                 candidates_id.append(rid_)
                 heapq.heappush(candidates, (dst_, idx*knn+idx_,
                                             (rid_, ridx_)))
+    nb_venues = min(len(candidates), int(nb_venues))
     closest = heapq.nsmallest(nb_venues, candidates)
     mask = np.array([v[2][1] for v in closest])
     r_vids = np.array([v[2][0] for v in closest])
@@ -388,7 +415,7 @@ def get_neighborhood_candidates(distance_function, right_knn, metric,
             raise ValueError('unknown metric {}'.format(metric))
         candidates.append((dst, idx, vid))
 
-    nb_venues = min(at_most, len(candidates))
+    nb_venues = min(int(at_most), len(candidates))
     closest = sorted(candidates, key=lambda x: x[0])[:nb_venues]
     mask = np.array([v[1] for v in closest])
     r_vids = np.array([v[2] for v in closest])
@@ -472,7 +499,7 @@ def batch_matching():
                     out.write('var PRESETS =' + ujson.dumps(regions) + ';')
 
 
-def find_promising_seed(good_ids, venues_infos, method, right):
+def find_promising_seeds(good_ids, venues_infos, method, right):
     """Try to find high concentration of `good_ids` venues among all
     `venues_infos` using one of the following methods:
     ['dbscan'|'discrepancy'].

@@ -241,16 +241,16 @@ function marks_venues(clusters) {
 	answers.clearLayers();
     var icon_color = ['black', 'red', 'blue', 'green', 'orange', 'purple',
         'darkpuple', 'cadetblue', 'darkred', 'darkgreen'];
-    var gold = PRESETS[LAST_PRESET_NAME][dest];
+    var precomputed = PRESETS[LAST_PRESET_NAME][dest];
     var best_dst = 1e20,
         best_radius = -1,
         nb_venues = 0;
-    for (var k = 0; k < gold.length; k++) {
-	    if (gold[k].metric !== LAST_USED_METRIC) {continue;}
-        if (gold[k].dst < best_dst) {
-            best_dst = gold[k].dst;
-            best_radius = gold[k].geo.radius;
-            nb_venues = gold[k].nb_venues;
+    for (var k = 0; k < precomputed.length; k++) {
+	    if (precomputed[k].metric !== LAST_USED_METRIC) {continue;}
+        if (precomputed[k].dst < best_dst) {
+            best_dst = precomputed[k].dst;
+            best_radius = precomputed[k].geo.radius;
+            nb_venues = precomputed[k].nb_venues;
         }
     }
     var gold = PRESETS[LAST_PRESET_NAME].gold[dest];
@@ -262,14 +262,25 @@ function marks_venues(clusters) {
     msg = HTML(RESULT_FMT, {dst: best_dst.toFixed(3), nb_venues: nb_venues,
                                         radius: best_radius.toFixed(0)});
     $('#res').fill(msg);
+    var lats = [],
+        lngs = [];
     for (var j = 0; j < clusters.length; j++) {
         var marker = make_icon(icon_color[j]);
         for (var i = 0; i < clusters[j].length; i++) {
             var venue_id = clusters[j][i];
             var dot = L.marker(VENUES_LOC[venue_id], {clickable: false, icon: marker});
+            lats.push(VENUES_LOC[venue_id][0]);
+            lngs.push(VENUES_LOC[venue_id][1]);
             answers.addLayer(dot);
         }
     }
+    lats.sort(function compare_number(a, b) {return b - a;});
+    lngs.sort(function compare_number(a, b) {return b - a;});
+    var nbpoints = lats.length;
+    var begin = parseInt(0.05*nbpoints),
+        end = parseInt(0.95*nbpoints);
+    right.fitBounds([[lats[begin], lngs[begin]],
+            [lats[end], lngs[end]]]);
 }
 function geojson_to_polygon(geo) {
     //TODO: use GeoJSON Layer
@@ -311,7 +322,6 @@ function draw_preset_query(name) {
     }
     var metric = $('#presets').values().metric;
     var smallest_dst = 1e15;
-    console.log(res);
     for (var i = 0; i < res.length; i++) {
 	    var nb_venues = res[i].nb_venues;
         if (nb_venues === 0) {continue;}
@@ -341,7 +351,6 @@ var LAST_USED_METRIC = null;
 // if (origin !== 'paris') {presets.hide();}
 presets.on('submit', function match_preset(e) {
     var form = presets.values();
-    console.log(form);
     LAST_PRESET_NAME = form.neighborhood;
     LAST_USED_METRIC = form.metric;
     if (form.candidates === 'full') {

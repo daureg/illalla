@@ -68,9 +68,14 @@ def seed_region():
     fields = ['metric', 'candidate', 'clustering']
     metric, candidate, clustering = [str(f.request.form[field])
                                      for field in fields]
-    res = nb.one_method_seed_regions(ORIGIN['city'], DEST['city'], geo,
-                                     metric, candidate, clustering)
-    return f.jsonify(r=res)
+    msg = 'From {} to {} using {}, {}, {}'
+    msg = (msg.format(ORIGIN['city'], DEST['city'], candidate,
+                      metric if candidate == 'dst' else 'N/A', clustering))
+    print(msg)
+    logging.warn(msg)
+    res, log = nb.one_method_seed_regions(ORIGIN['city'], DEST['city'], geo,
+                                          metric, candidate, clustering)
+    return f.jsonify(r=res, info=log)
 
 
 @app.route('/match_neighborhood', methods=['POST'])

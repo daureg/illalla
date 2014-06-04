@@ -109,7 +109,7 @@ def features_as_density(features, weights, support, bins=10):
 def features_as_lists(features):
     """Turn numpy `features` into a list of list, suitable for emd
     function."""
-    return [list(row) for row in features]
+    return features.tolist()
 
 
 @profile
@@ -327,7 +327,22 @@ def one_method_seed_regions(from_city, to_city, region, metric,
     clusters = find_promising_seeds(candidates[1], right_desc[3][0][0],
                                     clustering, right)
     how_many = min(len(clusters), 6)
+    print('size of cluster:')
     print([len(_[1]) for _ in clusters])
+    print('corresponding distance: dst, radius, nb_venues')
+    for cluster in clusters[:how_many]:
+        mask = np.where(np.in1d(right['index'], cluster[1]+cluster[2]))[0]
+        weights = weighting_venues(right['features'][mask, 1])
+        activities = np.ones((12, 1))
+        features = right['features'][mask, :]
+        if 'jsd' in metric:
+            density = features_as_density(features, weights, right_desc[1])
+            supplemental = activities
+        elif 'emd' in metric:
+            density = features_as_lists(features)
+            supplemental = weights
+        dst = regions_distance(density, supplemental)
+        print('{}, {}, {}'.format(dst, np.sqrt(cluster[0].area), len(mask)))
     return [_[1] for _ in clusters[:how_many]]
 
 
@@ -410,7 +425,7 @@ def get_neighborhood_candidates(distance_function, right_knn, metric,
             density = features_as_density(features, weights, RIGHT_SUPPORT)
             dst = distance_function(density, activities)
         elif 'emd' in metric:
-            dst = distance_function(list(features.ravel()), weights)
+            dst = distance_function([list(features.ravel())], weights)
         else:
             raise ValueError('unknown metric {}'.format(metric))
         candidates.append((dst, idx, vid))
@@ -521,7 +536,7 @@ def find_promising_seeds(good_ids, venues_infos, method, right):
     else:
         raise ValueError('{} is not supported'.format(method))
     clusters = zip(hulls, gcluster, bcluster)
-    return sorted(clusters, key=lambda x: len(x[1]))
+    return sorted(clusters, key=lambda x: len(x[1]), reverse=True)
 
 
 def discrepancy_seeds(goods, bads, all_locs):

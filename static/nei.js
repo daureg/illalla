@@ -15,7 +15,7 @@ function make_icon(color) {
     });
 }
 if (JUST_READING) {
-    $('#mapl').set('$width', '100%');
+    $('#mapl').set('$width', '99.8%');
 }
 var left = create_map('mapl', LBBOX, {zoomAnimation: false});
 var right = create_map('mapr', RBBOX, {zoomAnimation: false});
@@ -145,18 +145,22 @@ left.on('draw:created', function (e) {
     var metric = form_infos.metric,
 	region_name = form_infos.neighborhood;
     left.fitBounds(zone.getBounds(), {maxZoom: 14});
-    if (form_infos.candidates == 'full' && !JUST_READING) {
+    if (form_infos.candidates == 'full') {
     $.request('post', $SCRIPT_ROOT+'/match_neighborhood',
             {geo: JSON.stringify(geo), metric: metric, name: region_name})
     .then(function success(result){
-        poll_until_done();
+        if (!JUST_READING) {
+            poll_until_done();
+        }
     })
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);
     });
     }
     else {
-        search_seed(form_infos, zone);
+        if (!JUST_READING) {
+            search_seed(form_infos, zone);
+        }
     }
     /*
     */
@@ -235,8 +239,29 @@ var TRIANGLE_VENUES = [[
     '52f2130c498e7c57f7b0abab', '52fe522b11d256f8b35186c4']];
 function marks_venues(clusters) {
 	answers.clearLayers();
-    var icon_color = ['red', 'blue', 'green', 'orange', 'purple', 'darkpuple',
-        'cadetblue', 'darkred', 'darkgreen'];
+    var icon_color = ['black', 'red', 'blue', 'green', 'orange', 'purple',
+        'darkpuple', 'cadetblue', 'darkred', 'darkgreen'];
+    var gold = PRESETS[LAST_PRESET_NAME][dest];
+    var best_dst = 1e20,
+        best_radius = -1,
+        nb_venues = 0;
+    for (var k = 0; k < gold.length; k++) {
+	    if (gold[k].metric !== LAST_USED_METRIC) {continue;}
+        if (gold[k].dst < best_dst) {
+            best_dst = gold[k].dst;
+            best_radius = gold[k].geo.radius;
+            nb_venues = gold[k].nb_venues;
+        }
+    }
+    var gold = PRESETS[LAST_PRESET_NAME].gold[dest];
+    if (gold) {
+        for (var m = 0; m < gold.length; m++) {
+			answers.addLayer(geojson_to_polygon(gold[m].geometry));
+        }
+    }
+    msg = HTML(RESULT_FMT, {dst: best_dst.toFixed(3), nb_venues: nb_venues,
+                                        radius: best_radius.toFixed(0)});
+    $('#res').fill(msg);
     for (var j = 0; j < clusters.length; j++) {
         var marker = make_icon(icon_color[j]);
         for (var i = 0; i < clusters[j].length; i++) {
@@ -311,10 +336,14 @@ function draw_preset_query(name) {
     // right.fitBounds(circle.getBounds(), {maxZoom: 14});
 }
 var presets = $('#presets');
+var LAST_PRESET_NAME = null;
+var LAST_USED_METRIC = null;
 // if (origin !== 'paris') {presets.hide();}
 presets.on('submit', function match_preset(e) {
     var form = presets.values();
     console.log(form);
+    LAST_PRESET_NAME = form.neighborhood;
+    LAST_USED_METRIC = form.metric;
     if (form.candidates === 'full') {
         draw_preset_query(form.neighborhood);
     }
@@ -350,4 +379,7 @@ $(function() {
     $("#switch").onClick(function() {
         window.location.replace('/n/'+dest+'/'+origin);
     });
+    window.setTimeout(function() {
+    // marks_venues(TRIANGLE_VENUES);
+    }, 500);
 });

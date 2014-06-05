@@ -1,3 +1,11 @@
+#log {
+	position: absolute;
+	top: 3.5%;
+	width: 24.8%;
+	padding: .5em;
+	height: 47.3%;
+	font-size: 9pt;
+}
 html, body {
 	height: 100%;
 	width: 100%;

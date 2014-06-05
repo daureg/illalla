@@ -329,7 +329,8 @@ def one_method_seed_regions(from_city, to_city, region, metric,
     how_many = min(len(clusters), 6)
     msg = 'size of cluster: '
     msg += str([len(_[1]) for _ in clusters])
-    msg += 'corresponding distance: dst, radius, nb_venues\n'
+    msg += '\ndistance, radius, nb_venues:\n'
+    print(msg)
     for cluster in clusters[:how_many]:
         mask = np.where(np.in1d(right['index'], cluster[1]+cluster[2]))[0]
         weights = weighting_venues(right['features'][mask, 1])
@@ -342,7 +343,9 @@ def one_method_seed_regions(from_city, to_city, region, metric,
             density = features_as_lists(features)
             supplemental = weights
         dst = regions_distance(density, supplemental)
-        msg += '{}, {}, {}\n'.format(dst, np.sqrt(cluster[0].area), len(mask))
+        msg += '{:.4f}, {:.1f}, {}\n'.format(dst, np.sqrt(cluster[0].area),
+                                             len(mask))
+    print(msg)
     return [_[1] for _ in clusters[:how_many]], msg
 
 

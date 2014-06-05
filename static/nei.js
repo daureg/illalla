@@ -1,3 +1,4 @@
+var AUTOMATED = true;
 var JUST_READING = false;
 var VENUES_LOC = {};
 function make_icon(color) {
@@ -17,10 +18,16 @@ function make_icon(color) {
 if (JUST_READING) {
     $('#mapl').set('$width', '99.8%');
 }
+if (AUTOMATED) {
+	$('#mapl').set({$height: '49%', $top: '50%', $width: '24.8%'});
+	$('#mapr').set({$width: '74.8%', $left: '25%'});
+}
 var left = create_map('mapl', LBBOX, {zoomAnimation: false});
 var right = create_map('mapr', RBBOX, {zoomAnimation: false});
 var map_right_toggle = $('#mapr').toggle({$$fade: 1}, {$$fade: 0}, 150);
-populate('left', canvas_display);
+if (!AUTOMATED) {
+	populate('left', canvas_display);
+}
 if (JUST_READING) {
     map_right_toggle();
 }
@@ -281,6 +288,7 @@ function marks_venues(clusters) {
         end = parseInt(0.95*nbpoints);
     right.fitBounds([[lats[begin], lngs[begin]],
             [lats[end], lngs[end]]]);
+    window.dispatchEvent(new Event('seed'));
 }
 function geojson_to_polygon(geo) {
     //TODO: use GeoJSON Layer
@@ -377,8 +385,9 @@ function search_seed(input_values, query_geo) {
             {geo: JSON.stringify(json_geo), metric: metric, candidate: candidate,
                 clustering: clustering})
     .then(function success(result){
-        var answer = $.parseJSON(result).r;
-        marks_venues(answer);
+        var res = $.parseJSON(result);
+	$('#log').fill(HTML(res.info.replace(/\n/g, '<br>')));
+        marks_venues(res.r);
     })
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);

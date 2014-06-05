@@ -11,6 +11,8 @@ import neighborhood as nb
 import time
 from timeit import default_timer as clock
 import threading
+import logging
+import persistent as p
 
 app = f.Flask(__name__)
 app.config.update(dict(
@@ -69,13 +71,16 @@ def seed_region():
     metric, candidate, clustering = [str(f.request.form[field])
                                      for field in fields]
     msg = 'From {} to {} using {}, {}, {}'
-    msg = (msg.format(ORIGIN['city'], DEST['city'], candidate,
-                      metric if candidate == 'dst' else 'N/A', clustering))
+    args = [ORIGIN['city'], DEST['city'], candidate,
+            metric if candidate == 'dst' else 'NA', clustering]
+    msg = msg.format(*args)
     print(msg)
     logging.warn(msg)
     res, log = nb.one_method_seed_regions(ORIGIN['city'], DEST['city'], geo,
                                           metric, candidate, clustering)
-    return f.jsonify(r=res, info=log)
+    res = dict(r=res, info=log)
+    p.save_var('candidates/{}_{}_{}_{}_{}.my'.format(*args), res)
+    return f.jsonify(res)
 
 
 @app.route('/match_neighborhood', methods=['POST'])

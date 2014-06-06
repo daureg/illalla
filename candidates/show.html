@@ -10,36 +10,36 @@
     <form id="choice">
         <label>City:
             <select name="city" id="city" autofocus>
-                <option value="sanfrancisco" selected="selected"><strong>S</strong>an Francisco</option>
-                <option value="barcelona"><strong>B</strong>arcelona</option>
+                <option value="sanfrancisco" selected="selected">*S*an Francisco</option>
+                <option value="barcelona">*B*arcelona</option>
             </select>
         </label>
         <label>Neighborhood:
             <select name="neighborhood" id="neighborhood">
-                <option value="triangle" selected="selected"><strong>G</strong>olden Triangle</option>
-                <option value="latin">Quartier <strong>L</strong>atin</option>
-                <option value="montmartre"><strong>M</strong>ontmartre</option>
-                <option value="pigalle"><strong>P</strong>igalle</option>
-                <option value="marais">Le Ma<strong>r</strong>ais</option>
-                <option value="official"><strong>O</strong>fficials</option>
+                <option value="triangle" selected="selected">*G*olden Triangle</option>
+                <option value="latin">Quartier *L*atin</option>
+                <option value="montmartre">*M*ontmartre</option>
+                <option value="pigalle">*P*igalle</option>
+                <option value="marais">Le Ma*r*ais</option>
+                <option value="official">*O*fficials</option>
             </select>
         </label>
         <label>Metric:
             <select name="metric" id="metric">
-                <option value="jsd" selected="selected"><strong>J</strong>SD</option>
-                <option value="emd"><strong>E</strong>MD</option>
+                <option value="jsd" selected="selected">*J*SD</option>
+                <option value="emd">*E*MD</option>
             </select>
         </label>
         <label>Candidates:
             <select name="candidates" id="candidates">
-                <option value="knn" selected="selected"><strong>k</strong>NN</option>
-                <option value="dst">neighborhood <strong>D</strong>istance</option>
+                <option value="knn" selected="selected">*k*NN</option>
+                <option value="dst">neighborhood *D*istance</option>
             </select>
         </label>
         <label>Clustering:
             <select name="cluster" id="cluster">
-                <option value="dbscan" selected="selected">DBSC<strong>A</strong>N</option>
-                <option value="discrepancy">Dis<strong>c</strong>repancy</option>
+                <option value="dbscan" selected="selected">DBSC*A*N</option>
+                <option value="discrepancy">Dis*c*repancy</option>
             </select>
         </label>
     </form>
@@ -83,6 +83,7 @@ document.addEventListener('keydown', function(event) {
         load_image();
     }
 }, false);
+load_image();
     </script>
 </body>
 </html>

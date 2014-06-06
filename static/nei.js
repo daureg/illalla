@@ -45,9 +45,6 @@ function canvas_display(result, nside, map) {
     _.each(venues, function add_venue(venue) {
         VENUES_LOC[venue._id] = venue.loc;
         var d = {"slat": venue.loc[0], "slon": venue.loc[1]};
-        // marker = L.marker(venue.loc, {title: venue.name, icon: smallIcon})
-        // .bindPopup(_.formatHtml(VENUE_CARD, venue));
-        // VENUES_MARKERS[nside].addLayer(marker);
         points.push(d);
     });
     var venue_dots = new MyLayer();
@@ -60,7 +57,6 @@ function canvas_display(result, nside, map) {
         RIGHT_CANVAS = venue_dots;
         RC_VISIBLE = true;
     }
-    // map.addLayer(VENUES_MARKERS[nside]);
     map.addLayer(venue_dots);
 }
 var MyLayer = L.FullCanvas.extend({
@@ -292,8 +288,8 @@ function marks_venues(clusters, desc) {
     lats.sort(function compare_number(a, b) {return b - a;});
     lngs.sort(function compare_number(a, b) {return b - a;});
     var nbpoints = lats.length;
-    var begin = parseInt(0.05*nbpoints),
-        end = parseInt(0.95*nbpoints);
+    var begin = parseInt(0.01*nbpoints),
+        end = parseInt(0.99*nbpoints);
     if (begin > 0) {
         right.fitBounds([[lats[begin], lngs[begin]],
                 [lats[end], lngs[end]]]);

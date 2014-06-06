@@ -42,7 +42,7 @@ casper.each(CASES, function(casper, tcase) {
     this.thenOpen(tcase.url, function() {
         this.fill('form#presets', fcase, true);
         this.waitForSelectorTextChange('#log', function takeScreenshot() {
-            this.wait(300, function() {
+            this.wait(1500, function() {
                 this.capture('candidates/'+case_to_name(tcase)+'.png', {top: 30, left: 0, width: 1905, height: 1170});
             });
         }, function() {}, 90000);

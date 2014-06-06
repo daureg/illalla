@@ -244,10 +244,12 @@ var TRIANGLE_VENUES = [[
     '5173df84e4b0bb056be47496', '51dedf2d498e9dd2706d5b72',
     '5238643c11d2c1029cc5e106', '528b11db11d2330ae60ef113',
     '52f2130c498e7c57f7b0abab', '52fe522b11d256f8b35186c4']];
-function marks_venues(clusters) {
+function marks_venues(clusters, desc) {
 	answers.clearLayers();
     var icon_color = ['black', 'red', 'blue', 'green', 'orange', 'purple',
         'darkpuple', 'cadetblue', 'darkred', 'darkgreen'];
+    var cl_desc = desc.split("\n");
+    var all_desc = '<p>' + cl_desc[0] + '<br><table><thead><tr><td>Cluster</td><td>Distance</td><td>Radius</td><td>Venues number</td></tr></thead>';
     var precomputed = PRESETS[LAST_PRESET_NAME][dest];
     var best_dst = 1e20,
         best_radius = -1,
@@ -280,7 +282,13 @@ function marks_venues(clusters) {
             lngs.push(VENUES_LOC[venue_id][1]);
             answers.addLayer(dot);
         }
+        all_desc += '<tr><td><span class="circle" style="background: ';
+        all_desc += icon_color[j]+'"></span></td>';
+        all_desc += '<td>'+cl_desc[j+2].split(',')[0]+'</td>';
+        all_desc += '<td>'+cl_desc[j+2].split(',')[1]+'</td>';
+        all_desc += '<td>'+cl_desc[j+2].split(',')[2]+'</td></th>';
     }
+    all_desc += '</table>';
     lats.sort(function compare_number(a, b) {return b - a;});
     lngs.sort(function compare_number(a, b) {return b - a;});
     var nbpoints = lats.length;
@@ -295,7 +303,7 @@ function marks_venues(clusters) {
         $('#presets').hide();
         $('#status').hide();
         $('#switch').hide();
-        $('#log').fill(HTML('<p>'+RESULT_FMT+'</p>', msg_info));
+        $('#log').fill(HTML('<p>'+RESULT_FMT+'</p>'+all_desc, msg_info));
     }
     $('#res').fill(msg);
 }
@@ -395,8 +403,8 @@ function search_seed(input_values, query_geo) {
                 clustering: clustering})
     .then(function success(result){
         var res = $.parseJSON(result);
-        marks_venues(res.r);
-        $('#log').add(HTML(res.info.replace(/\n/g, '<br>')));
+        marks_venues(res.r, res.info);
+        // $('#log').add(HTML(res.info.replace(/\n/g, '<br>')));
     })
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);

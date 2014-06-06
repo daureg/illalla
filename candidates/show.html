@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<link rel="stylesheet" href="../static/nei.css" type="text/css" media="all">
+        <script src="../static/minified-src.js"></script>
+	</head>
+<body>
+    <form id="choice">
+        <label>City:
+            <select name="city" id="city" autofocus>
+                <option value="sanfrancisco" selected="selected"><strong>S</strong>an Francisco</option>
+                <option value="barcelona"><strong>B</strong>arcelona</option>
+            </select>
+        </label>
+        <label>Neighborhood:
+            <select name="neighborhood" id="neighborhood">
+                <option value="triangle" selected="selected"><strong>G</strong>olden Triangle</option>
+                <option value="latin">Quartier <strong>L</strong>atin</option>
+                <option value="montmartre"><strong>M</strong>ontmartre</option>
+                <option value="pigalle"><strong>P</strong>igalle</option>
+                <option value="marais">Le Ma<strong>r</strong>ais</option>
+                <option value="official"><strong>O</strong>fficials</option>
+            </select>
+        </label>
+        <label>Metric:
+            <select name="metric" id="metric">
+                <option value="jsd" selected="selected"><strong>J</strong>SD</option>
+                <option value="emd"><strong>E</strong>MD</option>
+            </select>
+        </label>
+        <label>Candidates:
+            <select name="candidates" id="candidates">
+                <option value="knn" selected="selected"><strong>k</strong>NN</option>
+                <option value="dst">neighborhood <strong>D</strong>istance</option>
+            </select>
+        </label>
+        <label>Clustering:
+            <select name="cluster" id="cluster">
+                <option value="dbscan" selected="selected">DBSC<strong>A</strong>N</option>
+                <option value="discrepancy">Dis<strong>c</strong>repancy</option>
+            </select>
+        </label>
+    </form>
+    <div><img id="showit"></div>
+    <script>
+var MINI = require('minified');
+var _=MINI._, $=MINI.$, $$=MINI.$$, EE=MINI.EE, HTML=MINI.HTML;
+var form = $("#choice");
+var img = $("#showit");
+function case_to_name(full_case) {
+    var metric = (full_case.candidates === 'knn') ? 'jsd' : full_case.metric;
+    return full_case.neighborhood + '_' + full_case.city + '_' + full_case.candidates + '_' + metric + '_' + full_case.cluster;
+}
+function load_image() {
+    var img_src = case_to_name(form.values()) + '.png';
+    console.log(img_src);
+    img.set('@src', img_src);
+}
+form.onChange(load_image);
+// {65: 'A', 66: 'B', 67: 'C', 68: 'D', 69: 'E', 70: 'F', 71: 'G', 72: 'H', 73: 'I', 74: 'J', 75: 'K', 76: 'L', 77: 'M', 78: 'N', 79: 'O', 80: 'P', 81: 'Q', 82: 'R', 83: 'S', 84: 'T', 85: 'U', 86: 'V', 87: 'W', 88: 'X', 89: 'Y', 90: 'Z'}
+document.addEventListener('keydown', function(event) {
+    var infos = {
+        83: ['city', 0], // s
+        66: ['city', 1], // b
+        71: ['neighborhood', 0], // g olden
+        76: ['neighborhood', 1], // L atin
+        77: ['neighborhood', 2], // M ontmartre
+        80: ['neighborhood', 3], // P igalle
+        82: ['neighborhood', 4], // R ais
+        79: ['neighborhood', 5], // O fficials
+        74: ['metric', 0], // J SD
+        69: ['metric', 1], // E md
+        75: ['candidates', 0], // K nn
+        68: ['candidates', 1], // D st
+        65: ['cluster', 0], // dbsc A n
+        67: ['cluster', 1], // C repancy
+    };
+    var action = infos[event.keyCode];
+    if (action) {
+        document.getElementById(action[0]).selectedIndex = action[1];
+        load_image();
+    }
+}, false);
+    </script>
+</body>
+</html>

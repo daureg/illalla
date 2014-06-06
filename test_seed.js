@@ -11,9 +11,9 @@ var BASE_URL = "http://0.0.0.0:5000/n/paris/",
     CASES = [],
     tcase = null;
 var debug = [
-{url: BASE_URL+'helsinki', neighborhood: 'triangle', cluster: 'dbscan', metric: 'jsd', candidates: 'knn'},
-{url: BASE_URL+'helsinki', neighborhood: 'latin', cluster: 'dbscan', metric: 'jsd', candidates: 'knn'},
-{url: BASE_URL+'helsinki', neighborhood: 'marais', cluster: 'dbscan', metric: 'jsd', candidates: 'knn'},
+{url: BASE_URL+'barcelona', neighborhood: 'triangle', cluster: 'dbscan', metric: 'jsd', candidates: 'knn'},
+{url: BASE_URL+'barcelona', neighborhood: 'latin', cluster: 'dbscan', metric: 'jsd', candidates: 'dst'},
+{url: BASE_URL+'sanfrancisco', neighborhood: 'marais', cluster: 'discrepancy', metric: 'jsd', candidates: 'knn'},
     ];
 for (var i = 0; i < CITIES.length; i++) {
     tcase = {url: BASE_URL + CITIES[i]};
@@ -25,7 +25,7 @@ for (var i = 0; i < CITIES.length; i++) {
                 tcase.metric = 'jsd';
                 tcase.candidates = 'dst';
                 if (METHODS[l] === 'emd') {tcase.metric = 'emd';}
-                if (METHODS[l] === 'knn') {tcase.metric = 'NA'; tcase.candidates = 'knn';}
+                if (METHODS[l] === 'knn') {tcase.candidates = 'knn';}
                 CASES.push(JSON.parse(JSON.stringify(tcase)));
             }
         }
@@ -33,7 +33,7 @@ for (var i = 0; i < CITIES.length; i++) {
 }
 
 function case_to_name(full_case) {
-    return full_case.url.split('/')[5] + '_' + full_case.candidates + '_' + full_case.metric + '_' + full_case.cluster;
+    return full_case.neighborhood + '_' + full_case.url.split('/')[5] + '_' + full_case.candidates + '_' + full_case.metric + '_' + full_case.cluster;
 }
 casper.start(debug[0].url);
 casper.each(CASES, function(casper, tcase) {
@@ -45,7 +45,7 @@ casper.each(CASES, function(casper, tcase) {
             this.wait(300, function() {
                 this.capture('candidates/'+case_to_name(tcase)+'.png', {top: 30, left: 0, width: 1905, height: 1170});
             });
-        }, function() {}, 60000);
+        }, function() {}, 90000);
     });
 });
 casper.run();

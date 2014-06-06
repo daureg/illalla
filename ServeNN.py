@@ -27,6 +27,10 @@ app.secret_key = os.environ['SECRET_KEY']
 ORIGIN = {}
 DEST = {}
 SEARCH_STATUS = {}
+KNOWN_GEO = {8710721343944074569: 'triangle', 6704630207412047940: 'latin',
+             -8874215139868552404: 'montmartre', 3492781793233117456:
+             'pigalle', 8686661700877431113: 'marais', -648696130672502955:
+             'official'}
 
 
 def perform_search(from_city, to_city, region, metric):
@@ -70,8 +74,9 @@ def seed_region():
     fields = ['metric', 'candidate', 'clustering']
     metric, candidate, clustering = [str(f.request.form[field])
                                      for field in fields]
-    msg = 'From {} to {} using {}, {}, {}'
-    args = [ORIGIN['city'], DEST['city'], candidate,
+    msg = 'From {}@{} to {} using {}, {}, {}'
+    neighborhood = KNOWN_GEO.get(hash(str(geo)), 'custom')
+    args = [ORIGIN['city'], neighborhood, DEST['city'], candidate,
             metric if candidate == 'dst' else 'NA', clustering]
     msg = msg.format(*args)
     print(msg)
@@ -79,7 +84,7 @@ def seed_region():
     res, log = nb.one_method_seed_regions(ORIGIN['city'], DEST['city'], geo,
                                           metric, candidate, clustering)
     res = dict(r=res, info=log)
-    p.save_var('candidates/{}_{}_{}_{}_{}.my'.format(*args), res)
+    p.save_var('candidates/{}_{}_{}_{}_{}.my'.format(*args[1:]), res)
     return f.jsonify(res)
 
 

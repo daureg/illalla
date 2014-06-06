@@ -266,9 +266,9 @@ function marks_venues(clusters) {
 			answers.addLayer(geojson_to_polygon(gold[m].geometry));
         }
     }
-    msg = HTML(RESULT_FMT, {dst: best_dst.toFixed(3), nb_venues: nb_venues,
-                                        radius: best_radius.toFixed(0)});
-    $('#res').fill(msg);
+    msg_info = {dst: best_dst.toFixed(3), nb_venues: nb_venues, radius:
+                best_radius.toFixed(0)};
+    msg = HTML(RESULT_FMT, msg_info);
     var lats = [],
         lngs = [];
     for (var j = 0; j < clusters.length; j++) {
@@ -286,9 +286,18 @@ function marks_venues(clusters) {
     var nbpoints = lats.length;
     var begin = parseInt(0.05*nbpoints),
         end = parseInt(0.95*nbpoints);
-    right.fitBounds([[lats[begin], lngs[begin]],
-            [lats[end], lngs[end]]]);
-    window.dispatchEvent(new Event('seed'));
+    if (begin > 0) {
+        right.fitBounds([[lats[begin], lngs[begin]],
+                [lats[end], lngs[end]]]);
+    }
+    if (AUTOMATED) {
+        $('#res').hide();
+        $('#presets').hide();
+        $('#status').hide();
+        $('#switch').hide();
+        $('#log').fill(HTML('<p>'+RESULT_FMT+'</p>', msg_info));
+    }
+    $('#res').fill(msg);
 }
 function geojson_to_polygon(geo) {
     //TODO: use GeoJSON Layer
@@ -386,8 +395,8 @@ function search_seed(input_values, query_geo) {
                 clustering: clustering})
     .then(function success(result){
         var res = $.parseJSON(result);
-	$('#log').fill(HTML(res.info.replace(/\n/g, '<br>')));
         marks_venues(res.r);
+        $('#log').add(HTML(res.info.replace(/\n/g, '<br>')));
     })
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);

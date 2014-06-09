@@ -400,7 +400,7 @@ if __name__ == '__main__':
     do_cluster = lambda val, k: cluster.kmeans2(val, k, 20, minit='points')
 
     def getclass(c, kl, visits):
-        """Return {id: time pattern} of the venues in classs `c` of
+        """Return {id: time pattern} of the venues in class `c` of
         `kl`."""
         return {v[0]: v[1] for v, k in zip(visits.iteritems(), kl) if k == c}
 
@@ -413,4 +413,4 @@ if __name__ == '__main__':
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
     # describe_city(city)
-    global_info(city, standalone=True)
+    # global_info(city, standalone=True)

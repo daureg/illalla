@@ -19,8 +19,8 @@ if (JUST_READING) {
     $('#mapl').set('$width', '99.8%');
 }
 if (AUTOMATED) {
-	$('#mapl').set({$height: '49%', $top: '50%', $width: '24.8%'});
-	$('#mapr').set({$width: '74.8%', $left: '25%'});
+	$('#mapl').set({$height: '49%', $top: '50%', $width: '19.8%'});
+	$('#mapr').set({$width: '79.8%', $left: '20%'});
 }
 var left = create_map('mapl', LBBOX, {zoomAnimation: false});
 var right = create_map('mapr', RBBOX, {zoomAnimation: false});
@@ -288,9 +288,9 @@ function marks_venues(clusters, desc) {
     lats.sort(function compare_number(a, b) {return b - a;});
     lngs.sort(function compare_number(a, b) {return b - a;});
     var nbpoints = lats.length;
-    var begin = parseInt(0.01*nbpoints),
-        end = parseInt(0.99*nbpoints);
-    if (begin > 0) {
+    var begin = parseInt(0.02*nbpoints),
+        end = parseInt(0.98*nbpoints);
+    if (nbpoints > 0 && end !== begin) {
         right.fitBounds([[lats[begin], lngs[begin]],
                 [lats[end], lngs[end]]]);
     }

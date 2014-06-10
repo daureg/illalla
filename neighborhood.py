@@ -18,6 +18,7 @@ import shapely.geometry as sgeo
 # pylint: disable=E1101
 # pylint: disable=W0621
 JUST_READING = False
+MAX_EMD_POINTS = 600
 
 
 def profile(func):
@@ -251,7 +252,7 @@ def interpret_query(from_city, to_city, region, metric):
 
         @profile
         def regions_distance(r_features, r_weigths):
-            if len(r_features) >= 500:
+            if len(r_features) >= MAX_EMD_POINTS:
                 return 1e20
             return emd((query_num, map(float, weights)),
                        (r_features, map(float, r_weigths)),
@@ -576,7 +577,7 @@ def discrepancy_seeds(goods, bads, all_locs):
     top_loc = sps.exact_grid(np.reshape(measured, (size, size)),
                              np.reshape(background, (size, size)),
                              discrepancy, sps.TOP_K,
-                             sps.GRID_SIZE/sps.MAX_SIZE)
+                             sps.GRID_SIZE/8)
     merged = sps.merge_regions(top_loc)
 
     gcluster = []
@@ -597,7 +598,7 @@ def dbscan_seeds(goods, bads):
     import sklearn.cluster as cl
     good_ids, good_loc = goods
     bad_ids, bad_loc = bads
-    labels = cl.DBSCAN(eps=200, min_samples=8).fit_predict(good_loc)
+    labels = cl.DBSCAN(eps=150, min_samples=8).fit_predict(good_loc)
     gcluster = []
     bcluster = []
     hulls = []

@@ -12,6 +12,7 @@ from api_keys import TWITTER_CONSUMER_SECRET as consumer_secret
 from api_keys import TWITTER_ACCESS_TOKEN as access_token
 from api_keys import TWITTER_ACCESS_SECRET as access_secret
 import tweepy
+import httplib
 from collections import OrderedDict
 import twitter_helper as th
 from time import sleep
@@ -37,6 +38,7 @@ def checkins_from_timeline(napi, user):
     logging.info('retrieving tweets of {}'.format(user))
     res = []
     timeline = pages.items()
+    failed_read = 0
     while True:
         try:
             tweet = timeline.next()
@@ -48,6 +50,12 @@ def checkins_from_timeline(napi, user):
         except StopIteration:
             # logging.exception('stop')
             break
+        except httplib.IncompleteLib:
+            failed_read += 1
+            if failed_read >= 5:
+                raise
+            sleep(25)
+            continue
     # for tweet in timeline:
         if not tweet:
             continue
@@ -121,7 +129,7 @@ def checkins_from_user(user, napi, crawler, user_types):
         if nb_wait > 3:
             big.append(user)
             break
-        sleep(6*60)
+        sleep(8*60)
         nb_wait += 1
         batch_size = min(5, len(checkins))
         batch = checkins[:batch_size]

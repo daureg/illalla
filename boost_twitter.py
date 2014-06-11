@@ -21,7 +21,10 @@ logging.basicConfig(filename='timeline.log', level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 OLD_DATASET_END = th.datetime(2011, 2, 1)
 START_OF_TIME = th.datetime(2007, 1, 1)
-NB_RESERVED_CALLS = 900
+# mean number of tweets at each hour of Helsinki local summer time + 0.8 std
+NB_RESERVED_CALLS = [906, 950, 1009, 894, 772, 675, 561, 542, 439, 357, 407,
+                     426, 445, 526, 620, 701, 791, 860, 930, 1038, 1092, 1061,
+                     972, 791]
 
 
 def checkins_from_timeline(napi, user):
@@ -71,7 +74,8 @@ def foursquare_rate_info(fs_client):
     if from_http_header > 500:
         from_http_header -= 4500
     multi_size = cac.foursquare.MAX_MULTI_REQUESTS
-    return multi_size*from_http_header - NB_RESERVED_CALLS
+    nb_reserved_calls = NB_RESERVED_CALLS[th.datetime.now().hour]
+    return multi_size*from_http_header - nb_reserved_calls
 
 
 def post_process(batch):

@@ -50,7 +50,7 @@ def checkins_from_timeline(napi, user):
         except StopIteration:
             # logging.exception('stop')
             break
-        except httplib.IncompleteLib:
+        except httplib.IncompleteRead:
             failed_read += 1
             if failed_read >= 5:
                 raise
@@ -209,7 +209,7 @@ if __name__ == '__main__':
     print('Still {} users to process.'.format(len(users_id)))
     import random
     start = time.time()
-    end = start + 6*60*60
+    end = start + 24*60*60
     for user in users_id:  # random.sample(users_id, 35):
         print(user)
         time.sleep(checkins_from_user(user, napi, crawler, [EMPTY, BIG, DONE]))

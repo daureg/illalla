@@ -228,7 +228,7 @@ if __name__ == '__main__':
     # left = gather_info(args.origin+suffix, 350, mat, raw)
     # right = gather_info(args.dest+suffix, 350, mat, raw)
     # ir.evaluate_by_NDCG(left, right, find_closest, LCATS, mat)
-    # raise Exception
+    raise Exception
     # db, client = cm.connect_to_db('foursquare', args.host, args.port)
     import scipy.io as sio
     learned = sio.loadmat('allthree_A_30_2.mat')['A']

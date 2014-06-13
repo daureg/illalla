@@ -27,6 +27,7 @@ app.secret_key = os.environ['SECRET_KEY']
 ORIGIN = {}
 DEST = {}
 SEARCH_STATUS = {}
+# TODO: add two other geometries hash
 KNOWN_GEO = {8710721343944074569: 'triangle', 6704630207412047940: 'latin',
              -8874215139868552404: 'montmartre', 3492781793233117456:
              'pigalle', 8686661700877431113: 'marais', -648696130672502955:

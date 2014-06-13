@@ -4,8 +4,8 @@ var casper = require('casper').create({
     viewportSize: {width: 1905, height: 1200}
 });
 var BASE_URL = "http://0.0.0.0:5000/n/paris/",
-    CITIES = ['sanfrancisco', 'barcelona'],
-    NEIGHBORHOOD = ["triangle", "latin", "montmartre", "pigalle", "marais", "official"],
+    CITIES = ['barcelona', 'sanfrancisco'],
+    NEIGHBORHOOD = ["triangle", "latin", "montmartre", "pigalle", "marais", "official", "weekend", "16th"],
     METHODS = ['knn', 'jsd', 'emd'],
     CLUSTERING = ['dbscan', 'discrepancy'],
     CASES = [],
@@ -42,9 +42,7 @@ casper.each(CASES, function(casper, tcase) {
     this.thenOpen(tcase.url, function() {
         this.fill('form#presets', fcase, true);
         this.waitForSelectorTextChange('#log', function takeScreenshot() {
-            this.wait(1500, function() {
-                this.capture('candidates/'+case_to_name(tcase)+'.png', {top: 30, left: 0, width: 1905, height: 1170});
-            });
+            this.capture('candidates/'+case_to_name(tcase)+'.png', {top: 30, left: 0, width: 1905, height: 1170});
         }, function() {}, 90000);
     });
 });

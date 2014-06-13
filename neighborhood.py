@@ -19,6 +19,7 @@ import shapely.geometry as sgeo
 # pylint: disable=W0621
 JUST_READING = False
 MAX_EMD_POINTS = 600
+QUERY_NAME = None
 
 
 def profile(func):
@@ -201,8 +202,8 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     SURROUNDINGS, bounds = city_infos
     DISTANCE_FUNCTION = distance_function
     minx, miny, maxx, maxy = bounds
-    nb_x_step = int(3*np.floor(city_size[0]) / hsize + 1)
-    nb_y_step = int(3*np.floor(city_size[1]) / hsize + 1)
+    nb_x_step = int(4*np.floor(city_size[0]) / hsize + 1)
+    nb_y_step = int(4*np.floor(city_size[1]) / hsize + 1)
     best = [1e20, [], [], RADIUS]
     res_map = []
     pool = multiprocessing.Pool(4)
@@ -222,6 +223,12 @@ def brute_search(city_desc, hsize, distance_function, threshold,
         res_map.append(cell[:3])
         if cell[2] < best[0]:
             best = [cell[2], cell[3], [cell[0], cell[1]], RADIUS]
+
+    if QUERY_NAME:
+        import persistent as p
+        p.save_var('comparaison/'+QUERY_NAME,
+                   [[cell[2], len(cell[3]), [cell[0], cell[1]], RADIUS]
+                    for cell in res if cell[0]])
     yield best, res_map, 1.0
 
 
@@ -245,6 +252,14 @@ def interpret_query(from_city, to_city, region, metric):
 
     # And use them to define the metric that will be used
     theta = np.ones((1, left['features'].shape[1]))
+    theta = np.array([[0.039559, 0.35603, 0.35603, 0.039559, 0.039559,
+                       0.039559, 0.039559, 0.039559, 0.039559, 0.039559,
+                       0.039559, 0.039559, 0.039559, 0.039559, 0.039559,
+                       0.35603, 0.039559, 0.35603, 0.35603, 0.35603, 0.27692,
+                       0.039559, 0.039559, 0.039559, 0.35603, 0.039559,
+                       0.039559, 0.039559, 0.039559, 0.039559,
+                       0.039559]])
+    ltheta = len(theta.ravel())*[1, ]
 
     if 'emd' in metric:
         from emd import emd
@@ -256,7 +271,7 @@ def interpret_query(from_city, to_city, region, metric):
                 return 1e20
             return emd((query_num, map(float, weights)),
                        (r_features, map(float, r_weigths)),
-                       lambda a, b: float(dist_for_emd(a, b)))
+                       lambda a, b: float(dist_for_emd(a, b, ltheta)))
     else:
         @profile
         def regions_distance(r_density, r_global):
@@ -485,20 +500,28 @@ def interpolate_distances(values_map, filename):
 def batch_matching():
     """Match preselected regions of Paris into a few target cities"""
     import ujson
+    global QUERY_NAME
     with open('static/cpresets.json') as infile:
         regions = ujson.load(infile)
     for metric in ['jsd', 'emd']:
         print(metric)
-        for neighborhood in regions.iterkeys():
+        for neighborhood in regions.keys():
             print(neighborhood)
             rgeo = regions[neighborhood].get('geo')
-            for city in ['helsinki', 'barcelona', 'sanfrancisco']:
+            for city in ['barcelona', 'sanfrancisco']:
+                if city == 'sanfrancisco' and neighborhood not in ['weekend',
+                                                                   '16th']:
+                    continue
                 print(city)
                 # regions[neighborhood][city] = []
-                for radius in np.linspace(200, 650, 5):
+                for radius in np.linspace(200, 500, 5):
                     print(radius)
+                    QUERY_NAME = '{}_{}_{}_{}.my'.format(city, neighborhood,
+                                                         int(radius),
+                                                         metric)
                     res, values, _ = best_match('paris', city, rgeo, radius,
                                                 metric=metric).next()
+                    continue
                     distance, r_vids, center, radius = res
                     print(distance)
                     if center is None:
@@ -613,9 +636,9 @@ def dbscan_seeds(goods, bads):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    # batch_matching()
+    batch_matching()
     import sys
-    # sys.exit()
+    sys.exit()
     import arguments
     args = arguments.two_cities().parse_args()
     origin, dest = args.origin, args.dest

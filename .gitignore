@@ -1,3 +1,10 @@
+*.lprof
+*.bench
+static/cmp_metrics.js
+static/leaflet.label.css
+static/leaflet.label.js
+timeline_*.json
+tweets_*.json
 static/apresets.js
 static/apresets.json
 static/cpresets.js

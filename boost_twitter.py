@@ -12,6 +12,7 @@ from api_keys import TWITTER_CONSUMER_SECRET as consumer_secret
 from api_keys import TWITTER_ACCESS_TOKEN as access_token
 from api_keys import TWITTER_ACCESS_SECRET as access_secret
 import tweepy
+import httplib
 from collections import OrderedDict
 import twitter_helper as th
 from time import sleep
@@ -21,7 +22,10 @@ logging.basicConfig(filename='timeline.log', level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 OLD_DATASET_END = th.datetime(2011, 2, 1)
 START_OF_TIME = th.datetime(2007, 1, 1)
-NB_RESERVED_CALLS = 900
+# mean number of tweets at each hour of Helsinki local summer time + 0.8 std
+NB_RESERVED_CALLS = [906, 950, 1009, 894, 772, 675, 561, 542, 439, 357, 407,
+                     426, 445, 526, 620, 701, 791, 860, 930, 1038, 1092, 1061,
+                     972, 791]
 
 
 def checkins_from_timeline(napi, user):
@@ -34,6 +38,7 @@ def checkins_from_timeline(napi, user):
     logging.info('retrieving tweets of {}'.format(user))
     res = []
     timeline = pages.items()
+    failed_read = 0
     while True:
         try:
             tweet = timeline.next()
@@ -45,6 +50,12 @@ def checkins_from_timeline(napi, user):
         except StopIteration:
             # logging.exception('stop')
             break
+        except httplib.IncompleteRead:
+            failed_read += 1
+            if failed_read >= 5:
+                raise
+            sleep(25)
+            continue
     # for tweet in timeline:
         if not tweet:
             continue
@@ -71,7 +82,8 @@ def foursquare_rate_info(fs_client):
     if from_http_header > 500:
         from_http_header -= 4500
     multi_size = cac.foursquare.MAX_MULTI_REQUESTS
-    return multi_size*from_http_header - NB_RESERVED_CALLS
+    nb_reserved_calls = NB_RESERVED_CALLS[th.datetime.now().hour]
+    return multi_size*from_http_header - nb_reserved_calls
 
 
 def post_process(batch):
@@ -117,7 +129,7 @@ def checkins_from_user(user, napi, crawler, user_types):
         if nb_wait > 3:
             big.append(user)
             break
-        sleep(6*60)
+        sleep(8*60)
         nb_wait += 1
         batch_size = min(5, len(checkins))
         batch = checkins[:batch_size]
@@ -197,7 +209,7 @@ if __name__ == '__main__':
     print('Still {} users to process.'.format(len(users_id)))
     import random
     start = time.time()
-    end = start + 6*60*60
+    end = start + 24*60*60
     for user in users_id:  # random.sample(users_id, 35):
         print(user)
         time.sleep(checkins_from_user(user, napi, crawler, [EMPTY, BIG, DONE]))

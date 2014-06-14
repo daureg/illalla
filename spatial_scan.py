@@ -84,7 +84,7 @@ def exact_grid(measured, background, discrepancy, nb_loc=1, max_size=5):
     assert np.size(measured) == np.size(background), "use same size input"
     grid_size = np.size(measured, 0)
     assert grid_size == GRID_SIZE, "GRID_SIZE conflict with provided data"
-    side = grid_size/max_size
+    side = int(grid_size/max_size)
     max_values = []
     min_width = MIN_WIDTH
     min_height = MIN_HEIGHT

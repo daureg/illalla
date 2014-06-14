@@ -414,3 +414,7 @@ if __name__ == '__main__':
                              'id': [_[2] for _ in sample]})
     # describe_city(city)
     # global_info(city, standalone=True)
+    # lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
+    # svenues = s.Surrounding(DB.venue, {'city': city}, [], lvenues)
+    # p.save_var('{}_s{}s.my'.format(city, 'venue'), svenues)
+    # p.save_var('{}_l{}s.my'.format(city, 'venue'), lvenues)

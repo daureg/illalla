@@ -4,7 +4,9 @@
     <link  rel='stylesheet' type='text/css' href="{{ url_for('static', filename='font-awesome.css') }}">
     <link  rel='stylesheet' type='text/css' href="{{ url_for('static', filename='nei.css') }}">
     <link  rel='stylesheet' type='text/css' href="{{ url_for('static', filename='leaflet.awesome-markers.css') }}">
+    <link  rel='stylesheet' type='text/css' href="{{ url_for('static', filename='leaflet.label.css') }}">
 	<script src="{{ url_for('static', filename='leaflet.awesome-markers.js') }}"></script>
+	<script src="{{ url_for('static', filename='leaflet.label.js') }}"></script>
         <script type="text/javascript">
             var LBBOX={{ lbbox|safe }},
                 RBBOX={{ rbbox|safe }},
@@ -22,6 +24,10 @@
                 <option value="pigalle">Pigalle</option>
                 <option value="marais">Le Marais</option>
                 <option value="official">Officials</option>
+                <option value="16th">16th arrondissement</option>
+                <option value="weekend">The banks of the Seine</option>
+            </select>
+            </select>
             </select>
         </label>
         <label>Metric:
@@ -56,6 +62,7 @@
 	<div id="mapl" class="map"></div>
 	<div id="mapr" class="map"></div>
     <div id="log"></div>
+	<script src="{{ url_for('static', filename='cmp_metrics.js') }}"></script>
 	<script src="{{ url_for('static', filename='cpresets.js') }}"></script>
 	<script src="{{ url_for('static', filename='common.js') }}"></script>
 	<script src="{{ url_for('static', filename='nei.js') }}"></script>

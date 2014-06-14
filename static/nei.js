@@ -1,5 +1,6 @@
-var AUTOMATED = true;
+var AUTOMATED = false;
 var JUST_READING = false;
+var COMPARING = true;
 var VENUES_LOC = {};
 function make_icon(color) {
     var ratio = 4/5;
@@ -19,13 +20,21 @@ if (JUST_READING) {
     $('#mapl').set('$width', '99.8%');
 }
 if (AUTOMATED) {
-	$('#mapl').set({$height: '49%', $top: '50%', $width: '24.8%'});
-	$('#mapr').set({$width: '74.8%', $left: '25%'});
+	$('#mapl').set({$height: '49%', $top: '50%', $width: '19.8%'});
+	$('#mapr').set({$width: '79.8%', $left: '20%'});
+}
+if (COMPARING) {
+	$('#mapl').set({$height: 0, $top: 0, $width: 0});
+	$('#mapr').set({$width: '99.8%', $left: 0, $top: 0, $height: '99.8%'});
+        $('#res').hide();
+        $('#presets').hide();
+        $('#status').hide();
+        $('#switch').hide();
 }
 var left = create_map('mapl', LBBOX, {zoomAnimation: false});
-var right = create_map('mapr', RBBOX, {zoomAnimation: false});
-var map_right_toggle = $('#mapr').toggle({$$fade: 1}, {$$fade: 0}, 150);
-if (!AUTOMATED) {
+var right = create_map('mapr', RBBOX, {zoomAnimation: false, zoomControl: !COMPARING});
+var map_right_toggle = $('#mapr').toggle({$$fade: 1}, {$$fade: 0}, 50);
+if (!AUTOMATED && !COMPARING) {
 	populate('left', canvas_display);
 }
 if (JUST_READING) {
@@ -62,8 +71,8 @@ function canvas_display(result, nside, map) {
 var MyLayer = L.FullCanvas.extend({
     drawSource: function(point, ctx) {
         ctx.beginPath();
-        ctx.fillStyle = "rgba(33, 33, 33, .70)";
-        ctx.arc(point.x, point.y , 2.25, 0, 2 * Math.PI, true);
+        ctx.fillStyle = "rgba(33, 33, 33, .62)";
+        ctx.arc(point.x, point.y , 1.3, 0, 2 * Math.PI, true);
         ctx.fill();
     }
 });
@@ -288,9 +297,9 @@ function marks_venues(clusters, desc) {
     lats.sort(function compare_number(a, b) {return b - a;});
     lngs.sort(function compare_number(a, b) {return b - a;});
     var nbpoints = lats.length;
-    var begin = parseInt(0.01*nbpoints),
-        end = parseInt(0.99*nbpoints);
-    if (begin > 0) {
+    var begin = parseInt(0.02*nbpoints),
+        end = parseInt(0.98*nbpoints);
+    if (nbpoints > 0 && end !== begin) {
         right.fitBounds([[lats[begin], lngs[begin]],
                 [lats[end], lngs[end]]]);
     }
@@ -299,7 +308,9 @@ function marks_venues(clusters, desc) {
         $('#presets').hide();
         $('#status').hide();
         $('#switch').hide();
+	window.setTimeout(function() {
         $('#log').fill(HTML('<p>'+RESULT_FMT+'</p>'+all_desc, msg_info));
+	}, 2500);
     }
     $('#res').fill(msg);
 }
@@ -310,7 +321,7 @@ function geojson_to_polygon(geo) {
     for (var i = 0; i < coords.length-1; i++) {
 	    latlngs.push([coords[i][1], coords[i][0]]);
     }
-    return L.polygon(latlngs, {color: '#b22222'});
+    return L.polygon(latlngs, {color: '#b22222', opacity: 0.6});
 }
 function draw_query_region(query) {
 	drawnItems.clearLayers();
@@ -400,11 +411,45 @@ function search_seed(input_values, query_geo) {
     .then(function success(result){
         var res = $.parseJSON(result);
         marks_venues(res.r, res.info);
-        // $('#log').add(HTML(res.info.replace(/\n/g, '<br>')));
     })
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);
     });
+}
+function show_grid_search(neighborhood) {
+    var gold = PRESETS[neighborhood].gold[dest];
+    var bounds = null,
+        poly = null,
+        m = null;
+    if (gold) {
+        for (m = 0; m < gold.length; m++) {
+            poly = geojson_to_polygon(gold[m].geometry);
+            if (bounds) {bounds.extend(poly.getBounds());}
+            else {bounds = poly.getBounds();}
+            answers.addLayer(poly);
+        }
+    }
+    gold = TOPREG[neighborhood];
+    circle_color = {'jsd': '#0074d9',
+                    'emd': '#2ecc40',
+                    'emd_alt': '#ff851b'
+    };
+    for (m = 0; m < gold.length; m++) {
+        var dst = gold[m].dst,
+            center = gold[m].geo.center,
+            radius = gold[m].geo.radius,
+            metric = gold[m].metric,
+            rank = gold[m].pos;
+        if (metric === 'emd_alt') {break;}
+        poly = L.circle(center, radius, {color: circle_color[metric], fillOpacity: 0.25});
+        answers.addLayer(poly);
+        var dot = L.marker(center, {clickable: false, title: radius.toFixed(0), opacity: 0.1, riseOnHover: true, icon: smallIcon})
+            .bindLabel(rank.toString(), { noHide: true, direction: (metric==='jsd') ? 'left': 'right' });
+        answers.addLayer(dot);
+        dot.showLabel();
+        bounds.extend(poly.getBounds());
+    }
+    right.fitBounds(bounds);
 }
 $(function() {
     $("#switch").onClick(function() {
@@ -413,4 +458,8 @@ $(function() {
     window.setTimeout(function() {
     // marks_venues(TRIANGLE_VENUES);
     }, 500);
+    var neighborhood = window.location.search.split("?")[1];
+    if (neighborhood && neighborhood in PRESETS) {
+	    show_grid_search(neighborhood);
+    }
 });

@@ -1,3 +1,5 @@
+timeline_*.json
+tweets_*.json
 static/apresets.js
 static/apresets.json
 static/cpresets.js

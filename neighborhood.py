@@ -15,8 +15,10 @@ import numpy as np
 import utils as u
 import itertools as i
 import shapely.geometry as sgeo
+import scipy.cluster.vq as vq
 # pylint: disable=E1101
 # pylint: disable=W0621
+NB_CLUSTERS = 3
 JUST_READING = False
 MAX_EMD_POINTS = 600
 QUERY_NAME = None
@@ -121,7 +123,9 @@ def weighting_venues(values):
     scale = MinMaxScaler()
     size = values.size
     scaled = scale.fit_transform(np.power(values, .2).reshape((size, 1)))
-    return scaled.ravel()/np.sum(scaled)
+    normalized = scaled.ravel()/np.sum(scaled)
+    normalized[normalized < 1e-6] = 1e-6
+    return normalized
 
 
 @profile
@@ -161,7 +165,7 @@ def proba_distance(density1, global1, density2, global2, theta):
 
 
 SURROUNDINGS, CITY_FEATURES, THRESHOLD = None, None, None
-USE_EMD, CITY_SUPPORT, DISTANCE_FUNCTION, RADIUS = None, None, None, None
+METRIC_NAME, CITY_SUPPORT, DISTANCE_FUNCTION, RADIUS = None, None, None, None
 RIGHT_SUPPORT = None
 
 
@@ -175,13 +179,15 @@ def one_cell(args):
                                 THRESHOLD)
     features, c_times, weights, c_vids = candidate
     if features is not None:
-        if USE_EMD:
+        if 'emd' in METRIC_NAME:
             c_density = features_as_lists(features)
+        elif 'cluster' == METRIC_NAME:
+            c_density = features
         else:
             c_density = features_as_density(features, weights,
                                             CITY_SUPPORT)
-        distance = DISTANCE_FUNCTION(c_density,
-                                     weights if USE_EMD else c_times)
+        supp = c_times if 'jsd' in METRIC_NAME else weights
+        distance = DISTANCE_FUNCTION(c_density, supp)
         return [cx, cy, distance, c_vids]
     else:
         return [None, None, None, None]
@@ -193,11 +199,11 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     """Move a sliding circle over the whole city and keep track of the best
     result."""
     global SURROUNDINGS, CITY_FEATURES, THRESHOLD, RADIUS
-    global USE_EMD, CITY_SUPPORT, DISTANCE_FUNCTION
+    global METRIC_NAME, CITY_SUPPORT, DISTANCE_FUNCTION
     import multiprocessing
     RADIUS = hsize
     THRESHOLD = threshold
-    USE_EMD = metric == 'emd'
+    METRIC_NAME = metric
     city_size, CITY_SUPPORT, CITY_FEATURES, city_infos = city_desc
     SURROUNDINGS, bounds = city_infos
     DISTANCE_FUNCTION = distance_function
@@ -244,10 +250,6 @@ def interpret_query(from_city, to_city, region, metric):
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
     print('{} venues in query region.'.format(len(vids)))
-    if 'emd' in metric:
-        query_num = features_as_lists(features)
-    else:
-        query_num = features_as_density(features, weights, left_support)
     venue_proportion = 1.0*len(vids) / left['features'].shape[0]
 
     # And use them to define the metric that will be used
@@ -264,6 +266,7 @@ def interpret_query(from_city, to_city, region, metric):
     if 'emd' in metric:
         from emd import emd
         from emd_dst import dist_for_emd
+        query_num = features_as_lists(features)
 
         @profile
         def regions_distance(r_features, r_weigths):
@@ -272,7 +275,16 @@ def interpret_query(from_city, to_city, region, metric):
             return emd((query_num, map(float, weights)),
                        (r_features, map(float, r_weigths)),
                        lambda a, b: float(dist_for_emd(a, b, ltheta)))
+    elif 'cluster' in metric:
+        from scipy.spatial.distance import cdist
+        query_num = weighted_clusters(features, NB_CLUSTERS, weights)
+
+        def regions_distance(r_features, r_weigths):
+            r_cluster = weighted_clusters(r_features, NB_CLUSTERS, r_weigths)
+            costs = cdist(query_num, r_cluster).tolist()
+            return min_cost(costs)
     else:
+        query_num = features_as_density(features, weights, left_support)
         @profile
         def regions_distance(r_density, r_global):
             """Return distance of a region from `query_num`."""
@@ -299,7 +311,7 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
                metric='jsd'):
     """Try to match a `region` from `from_city` to `to_city`. If progressive,
     yield intermediate result."""
-    assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy']
+    assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy', 'cluster']
 
     infos = interpret_query(from_city, to_city, region, metric)
     left, right, right_desc, regions_distance, vids, threshold = infos
@@ -324,6 +336,36 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
             else:
                 print(progress, end='\t')
     yield res, vals, 1.0
+
+
+@profile
+def weighted_clusters(venues, k, weights):
+    """Return `k` centroids from `venues` (clustering is unweighted by
+    centroid computation honors `weights` of each venues)."""
+    labels = np.zeros(venues.shape[0])
+    if k > 1:
+        nb_tries = 0
+        while len(np.unique(labels)) != k and nb_tries < 5:
+            _, labels = vq.kmeans2(venues, k, iter=5, minit='points')
+            nb_tries += 1
+    try:
+        return np.array([np.average(venues[labels==i,:], 0, weights[labels==i])
+                         for i in range(k)])
+    except ZeroDivisionError:
+        print(labels)
+        print(weights)
+        print(np.sum(weights))
+        raise
+
+
+@profile
+def min_cost(costs):
+    """Return average min-cost of assignment of row and column of the `costs`
+    matrix."""
+    import munkres
+    assignment = munkres.Munkres().compute(costs)
+    cost = sum([costs[r][c] for r, c in assignment])
+    return cost/len(costs)
 
 
 def one_method_seed_regions(from_city, to_city, region, metric,
@@ -357,6 +399,9 @@ def one_method_seed_regions(from_city, to_city, region, metric,
             supplemental = activities
         elif 'emd' in metric:
             density = features_as_lists(features)
+            supplemental = weights
+        elif 'cluster' in metric:
+            density = features
             supplemental = weights
         dst = regions_distance(density, supplemental)
         msg += '{:.4f}, {:.1f}, {}\n'.format(dst, np.sqrt(cluster[0].area),
@@ -503,15 +548,12 @@ def batch_matching():
     global QUERY_NAME
     with open('static/cpresets.json') as infile:
         regions = ujson.load(infile)
-    for metric in ['jsd', 'emd']:
+    for metric in ['cluster']:
         print(metric)
         for neighborhood in regions.keys():
             print(neighborhood)
             rgeo = regions[neighborhood].get('geo')
             for city in ['barcelona', 'sanfrancisco']:
-                if city == 'sanfrancisco' and neighborhood not in ['weekend',
-                                                                   '16th']:
-                    continue
                 print(city)
                 # regions[neighborhood][city] = []
                 for radius in np.linspace(200, 500, 5):

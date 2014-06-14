@@ -1,5 +1,6 @@
-#! /usr/bin/python2
+#! /usr/bin/env python2
 # vim: set fileencoding=utf-8
+"""Keep only best disjoint circles of all sized by reading raw output"""
 import persistent as p
 import numpy as np
 import os
@@ -28,7 +29,8 @@ def get_top_disjoint(candidates, topk=5):
 
 
 def to_json(city, cell, pos, alt=False):
-    distance, nb_venues, center, radius = cell
+    """Convert a `cell` ranked `pos` in `city` to a GeoJSONish dict"""
+    distance, nb_venues, center, radius, metric = cell
     suffix = '_alt' if alt else ''
     center = cities.euclidean_to_geo(city, center)
     return {'geo': {'type': 'circle', 'center': center, 'radius': radius},
@@ -37,21 +39,22 @@ def to_json(city, cell, pos, alt=False):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    import arguments
     import ujson
-    args = arguments.city_parser().parse_args()
-    res = defaultdict(list)
-    city = args.city
-    for neighborhood in ["triangle", "latin", "montmartre", "pigalle",
-                         "marais", "official", "weekend", "16th"]:
-        for metric in ['jsd', 'emd']:
-            subtop = []
-            for output in [name for name in os.listdir('comparaison/')
-                           if name.startswith(city+'_'+neighborhood) and
-                           name.endswith(metric+'.my')]:
-                subtop.extend(p.load_var('comparaison/'+output))
-            top = get_top_disjoint(subtop, 5)
-            res[neighborhood].extend(map(lambda x: to_json(city, x[1], x[0]+1),
-                                         enumerate(top)))
-    with open('static/cmp_metrics.js', 'w') as out:
+    res = {city: defaultdict(list) for city in ['barcelona', 'sanfrancisco']}
+    neighborhoods = ["triangle", "latin", "montmartre", "pigalle", "marais",
+                     "official", "weekend", "16th"]
+    for city in res.keys():
+        for neighborhood in neighborhoods:
+            for metric in ['jsd', 'emd']:
+                subtop = []
+                for output in [name for name in os.listdir('comparaison/')
+                               if name.startswith(city+'_'+neighborhood) and
+                               name.endswith(metric+'.my')]:
+                    subtop.extend(p.load_var('comparaison/'+output))
+                top = get_top_disjoint(subtop, 5)
+                json = [to_json(city, x[1]+[metric], x[0]+1)
+                        for x in enumerate(top)]
+                res[city][neighborhood].extend(json)
+    out_name = 'static/cmp_metrics.js'
+    with open(out_name, 'w') as out:
         out.write('var TOPREG =' + ujson.dumps(res) + ';')

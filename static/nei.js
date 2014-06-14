@@ -429,7 +429,7 @@ function show_grid_search(neighborhood) {
             answers.addLayer(poly);
         }
     }
-    gold = TOPREG[neighborhood];
+    gold = TOPREG[dest][neighborhood];
     circle_color = {'jsd': '#0074d9',
                     'emd': '#2ecc40',
                     'emd_alt': '#ff851b'
@@ -447,7 +447,8 @@ function show_grid_search(neighborhood) {
             .bindLabel(rank.toString(), { noHide: true, direction: (metric==='jsd') ? 'left': 'right' });
         answers.addLayer(dot);
         dot.showLabel();
-        bounds.extend(poly.getBounds());
+        if (bounds) {bounds.extend(poly.getBounds());}
+        else {bounds = poly.getBounds();}
     }
     right.fitBounds(bounds);
 }

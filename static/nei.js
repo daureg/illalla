@@ -432,6 +432,7 @@ function show_grid_search(neighborhood) {
     gold = TOPREG[dest][neighborhood];
     circle_color = {'jsd': '#0074d9',
                     'emd': '#2ecc40',
+		    'cluster': '#ff851b',
                     'emd_alt': '#ff851b'
     };
     for (m = 0; m < gold.length; m++) {
@@ -444,7 +445,7 @@ function show_grid_search(neighborhood) {
         poly = L.circle(center, radius, {color: circle_color[metric], fillOpacity: 0.25});
         answers.addLayer(poly);
         var dot = L.marker(center, {clickable: false, title: radius.toFixed(0), opacity: 0.1, riseOnHover: true, icon: smallIcon})
-            .bindLabel(rank.toString(), { noHide: true, direction: (metric==='jsd') ? 'left': 'right' });
+            .bindLabel(rank.toString(), {className: 'm-'+metric, noHide: true, direction: (metric==='jsd') ? 'left': 'right' });
         answers.addLayer(dot);
         dot.showLabel();
         if (bounds) {bounds.extend(poly.getBounds());}

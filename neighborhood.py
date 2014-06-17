@@ -16,12 +16,15 @@ import utils as u
 import itertools as i
 import shapely.geometry as sgeo
 import scipy.cluster.vq as vq
+import emd_leftover
 # pylint: disable=E1101
 # pylint: disable=W0621
 NB_CLUSTERS = 3
 JUST_READING = False
 MAX_EMD_POINTS = 600
 QUERY_NAME = None
+MATLAB_PATH = '/m/fs/software/matlab/r2014a/bin/glnxa64/MATLAB'
+MATLAB = None
 
 
 def profile(func):
@@ -171,7 +174,7 @@ RIGHT_SUPPORT = None
 
 @profile
 def one_cell(args):
-    cx, cy, idx, idy = args
+    cx, cy, id_x, id_y, id_ = args
     center = [cx, cy]
     contains = None
     candidate = describe_region(center, RADIUS, contains,
@@ -181,12 +184,17 @@ def one_cell(args):
     if features is not None:
         if 'emd' in METRIC_NAME:
             c_density = features_as_lists(features)
+            supp = weights
         elif 'cluster' == METRIC_NAME:
             c_density = features
+            supp = weights
+        elif 'leftover' in METRIC_NAME:
+            c_density = features
+            supp = (weights, id_)
         else:
             c_density = features_as_density(features, weights,
                                             CITY_SUPPORT)
-        supp = c_times if 'jsd' in METRIC_NAME else weights
+            supp = c_times
         distance = DISTANCE_FUNCTION(c_density, supp)
         return [cx, cy, distance, c_vids]
     else:
@@ -218,11 +226,18 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     y_steps = np.linspace(miny+hsize, maxy-hsize, nb_y_step)
     x_vals, y_vals = np.meshgrid(x_steps, y_steps)
     to_cell_arg = lambda _: (float(_[1][0]), float(_[1][1]), _[0] % nb_x_step,
-                             _[0]/nb_y_step)
+                             _[0]/nb_x_step, _[0])
     cells = i.imap(to_cell_arg, enumerate(i.izip(np.nditer(x_vals),
                                                  np.nditer(y_vals))))
     res = pool.map(one_cell, cells)
     res_map = []
+    if MATLAB:
+        MATLAB.start()
+        dsts = emd_leftover.collect_matlab_output(len(res), MATLAB)
+        for cell, dst in i.izip(res, dsts):
+            if cell[0]:
+                cell[2] = dst
+        MATLAB.stop()
     for cell in res:
         if cell[0] is None:
             continue
@@ -283,8 +298,20 @@ def interpret_query(from_city, to_city, region, metric):
             r_cluster = weighted_clusters(r_features, NB_CLUSTERS, r_weigths)
             costs = cdist(query_num, r_cluster).tolist()
             return min_cost(costs)
+    elif 'leftover' in metric:
+        from pymatbridge import Matlab
+        global MATLAB
+        MATLAB = Matlab(matlab=MATLAB_PATH, maxtime=30)
+
+        @profile
+        def regions_distance(r_features, second_arg):
+            r_weigths, idx = second_arg
+            emd_leftover.write_matlab_problem(features, weights, r_features,
+                                              r_weigths, idx)
+            return -1
     else:
         query_num = features_as_density(features, weights, left_support)
+
         @profile
         def regions_distance(r_density, r_global):
             """Return distance of a region from `query_num`."""
@@ -311,7 +338,8 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
                metric='jsd'):
     """Try to match a `region` from `from_city` to `to_city`. If progressive,
     yield intermediate result."""
-    assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy', 'cluster']
+    assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy', 'cluster',
+                      'leftover']
 
     infos = interpret_query(from_city, to_city, region, metric)
     left, right, right_desc, regions_distance, vids, threshold = infos
@@ -349,7 +377,8 @@ def weighted_clusters(venues, k, weights):
             _, labels = vq.kmeans2(venues, k, iter=5, minit='points')
             nb_tries += 1
     try:
-        return np.array([np.average(venues[labels==i,:], 0, weights[labels==i])
+        return np.array([np.average(venues[labels == i, :], 0,
+                                    weights[labels == i])
                          for i in range(k)])
     except ZeroDivisionError:
         print(labels)

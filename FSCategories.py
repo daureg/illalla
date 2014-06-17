@@ -96,6 +96,11 @@ def get_subcategories(query, field=None):
 
 if __name__ == '__main__':
     #pylint: disable=C0103
+    # from api_keys import FOURSQUARE_ID as CLIENT_ID
+    # from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
+    # import foursquare
+    # client = foursquare.Foursquare(CLIENT_ID, CLIENT_SECRET)
+    # CATS = get_categories(client)
     cbar, bpath = search_categories('Bar')
     all_college = get_subcategories('4d4b7105d754a06372d81259', Field.id)
     # print(all_college)

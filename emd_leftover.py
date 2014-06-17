@@ -31,6 +31,10 @@ def collect_matlab_output(nb_input, mlab):
     mlab.run_func('mlinprog.m', {'nb_input': nb_input})
     costs = []
     for idx in range(nb_input):
-        res = sio.loadmat('{}/{}_{}'.format('/tmp/mats', 'lpout', idx))
-        costs.append(float(res['dst']))
+        try:
+            dst = sio.loadmat('{}/{}_{}'.format('/tmp/mats',
+                                                'lpout', idx))['dst']
+        except IOError:
+            dst = 1e15
+        costs.append(float(dst))
     return costs

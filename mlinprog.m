@@ -2,8 +2,8 @@ function dummy = mlinprog(pyinfo)
 	nb_input = pyinfo.nb_input;
 	dir = '/tmp/mats/';
 	dummy = 0;
-	for idx=1:nb_input
-		filename = sprintf('%s%s_%d', dir, 'lpin', idx-1);
+	parfor idx=1:nb_input
+		filename = sprintf('%s%s_%d.mat', dir, 'lpin', idx-1);
 		if (exist(filename, 'file') == 2)
 			args = load(filename);
 			A=args.A;
@@ -24,10 +24,8 @@ function dummy = mlinprog(pyinfo)
 			x = linprog(f, A, b, Aeq, beq, lb, ub);
 			toc
 			dst = f*x;
-		else
-			dst = 1e15;
+			oSaveVars(sprintf('%s%s_%d', dir, 'lpout', idx-1), dst);
 		end
-		oSaveVars(sprintf('%s%s_%d', dir, 'lpout', idx-1), dst);
 	end
 end
 

@@ -263,7 +263,7 @@ def build_surrounding(venues, city, likes=5, checkins=30):
     indexing = fsc.bidict.bidict()
     places = np.zeros((len(res), 3))  # pylint: disable=E1101
     for pos, venue in enumerate(res):
-        numeric_category = fsc.ID_TO_INDEX[venue['cat']]
+        numeric_category = 0 if not venue['cat'] else fsc.ID_TO_INDEX[venue['cat']]
         lng, lat = venue['loc']['coordinates']
         local_coord = cm.cities.GEO_TO_2D[city]([lat, lng])
         places[pos, :] = (local_coord[0], local_coord[1], numeric_category)

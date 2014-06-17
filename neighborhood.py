@@ -216,8 +216,8 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     SURROUNDINGS, bounds = city_infos
     DISTANCE_FUNCTION = distance_function
     minx, miny, maxx, maxy = bounds
-    nb_x_step = int(4*np.floor(city_size[0]) / hsize + 1)
-    nb_y_step = int(4*np.floor(city_size[1]) / hsize + 1)
+    nb_x_step = int(3*np.floor(city_size[0]) / hsize + 1)
+    nb_y_step = int(3*np.floor(city_size[1]) / hsize + 1)
     best = [1e20, [], [], RADIUS]
     res_map = []
     pool = multiprocessing.Pool(4)
@@ -232,12 +232,18 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     res = pool.map(one_cell, cells)
     res_map = []
     if MATLAB:
+        import os
         MATLAB.start()
         dsts = emd_leftover.collect_matlab_output(len(res), MATLAB)
         for cell, dst in i.izip(res, dsts):
             if cell[0]:
                 cell[2] = dst
         MATLAB.stop()
+        for _ in os.listdir('/tmp/mats'):
+            try:
+                os.remove(_)
+            except (OSError, IOError):
+                pass
     for cell in res:
         if cell[0] is None:
             continue
@@ -301,7 +307,7 @@ def interpret_query(from_city, to_city, region, metric):
     elif 'leftover' in metric:
         from pymatbridge import Matlab
         global MATLAB
-        MATLAB = Matlab(matlab=MATLAB_PATH, maxtime=30)
+        MATLAB = Matlab(matlab=MATLAB_PATH, maxtime=60)
 
         @profile
         def regions_distance(r_features, second_arg):
@@ -577,12 +583,13 @@ def batch_matching():
     global QUERY_NAME
     with open('static/cpresets.json') as infile:
         regions = ujson.load(infile)
-    for metric in ['cluster']:
+    for metric in ['leftover']:
         print(metric)
         for neighborhood in regions.keys():
             print(neighborhood)
             rgeo = regions[neighborhood].get('geo')
-            for city in ['barcelona', 'sanfrancisco']:
+            # for city in ['barcelona', 'sanfrancisco']:
+            for city in ['sanfrancisco']:
                 print(city)
                 # regions[neighborhood][city] = []
                 for radius in np.linspace(200, 500, 5):

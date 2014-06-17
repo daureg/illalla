@@ -256,7 +256,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
 def interpret_query(from_city, to_city, region, metric):
     """Load informations about cities and compute useful quantities."""
     # Load info of the first city
-    left = cn.gather_info(from_city, knn=1)
+    left = cn.gather_info(from_city, knn=1, raw_features='lmnn' in metric)
     left_infos = load_surroundings(from_city)
     left_support = features_support(left['features'])
 
@@ -319,7 +319,7 @@ def interpret_query(from_city, to_city, region, metric):
                                   theta)
 
     # Load info of the target city
-    right = cn.gather_info(to_city, knn=2)
+    right = cn.gather_info(to_city, knn=2, raw_features='lmnn' in metric)
     right_infos = load_surroundings(to_city)
     minx, miny, maxx, maxy = right_infos[1]
     right_city_size = (maxx - minx, maxy - miny)
@@ -339,7 +339,7 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     """Try to match a `region` from `from_city` to `to_city`. If progressive,
     yield intermediate result."""
     assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy', 'cluster',
-                      'leftover']
+                      'leftover', 'emd-lmnn']
 
     infos = interpret_query(from_city, to_city, region, metric)
     left, right, right_desc, regions_distance, vids, threshold = infos
@@ -577,7 +577,7 @@ def batch_matching():
     global QUERY_NAME
     with open('static/cpresets.json') as infile:
         regions = ujson.load(infile)
-    for metric in ['cluster']:
+    for metric in ['emd-lmnn']:
         print(metric)
         for neighborhood in regions.keys():
             print(neighborhood)

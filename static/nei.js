@@ -433,6 +433,8 @@ function show_grid_search(neighborhood) {
     circle_color = {'jsd': '#0074d9',
                     'emd': '#2ecc40',
 		    'cluster': '#ff851b',
+                    'leftover': '#f012be',
+                    'emd-lmnn': '#11111',
                     'emd_alt': '#ff851b'
     };
     for (m = 0; m < gold.length; m++) {

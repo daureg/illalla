@@ -325,6 +325,7 @@ function geojson_to_polygon(geo) {
 }
 function draw_query_region(query) {
 	drawnItems.clearLayers();
+	var poly = null;
 	var i = 0;
 	if (origin === 'paris' || query.gold[origin].length === 1) {
 		var tmp = query;
@@ -334,7 +335,13 @@ function draw_query_region(query) {
 			tmp.geo = tmp.geometry;
 		}
 		$('#orig-venues').fill(tmp.nb_venues + ' venues.');
-		var poly = geojson_to_polygon(tmp.geo);
+		if (tmp.geo.type === 'Polygon') {
+			poly = geojson_to_polygon(tmp.geo);
+		}
+		else {
+			poly = L.circle(tmp.geo.center, tmp.geo.radius,
+							{color: '#b22222', fillOpacity: 0.6});
+		}
 		drawnItems.addLayer(poly);
 		left.fitBounds(poly.getBounds(), {maxZoom: 14});
 	}
@@ -434,7 +441,7 @@ function show_grid_search(neighborhood) {
                     'emd': '#2ecc40',
 		    'cluster': '#ff851b',
                     'leftover': '#f012be',
-                    'emd-lmnn': '#11111',
+                    'emd-lmnn': '#333333',
                     'emd_alt': '#ff851b'
     };
     for (m = 0; m < gold.length; m++) {
@@ -447,7 +454,7 @@ function show_grid_search(neighborhood) {
         poly = L.circle(center, radius, {color: circle_color[metric], fillOpacity: 0.25});
         answers.addLayer(poly);
         var dot = L.marker(center, {clickable: false, title: radius.toFixed(0), opacity: 0.1, riseOnHover: true, icon: smallIcon})
-            .bindLabel(rank.toString(), {className: 'm-'+metric, noHide: true, direction: (metric==='jsd') ? 'left': 'right' });
+            .bindLabel(rank.toString(), {className: 'm-'+metric, noHide: true, direction: (Math.random() > 0.5) ? 'left': 'right' });
         answers.addLayer(dot);
         dot.showLabel();
         if (bounds) {bounds.extend(poly.getBounds());}

@@ -2,6 +2,22 @@
 # vim: set fileencoding=utf-8
 """Read gold geometry from website DB."""
 
+
+def find_users(db_handle):
+    """Find a list of user id and the city they have contributed to"""
+    import datetime as dt
+    start = dt.datetime(2014, 6, 17, 9)
+    res = db_handle.answers.find({'when': {'$gte': start},
+                                  'question': {'$exists': True}},
+                                 {'uid': 1, 'city': 1, 'when': 1})
+    final = set()
+    for question in res:
+        formatted = "\t\t".join([str(question['uid']), str(question['city']),
+                                 question['when'].strftime('%Y-%m-%d_%Hh')])
+        final.update([formatted])
+    for _ in final:
+        print(_)
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     import sys
@@ -9,9 +25,12 @@ if __name__ == '__main__':
     import ujson
     from collections import defaultdict
     from api_keys import MONGOHQ_URL
-    uid = sys.argv[1]
     client = pymongo.MongoClient(MONGOHQ_URL)
     db = client.get_default_database()
+    if len(sys.argv) <= 1:
+        find_users(db)
+        sys.exit()
+    uid = sys.argv[1]
     new_gold = defaultdict(list)
     target_city = ""
     for ans in db.answers.find({"uid": uid, "question": {"$exists": True}}):

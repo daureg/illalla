@@ -23,9 +23,7 @@ logging.basicConfig(filename='timeline.log', level=logging.INFO,
 OLD_DATASET_END = th.datetime(2011, 2, 1)
 START_OF_TIME = th.datetime(2007, 1, 1)
 # mean number of tweets at each hour of Helsinki local summer time + 0.8 std
-NB_RESERVED_CALLS = [906, 950, 1009, 894, 772, 675, 561, 542, 439, 357, 407,
-                     426, 445, 526, 620, 701, 791, 860, 930, 1038, 1092, 1061,
-                     972, 791]
+NB_RESERVED_CALLS = 24*[0, ]
 
 
 def checkins_from_timeline(napi, user):

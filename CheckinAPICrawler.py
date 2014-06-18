@@ -14,8 +14,8 @@ logging.basicConfig(filename='tweets.log', level=logging.INFO,
 import twitter_helper as th
 CHECKIN_URL = th.CHECKIN_URL
 from api_keys import BITLY_TOKEN
-from api_keys import FOURSQUARE_ID as CLIENT_ID
-from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
+from api_keys import FOURSQUARE_ID2 as CLIENT_ID
+from api_keys import FOURSQUARE_SECRET2 as CLIENT_SECRET
 BITLY_SIZE = 15
 
 

@@ -34,6 +34,7 @@ cities = ['paris'] + gold_list[labels.keys()[0]]['gold'].keys()
 
 
 def city_desc(name):
+    # here we can keep category info because we deal with JSD anyway
     venues_info = nb.cn.gather_info(name, knn=5)
     surroundings, _ = nb.load_surroundings(name)
     support = nb.features_support(venues_info['features'])

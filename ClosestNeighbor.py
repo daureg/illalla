@@ -32,7 +32,7 @@ RESTRICTED = np.array(range(len(FEATURES)))  # pylint: disable=E1101
 LCATS = {}
 
 
-def load_matrix(city):
+def load_matrix(city, hide_category=False):
     """Open `city` matrix or compute it."""
     # import os
     filename = city
@@ -52,7 +52,8 @@ def load_matrix(city):
             mat['v'][is_inf, 0] = 0.0
         LCATS[city] = np.ceil(mat['v'][:, 5]).astype(int)
         mat['v'][:, 5] = np.divide(LCATS[city], 1000)*1000
-        # mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
+        if hide_category:
+            mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
         if filename.endswith('_fv.mat'):
             non_categorical = range(len(FEATURES))
             del non_categorical[non_categorical.index(5)]
@@ -70,11 +71,11 @@ def load_matrix(city):
     return mat
 
 
-def gather_info(city, knn=2, mat=None, raw_features=True):
+def gather_info(city, knn=2, mat=None, raw_features=True, hide_category=False):
     """Build KD-tree for each categories of venues in `city` that will return
     `knn` results when called."""
     if raw_features:
-        matrix = load_matrix(city)
+        matrix = load_matrix(city, hide_category)
     else:
         matrix = load_matrix('mLMNN2.5/'+city+'_embed.mat')
     res = {'features': matrix['v'], 'city': city.split('_')[0]}

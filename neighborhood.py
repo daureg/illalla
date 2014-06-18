@@ -262,7 +262,8 @@ def brute_search(city_desc, hsize, distance_function, threshold,
 def interpret_query(from_city, to_city, region, metric):
     """Load informations about cities and compute useful quantities."""
     # Load info of the first city
-    left = cn.gather_info(from_city, knn=1, raw_features='lmnn' in metric)
+    left = cn.gather_info(from_city, knn=1, raw_features='lmnn' not in metric,
+                          hide_category=metric != 'jsd')
     left_infos = load_surroundings(from_city)
     left_support = features_support(left['features'])
 
@@ -325,7 +326,8 @@ def interpret_query(from_city, to_city, region, metric):
                                   theta)
 
     # Load info of the target city
-    right = cn.gather_info(to_city, knn=2, raw_features='lmnn' in metric)
+    right = cn.gather_info(to_city, knn=2, raw_features='lmnn' not in metric,
+                           hide_category=metric != 'jsd')
     right_infos = load_surroundings(to_city)
     minx, miny, maxx, maxy = right_infos[1]
     right_city_size = (maxx - minx, maxy - miny)

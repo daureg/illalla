@@ -317,11 +317,17 @@ function marks_venues(clusters, desc) {
 function geojson_to_polygon(geo) {
     //TODO: use GeoJSON Layer
     //http://leafletjs.com/reference.html#geojson
-	var coords = geo.coordinates[0], latlngs = [];
-    for (var i = 0; i < coords.length-1; i++) {
-	    latlngs.push([coords[i][1], coords[i][0]]);
-    }
-    return L.polygon(latlngs, {color: '#b22222', opacity: 0.6});
+	//but then I cannot handle circle directly
+	if (geo.type === 'Polygon') {
+		var coords = geo.coordinates[0], latlngs = [];
+		for (var i = 0; i < coords.length-1; i++) {
+			latlngs.push([coords[i][1], coords[i][0]]);
+		}
+		return L.polygon(latlngs, {color: '#b22222', opacity: 0.6});
+	}
+	return L.circle([geo.center[1], geo.center[0]], geo.radius,
+			{color: '#b22222', opacity: 0.6});
+
 }
 function draw_query_region(query) {
 	drawnItems.clearLayers();
@@ -335,13 +341,7 @@ function draw_query_region(query) {
 			tmp.geo = tmp.geometry;
 		}
 		$('#orig-venues').fill(tmp.nb_venues + ' venues.');
-		if (tmp.geo.type === 'Polygon') {
-			poly = geojson_to_polygon(tmp.geo);
-		}
-		else {
-			poly = L.circle(tmp.geo.center, tmp.geo.radius,
-							{color: '#b22222', fillOpacity: 0.6});
-		}
+		poly = geojson_to_polygon(tmp.geo);
 		drawnItems.addLayer(poly);
 		left.fitBounds(poly.getBounds(), {maxZoom: 14});
 	}
@@ -361,6 +361,7 @@ function draw_preset_query(name) {
     }
     var metric = $('#presets').values().metric;
     var smallest_dst = 1e15;
+    if (!res) {return;}
     for (var i = 0; i < res.length; i++) {
 	    var nb_venues = res[i].nb_venues;
         if (nb_venues === 0) {continue;}
@@ -439,7 +440,7 @@ function show_grid_search(neighborhood) {
     gold = TOPREG[dest][neighborhood];
     circle_color = {'jsd': '#0074d9',
                     'emd': '#2ecc40',
-		    'cluster': '#ff851b',
+					'cluster': '#ff851b',
                     'leftover': '#f012be',
                     'emd-lmnn': '#333333',
                     'emd_alt': '#ff851b'

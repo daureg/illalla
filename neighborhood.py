@@ -230,6 +230,8 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     cells = i.imap(to_cell_arg, enumerate(i.izip(np.nditer(x_vals),
                                                  np.nditer(y_vals))))
     res = pool.map(one_cell, cells)
+    pool.close()
+    pool.join()
     res_map = []
     if MATLAB:
         import os

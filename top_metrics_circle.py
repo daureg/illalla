@@ -17,6 +17,8 @@ def close_circle(center1, radius1, center2, radius2):
 def get_top_disjoint(candidates, topk=5):
     """Return `topk` disjoint circles with lowest distance in `candidates`."""
     ordered = sorted(candidates, key=lambda x: (x[0], -x[1]))
+    if not ordered:
+        return []
     top = [ordered[0]]
     for cell in ordered[1:]:
         is_close = lambda reg: close_circle(reg[-2], reg[-1],

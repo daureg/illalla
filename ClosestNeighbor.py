@@ -41,6 +41,7 @@ def load_matrix(city, hide_category=False):
     # if not os.path.exists(filename):
     #     vf.describe_city(city)
     mat = vf.sio.loadmat(filename)
+    log_nb_users = []
     # pylint: disable=E1101
     if filename.endswith('_fv.mat') or filename.endswith('_tsne.mat'):
         # we loaded the raw features, which need preprocessing
@@ -50,6 +51,7 @@ def load_matrix(city, hide_category=False):
             mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
             is_inf = np.isinf(mat['v'][:, 0]).ravel()
             mat['v'][is_inf, 0] = 0.0
+            log_nb_users = mat['v'][:, 1].ravel()
         LCATS[city] = np.ceil(mat['v'][:, 5]).astype(int)
         mat['v'][:, 5] = np.divide(LCATS[city], 1000)*1000
         if hide_category:
@@ -66,8 +68,10 @@ def load_matrix(city, hide_category=False):
         # add a blank category feature
         mat['v'] = np.insert(mat['v'], 5, values=0, axis=1)
         # but still get the real one for evaluation purpose
-        # tmp = vf.sio.loadmat(city+'_fv.mat')
+        tmp = vf.sio.loadmat(filename.replace('embed', 'fv').split('/')[-1])
+        log_nb_users = np.log(tmp['v'][:, 1]).ravel()
         # LCATS[city] = (tmp['v'][:, 5]).astype(int)
+    mat['u'] = log_nb_users
     return mat
 
 
@@ -78,7 +82,8 @@ def gather_info(city, knn=2, mat=None, raw_features=True, hide_category=False):
         matrix = load_matrix(city, hide_category)
     else:
         matrix = load_matrix('mLMNN2.5/'+city+'_embed.mat')
-    res = {'features': matrix['v'], 'city': city.split('_')[0]}
+    res = {'features': matrix['v'], 'city': city.split('_')[0],
+           'users': matrix['u']}
     for cat in range(len(vf.CATS)):
         cat *= 1e5
         mask = res['features'][:, 5] == cat

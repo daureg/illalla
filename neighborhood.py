@@ -75,7 +75,7 @@ def describe_region(center, radius, belongs_to, surroundings, city_fv,
     # _, ptime = gather_entities(sphotos, center, radius, belongs_to)
     mask = np.where(np.in1d(city_fv['index'], vids))[0]
     assert mask.size == len(vids)
-    weights = weighting_venues(city_fv['features'][mask, 1])
+    weights = weighting_venues(city_fv['users'][mask])
     # time_activity = lambda visits: xp.aggregate_visits(visits, 1, 4)[0]
     # activities = np.hstack([xp.to_frequency(time_activity(ctime)),
     #                         xp.to_frequency(time_activity(ptime))])
@@ -430,7 +430,7 @@ def one_method_seed_regions(from_city, to_city, region, metric,
     print(msg)
     for cluster in clusters[:how_many]:
         mask = np.where(np.in1d(right['index'], cluster[1]+cluster[2]))[0]
-        weights = weighting_venues(right['features'][mask, 1])
+        weights = weighting_venues(right['users'][mask])
         activities = np.ones((12, 1))
         features = right['features'][mask, :]
         if 'jsd' in metric:
@@ -478,7 +478,7 @@ def greedy_search(nb_venues, distance_function, right_knn, support):
             if ridx in candidates_idx or r.random() > 0.3:
                 continue
             mask = np.array([ridx] + candidates_idx)
-            weights = weighting_venues(right_knn['features'][mask, 1])
+            weights = weighting_venues(right_knn['users'][mask])
             activities = np.ones((12, 1))
             features = right_knn['features'][mask, :]
             density = features_as_density(features, weights, support)
@@ -546,7 +546,7 @@ def search_no_space(vids, nb_venues, distance_function, left_knn, right_knn,
     the sense of euclidean distance) and return the distance with this
     “virtual” neighborhood (for comparaison purpose)"""
     mask, r_vids = get_knn_candidates(vids, left_knn, right_knn, nb_venues)
-    weights = weighting_venues(right_knn['features'][mask, 1])
+    weights = weighting_venues(right_knn['users'][mask])
     activities = np.ones((12, 1))
     features = right_knn['features'][mask, :]
     density = features_as_density(features, weights, support)

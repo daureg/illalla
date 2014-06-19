@@ -51,7 +51,7 @@ def load_matrix(city, hide_category=False):
             mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
             is_inf = np.isinf(mat['v'][:, 0]).ravel()
             mat['v'][is_inf, 0] = 0.0
-            log_nb_users = mat['v'][:, 1].ravel()
+            log_nb_users = mat['v'][:, 1].flatten()
         LCATS[city] = np.ceil(mat['v'][:, 5]).astype(int)
         mat['v'][:, 5] = np.divide(LCATS[city], 1000)*1000
         if hide_category:
@@ -63,7 +63,7 @@ def load_matrix(city, hide_category=False):
             weird = np.logical_or(np.isinf(mat['v'][:, 16]),
                                   np.isnan(mat['v'][:, 16])).ravel()
             mat['v'][weird, 16] = 0.0
-            # mat['v'][:, non_categorical] = zscore(mat['v'][:, non_categorical])
+            mat['v'][:, non_categorical] = zscore(mat['v'][:, non_categorical])
     elif filename.endswith('_embed.mat'):
         # add a blank category feature
         mat['v'] = np.insert(mat['v'], 5, values=0, axis=1)

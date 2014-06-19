@@ -256,7 +256,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     if QUERY_NAME:
         import persistent as p
         p.save_var('comparaison/'+QUERY_NAME,
-                   [[cell[2], len(cell[3]), [cell[0], cell[1]], RADIUS]
+                   [[cell[2], cell[3], [cell[0], cell[1]], RADIUS]
                     for cell in res if cell[0]])
     yield best, res_map, 1.0
 

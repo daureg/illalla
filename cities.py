@@ -80,8 +80,8 @@ BBOXES = dict(zip(SHORT_KEY, [bbox_to_polygon(b) for b in US+EU]))
 
 
 def euclidean_to_geo(city, coords):
-    """Convert back from 2D `coords` to latitude and longitude whithin `city`
-    using an external program (so it's not fast)."""
+    """Convert back from 2D `coords` [lat, lng] to latitude and longitude
+    whithin `city` using an external program (so it's not fast)."""
     import subprocess as sp
     import os
     bounds = (US+EU)[SHORT_KEY.index(city)]

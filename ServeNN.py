@@ -190,5 +190,14 @@ def welcome():
     return f.redirect(f.url_for('compare', origin='barcelona',
                                 dest='helsinki', knn=2))
 
+
+@app.route('/gold/<city>/<neighborhood>')
+def show_gold(city, neighborhood):
+    """Show ground thruth for the given query."""
+    global ORIGIN
+    ORIGIN = cn.gather_info(city, 1, raw_features=True)
+    return f.render_template('gold.html', district=neighborhood,
+                             bbox=c.BBOXES[city], city=city)
+
 if __name__ == '__main__':
     app.run()

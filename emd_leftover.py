@@ -20,7 +20,7 @@ def write_matlab_problem(points1, weights1, points2, weights2, idx,
     j_w = np.kron(np.eye(costs.shape[1]), np.ones((1, costs.shape[0])))
     A = np.vstack([i_w, j_w, -1*np.ones((1, i_w.shape[1]))])
     b = np.vstack([weights1.reshape(weights1.size, 1),
-                   weights2.reshape(weights2.size, 1), [[fraction]]])
+                   weights2.reshape(weights2.size, 1), [[-fraction]]])
     sio.savemat('{}/{}_{}'.format('/tmp/mats', 'lpin', idx),
                 {'f': vcost, 'A': A, 'b': b}, do_compression=True)
 

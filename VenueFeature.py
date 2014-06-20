@@ -70,7 +70,7 @@ def global_info(city, standalone=False):
     density = estimate_density(city)
     activity = [visits, visitors, density]
     global TOP_CATS
-    TOP_CATS = p.load_var('top_cats')
+    TOP_CATS = p.load_var('top_cats.my')
     infos = {'venue': [] if standalone else ['cat', 'cats'],
              'photo': ['taken'] if standalone else ['venue']}
     svenues = s.Surrounding(DB.venue, {'city': city}, infos['venue'], lvenues)
@@ -78,6 +78,7 @@ def global_info(city, standalone=False):
     sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city},
                             infos['photo'], lphotos)
     surroundings = [svenues, scheckins, sphotos]
+    p.save_var('{}_s{}s.my'.format(city, 'venue'), svenues)
     if standalone:
         for name, var in zip(['venue', 'checkin', 'photo'], surroundings):
             p.save_var('{}_s{}s.my'.format(city, name), var)
@@ -110,6 +111,7 @@ def describe_city(city):
     numeric = np.zeros((len(info), 31), dtype=np.float32)
     numeric[:, :5] = np.array([info['likes'], info['users'], info['checkins'],
                                info['H'], info['Den']]).T
+    print('venues with no level 2 category:')
     print([info.index[i] for i, c in enumerate(info['cat'])
            if CATS2[c] % int(1e5) == 0])
     numeric[:, 5] = [CATS2[c] for c in info['cat']]
@@ -223,7 +225,7 @@ def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
     photogeny, c_smoothed = photo_ratio(center, pids, cids, radius, pmapping,
                                         cmapping)
     if len(ctime) < 5:
-        print(vid + ' is anomalous.')
+        print(vid + ' is anomalous because there is less than 5 check-in in a 350m radius')
     if len(ctime) == 0:
         surround_visits = np.ones(6)
     else:
@@ -412,7 +414,7 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
-    # describe_city(city)
+    describe_city(city)
     # global_info(city, standalone=True)
     # lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
     # svenues = s.Surrounding(DB.venue, {'city': city}, [], lvenues)

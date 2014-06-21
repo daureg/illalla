@@ -1,3 +1,4 @@
+static/*.json
 non_venue_id_*
 *.lprof
 *.bench

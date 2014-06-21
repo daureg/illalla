@@ -36,7 +36,7 @@ if __name__ == '__main__':
                                 "geo": {"$exists": True}}):
         target_city = str(ans['city'])
         area = {"type": "Feature",
-                "properties": {"nb_venues": -1, "ref": uid}}
+                "properties": {"venues": [], "ref": uid}}
         is_circle = ans['type'] == 'circle'
         if is_circle:
             radius, center = ans['radius'], ans['geo']['coordinates']

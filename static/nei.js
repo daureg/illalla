@@ -452,6 +452,10 @@ function show_grid_search(neighborhood) {
             metric = gold[m].metric,
             rank = gold[m].pos;
         if (metric === 'emd_alt') {break;}
+		var jitterx = 1e-3*(Math.random()+0.1),
+			jittery = 1e-3*(Math.random()+0.1);
+		center[0] += jitterx;
+		center[1] += jittery;
         poly = L.circle(center, radius, {color: circle_color[metric], fillOpacity: 0.25});
         answers.addLayer(poly);
         var dot = L.marker(center, {clickable: false, title: radius.toFixed(0), opacity: 0.1, riseOnHover: true, icon: smallIcon})

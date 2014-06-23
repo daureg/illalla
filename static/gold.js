@@ -41,6 +41,7 @@ function geojson_to_polygon(geo) {
 function plot_gold(features) {
 	var poly = null,
 		bounds = null;
+	GOLD.clearLayers();
 	for (var i = 0, l = features.length; i < l; i++) {
 		console.log(features[i].geometry);
 		poly = geojson_to_polygon(features[i].geometry);
@@ -48,16 +49,36 @@ function plot_gold(features) {
 		else {bounds = poly.getBounds();}
 		GOLD.addLayer(poly);
 	}
-    map.fitBounds(bounds, {maxZoom: 13});
+    map.fitBounds(bounds, {maxZoom: 14});
 }
+var AREAS = null;
 $(function() {
 	map.addLayer(GOLD);
     $.request('get', $SCRIPT_ROOT+'/static/ground_truth.json')
 	.then(function get_gt(result) {
-		var areas = $.parseJSON(result);
-		plot_gold(areas[DISTRICT].gold[CITY]);
+		console.log('get something');
+		AREAS = $.parseJSON(result);
+		plot_gold(AREAS[DISTRICT].gold[CITY]);
 	})
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);
     });
+// {65: 'A', 66: 'B', 67: 'C', 68: 'D', 69: 'E', 70: 'F', 71: 'G', 72: 'H',
+// 73: 'I', 74: 'J', 75: 'K', 76: 'L', 77: 'M', 78: 'N', 79: 'O', 80: 'P', 81:
+// 'Q', 82: 'R', 83: 'S', 84: 'T', 85: 'U', 86: 'V', 87: 'W', 88: 'X', 89:
+// 'Y', 90: 'Z'}
+	document.addEventListener('keydown', function(event) {
+		var infos = {
+			71: 'triangle', // G olden triangle
+			76: 'latin', // L atin
+			77: 'montmartre', // M ontmartre
+			80: 'pigalle', // P igalle
+			82: 'marais', // Ma R ais
+			79: 'official', // O fficials
+			72: '16th', // 16t H
+			87: 'weekend', // W eekend
+		};
+		var district = infos[event.keyCode];
+		if (district) {plot_gold(AREAS[district].gold[CITY]);}
+	});
 });

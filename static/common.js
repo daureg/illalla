@@ -36,6 +36,9 @@ function create_map(div_id, bbox, extras) {
 	{attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>'});
     // carto_layer = L.tileLayer('http://{s}.tile.openstreetmap.org/hot/{z}/{x}/{y}.png', {
     // attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Tiles courtesy of <a href="http://hot.openstreetmap.org/" target="_blank">Humanitarian OpenStreetMap Team</a>'});
+	if (L.Google) {
+		carto_layer = new L.Google('ROADMAP', { mapOptions: { styles: {featureType: 'all'} } });
+	}
     var bbounds = compute_bound(bbox);
     var center = new L.LatLng(0.5*(bbox[0][0]+bbox[2][0]),
                               0.5*(bbox[0][1]+bbox[2][1]));

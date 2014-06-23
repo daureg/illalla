@@ -28,6 +28,7 @@ MATLAB_PATH = '/m/fs/software/matlab/r2014a/bin/glnxa64/MATLAB'
 MATLAB = None
 from pymatbridge import Matlab
 MATLAB = Matlab(matlab=MATLAB_PATH, maxtime=60)
+GROUND_TRUTH = None
 
 
 def profile(func):
@@ -178,6 +179,30 @@ RIGHT_SUPPORT = None
 
 
 @profile
+def generic_distance(metric, distance, features, weights, support,
+                     c_times=None, id_=None):
+    """Compute the distance of (`features`, `weights`) using `distance`
+    function (corresponding to `metric`)."""
+    if not c_times:
+        c_times = np.ones((12, 1))
+    if 'emd' in metric:
+        c_density = features_as_lists(features)
+        supp = weights
+    elif 'cluster' == metric:
+        c_density = features
+        supp = weights
+    elif 'leftover' in metric:
+        c_density = features
+        supp = (weights, id_)
+    elif 'jsd' in metric:
+        c_density = features_as_density(features, weights, support)
+        supp = c_times
+    else:
+        raise ValueError('unknown metric {}'.format(metric))
+    return distance(c_density, supp)
+
+
+@profile
 def one_cell(args):
     cx, cy, id_x, id_y, id_ = args
     center = [cx, cy]
@@ -187,20 +212,9 @@ def one_cell(args):
                                 THRESHOLD)
     features, c_times, weights, c_vids = candidate
     if features is not None:
-        if 'emd' in METRIC_NAME:
-            c_density = features_as_lists(features)
-            supp = weights
-        elif 'cluster' == METRIC_NAME:
-            c_density = features
-            supp = weights
-        elif 'leftover' in METRIC_NAME:
-            c_density = features
-            supp = (weights, id_)
-        else:
-            c_density = features_as_density(features, weights,
-                                            CITY_SUPPORT)
-            supp = c_times
-        distance = DISTANCE_FUNCTION(c_density, supp)
+        distance = generic_distance(METRIC_NAME, DISTANCE_FUNCTION, features,
+                                    weights, CITY_SUPPORT, c_times=c_times,
+                                    id_=id_)
         return [cx, cy, distance, c_vids]
     else:
         return [None, None, None, None]
@@ -243,11 +257,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
         for cell, dst in i.izip(res, dsts):
             if cell[0]:
                 cell[2] = dst
-        from subprocess import check_call, CalledProcessError
-        try:
-            check_call('rm /tmp/mats/*.mat', shell=True)
-        except CalledProcessError:
-            pass
+        clean_tmp_mats()
     for cell in res:
         if cell[0] is None:
             continue
@@ -431,18 +441,9 @@ def one_method_seed_regions(from_city, to_city, region, metric,
     for cluster in clusters[:how_many]:
         mask = np.where(np.in1d(right['index'], cluster[1]+cluster[2]))[0]
         weights = weighting_venues(right['users'][mask])
-        activities = np.ones((12, 1))
         features = right['features'][mask, :]
-        if 'jsd' in metric:
-            density = features_as_density(features, weights, right_desc[1])
-            supplemental = activities
-        elif 'emd' in metric:
-            density = features_as_lists(features)
-            supplemental = weights
-        elif 'cluster' in metric:
-            density = features
-            supplemental = weights
-        dst = regions_distance(density, supplemental)
+        dst = generic_distance(metric, regions_distance, features, weights,
+                               support=right_desc[1])
         msg += '{:.4f}, {:.1f}, {}\n'.format(dst, np.sqrt(cluster[0].area),
                                              len(mask))
     print(msg)
@@ -591,7 +592,6 @@ def batch_matching():
         regions = ujson.load(infile)
     for city in ['newyork', 'barcelona', 'berlin', 'rome', 'washington',
                  'sanfrancisco']:
-    # for city in ['newyork']:
         print(city)
         for neighborhood in regions.keys():
             print(neighborhood)
@@ -722,11 +722,81 @@ def dbscan_seeds(goods, bads):
         hulls.append(hull)
     return hulls, gcluster, bcluster
 
+
+def get_gold_desc(city, district):
+    """Return a feature description of each gold region of
+    (`city`, `district`)."""
+    try:
+        golds = [_['properties']['venues']
+                 for _ in GROUND_TRUTH[district]['gold'][city['city']]]
+    except KeyError as oops:
+        print(oops)
+        return None
+    res = []
+    for vids in golds:
+        mask = np.where(np.in1d(city['index'], vids))[0]
+        assert mask.size == len(vids)
+        weights = weighting_venues(city['users'][mask])
+        activities = np.ones((12, 1))
+        res.append((city['features'][mask, :], activities, weights, vids))
+    return res
+
+
+def all_gold_dst():
+    """Compute the distance between all gold regions and the query ones for
+    all metrics."""
+    assert GROUND_TRUTH, 'load GROUND_TRUTH before calling'
+    districts = GROUND_TRUTH.keys()
+    cities = GROUND_TRUTH.items()[0][1]['gold'].keys()
+    cities.remove('paris')
+    metrics = ['cluster', 'emd', 'emd-lmnn', 'jsd']
+    results = {}
+    for city, district in i.product(cities, districts):
+        geo = GROUND_TRUTH[district]['gold']['paris'][0]['geometry']
+        for metric in metrics:
+            name = '_'.join([city, district, metric])
+            info = interpret_query('paris', city, geo, metric)
+            _, target_city, target_desc, regions_distance, _, threshold = info
+            support = target_desc[1]
+            candidates = get_gold_desc(target_city, district)
+            if not candidates:
+                print(name + ' is empty')
+                continue
+            current_dsts = []
+            for region in candidates:
+                features, _, weights, _ = region
+                if metric == 'cluster' and weights.size < 3:
+                    print("{}: can't make three clusters".format(name))
+                    continue
+                dst = generic_distance(metric, regions_distance, features,
+                                       weights, support)
+                if metric == 'leftover':
+                    dst = emd_leftover.collect_matlab_output(1, MATLAB)
+                    clean_tmp_mats()
+                current_dsts.append(dst)
+            results[name] = current_dsts
+    return results
+
+
+def clean_tmp_mats():
+    """Remove .mat file after leftover metric has finished its computation."""
+    from subprocess import check_call, CalledProcessError
+    try:
+        check_call('rm /tmp/mats/*.mat', shell=True)
+    except CalledProcessError:
+        pass
+
 if __name__ == '__main__':
     # pylint: disable=C0103
-    batch_matching()
+    import json
+    with open('static/ground_truth.json') as gt:
+        GROUND_TRUTH = json.load(gt)
+    import persistent as p
+    distances = all_gold_dst()
+    p.save_var('all_gold.my', distances)
     import sys
     sys.exit()
+    batch_matching()
     import arguments
     args = arguments.two_cities().parse_args()
     origin, dest = args.origin, args.dest

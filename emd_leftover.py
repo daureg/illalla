@@ -5,7 +5,7 @@ The rational behind is that it allow to remove the effect of outlier points."""
 import numpy as np
 from scipy.spatial.distance import cdist
 import scipy.io as sio
-MAX_POINTS = 400
+MAX_POINTS = 700
 
 
 def write_matlab_problem(points1, weights1, points2, weights2, idx,

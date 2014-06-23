@@ -19,10 +19,10 @@ function dummy = mlinprog(pyinfo)
 			ub = [];
 			% x0=args.x0;
 			x0 = [];
-			tic;
+			% tic;
 			% opts = optimoptions(@linprog,'Display','final','Algorithm','simplex');
 			x = linprog(f, A, b, Aeq, beq, lb, ub);
-			toc
+			% toc
 			dst = f*x;
 			oSaveVars(sprintf('%s%s_%d', dir, 'lpout', idx-1), dst);
 		end

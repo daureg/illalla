@@ -21,10 +21,13 @@ import emd_leftover
 # pylint: disable=W0621
 NB_CLUSTERS = 3
 JUST_READING = False
-MAX_EMD_POINTS = 600
+MAX_EMD_POINTS = 750
+NO_WEIGHT = True
 QUERY_NAME = None
 MATLAB_PATH = '/m/fs/software/matlab/r2014a/bin/glnxa64/MATLAB'
 MATLAB = None
+from pymatbridge import Matlab
+MATLAB = Matlab(matlab=MATLAB_PATH, maxtime=60)
 
 
 def profile(func):
@@ -122,6 +125,8 @@ def features_as_lists(features):
 @profile
 def weighting_venues(values):
     """Transform `values` into a list of positive weights that sum up to 1."""
+    if NO_WEIGHT:
+        return np.ones(values.size)/values.size
     from sklearn.preprocessing import MinMaxScaler
     scale = MinMaxScaler()
     size = values.size
@@ -233,19 +238,16 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     pool.close()
     pool.join()
     res_map = []
-    if MATLAB:
-        import os
-        MATLAB.start()
+    if metric == 'leftover':
         dsts = emd_leftover.collect_matlab_output(len(res), MATLAB)
         for cell, dst in i.izip(res, dsts):
             if cell[0]:
                 cell[2] = dst
-        MATLAB.stop()
-        for _ in os.listdir('/tmp/mats'):
-            try:
-                os.remove(_)
-            except (OSError, IOError):
-                pass
+        from subprocess import check_call, CalledProcessError
+        try:
+            check_call('rm /tmp/mats/*.mat', shell=True)
+        except CalledProcessError:
+            pass
     for cell in res:
         if cell[0] is None:
             continue
@@ -308,9 +310,7 @@ def interpret_query(from_city, to_city, region, metric):
             costs = cdist(query_num, r_cluster).tolist()
             return min_cost(costs)
     elif 'leftover' in metric:
-        from pymatbridge import Matlab
         global MATLAB
-        MATLAB = Matlab(matlab=MATLAB_PATH, maxtime=60)
 
         @profile
         def regions_distance(r_features, second_arg):
@@ -584,23 +584,28 @@ def interpolate_distances(values_map, filename):
 def batch_matching():
     """Match preselected regions of Paris into a few target cities"""
     import ujson
+    import os
     global QUERY_NAME
+    MATLAB.start()
     with open('static/cpresets.json') as infile:
         regions = ujson.load(infile)
-    for metric in ['emd-lmnn']:
-        print(metric)
+    for city in ['newyork', 'barcelona', 'berlin', 'rome', 'washington',
+                 'sanfrancisco']:
+    # for city in ['newyork']:
+        print(city)
         for neighborhood in regions.keys():
             print(neighborhood)
             rgeo = regions[neighborhood].get('geo')
-            # for city in ['barcelona', 'sanfrancisco']:
-            for city in ['sanfrancisco']:
-                print(city)
+            for metric in ['jsd', 'emd', 'cluster', 'emd-lmnn', 'leftover']:
+                print(metric)
                 # regions[neighborhood][city] = []
                 for radius in np.linspace(200, 500, 5):
                     print(radius)
                     QUERY_NAME = '{}_{}_{}_{}.my'.format(city, neighborhood,
                                                          int(radius),
                                                          metric)
+                    if os.path.isfile('comparaison/'+QUERY_NAME):
+                        continue
                     res, values, _ = best_match('paris', city, rgeo, radius,
                                                 metric=metric).next()
                     continue
@@ -621,6 +626,7 @@ def batch_matching():
                     # interpolate_distances(values, outname)
                 with open('static/cpresets.js', 'w') as out:
                     out.write('var PRESETS =' + ujson.dumps(regions) + ';')
+    MATLAB.stop()
 
 
 def find_promising_seeds(good_ids, venues_infos, method, right):
@@ -731,10 +737,13 @@ if __name__ == '__main__':
                                    [2.3006272315979004, 48.86419005209702]]]}
     get_seed_regions(origin, dest, user_input)
     sys.exit()
-    res, values, _ = best_match(origin, dest, user_input, 800,
-                                metric='jsd-nospace').next()
+    MATLAB.start()
+    res, values, _ = best_match(origin, dest, user_input, 400,
+                                metric='leftover').next()
     distance, r_vids, center, radius = res
     print(distance)
+    MATLAB.stop()
+    sys.exit()
     for _ in sorted(r_vids):
         print("'{}',".format(str(_)))
     # print(distance, cities.euclidean_to_geo(dest, center))
@@ -749,16 +758,3 @@ if __name__ == '__main__':
     # point within this range in the other city.
     # Increase range until we get big enough surface
     # (or at least starting point)
-
-    # Better quality
-    # best_match()
-    # gather query and cities info
-    # OPTIONNAL: reweight query venues to remove outliers
-    # get individual candidate (at_least, at_most, distance ∈ emd, jsd, knn)
-    # find seed among candidate (DBSCAN, K-means, discrepancy)
-    # grow seeds into region (in a greedy manner)
-    # return polygonal geo hull
-
-    # Metric Learning
-    # I have six points in Paris, find close and distant ones in San Francisco
-    # and Barcelona to tune theta in JSD and EMD.

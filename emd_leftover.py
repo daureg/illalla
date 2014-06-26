@@ -3,6 +3,7 @@
 moved from one distribution to the other.
 The rational behind is that it allow to remove the effect of outlier points."""
 import numpy as np
+import os
 from scipy.spatial.distance import cdist
 import scipy.io as sio
 MAX_POINTS = 700
@@ -25,15 +26,19 @@ def write_matlab_problem(points1, weights1, points2, weights2, idx,
                 {'f': vcost, 'A': A, 'b': b}, do_compression=True)
 
 
-def collect_matlab_output(nb_input, mlab):
-    """Call `mlab` to solve the `nb_input` first problems and return the list
+def collect_matlab_output(nb_input, wipeout=False):
+    """Call MATLAB to solve the `nb_input` first problems and return the list
     of EMD cost"""
-    mlab.run_func('mlinprog.m', {'nb_input': nb_input})
+    from subprocess import check_call
+    check_call('matlabd mlinprog({});'.format(nb_input), shell=True)
     costs = []
     for idx in range(nb_input):
+        filename = '{}/{}_{}.mat'.format('/tmp/mats', 'lpout', idx)
         try:
-            dst = sio.loadmat('{}/{}_{}'.format('/tmp/mats',
-                                                'lpout', idx))['dst']
+            dst = sio.loadmat(filename)['dst']
+            if wipeout:
+                os.remove(filename)
+                os.remove(filename.replace('lpout', 'lpin'))
         except IOError:
             dst = 1e15
         costs.append(float(dst))

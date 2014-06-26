@@ -24,10 +24,6 @@ JUST_READING = False
 MAX_EMD_POINTS = 750
 NO_WEIGHT = True
 QUERY_NAME = None
-MATLAB_PATH = '/m/fs/software/matlab/r2014a/bin/glnxa64/MATLAB'
-MATLAB = None
-from pymatbridge import Matlab
-MATLAB = Matlab(matlab=MATLAB_PATH, maxtime=60)
 GROUND_TRUTH = None
 import os
 OTMPDIR = os.environ['OTMPDIR']
@@ -185,7 +181,7 @@ def generic_distance(metric, distance, features, weights, support,
                      c_times=None, id_=None):
     """Compute the distance of (`features`, `weights`) using `distance`
     function (corresponding to `metric`)."""
-    if not c_times:
+    if c_times is None:
         c_times = np.ones((12, 1))
     if 'emd' in metric:
         c_density = features_as_lists(features)
@@ -255,7 +251,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     pool.join()
     res_map = []
     if metric == 'leftover':
-        dsts = emd_leftover.collect_matlab_output(len(res), MATLAB)
+        dsts = emd_leftover.collect_matlab_output(len(res))
         for cell, dst in i.izip(res, dsts):
             if cell[0]:
                 cell[2] = dst
@@ -321,7 +317,6 @@ def interpret_query(from_city, to_city, region, metric):
             costs = cdist(query_num, r_cluster).tolist()
             return min_cost(costs)
     elif 'leftover' in metric:
-        global MATLAB
 
         @profile
         def regions_distance(r_features, second_arg):
@@ -601,7 +596,6 @@ def batch_matching(query_city='paris'):
     import ujson
     global QUERY_NAME
     global OTMPDIR
-    MATLAB.start()
     with open('static/ground_truth.json') as gt:
         regions = json.load(gt)
     districts = sorted(regions.keys())
@@ -650,7 +644,6 @@ def batch_matching(query_city='paris'):
                     # interpolate_distances(values, outname)
                 with open('static/cpresets.js', 'w') as out:
                     out.write('var PRESETS =' + ujson.dumps(regions) + ';')
-    MATLAB.stop()
 
 
 def find_promising_seeds(good_ids, venues_infos, method, right):
@@ -795,7 +788,7 @@ def all_gold_dst():
                 dst = generic_distance(metric, regions_distance, features,
                                        weights, support)
                 if metric == 'leftover':
-                    dst = emd_leftover.collect_matlab_output(1, MATLAB)
+                    dst = emd_leftover.collect_matlab_output(1)
                     clean_tmp_mats()
                 current_dsts.append(dst)
             results[name] = current_dsts
@@ -831,12 +824,10 @@ if __name__ == '__main__':
                                    [2.3006272315979004, 48.86419005209702]]]}
     get_seed_regions(origin, dest, user_input)
     sys.exit()
-    MATLAB.start()
     res, values, _ = best_match(origin, dest, user_input, 400,
                                 metric='leftover').next()
     distance, r_vids, center, radius = res
     print(distance)
-    MATLAB.stop()
     sys.exit()
     for _ in sorted(r_vids):
         print("'{}',".format(str(_)))

@@ -29,6 +29,8 @@ MATLAB = None
 from pymatbridge import Matlab
 MATLAB = Matlab(matlab=MATLAB_PATH, maxtime=60)
 GROUND_TRUTH = None
+import os
+OTMPDIR = os.environ['OTMPDIR']
 
 
 def profile(func):
@@ -267,7 +269,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
 
     if QUERY_NAME:
         import persistent as p
-        p.save_var('comparaison/'+QUERY_NAME,
+        p.save_var(os.path.join(OTMPDIR, QUERY_NAME),
                    [[cell[2], cell[3], [cell[0], cell[1]], RADIUS]
                     for cell in res if cell[0]])
     yield best, res_map, 1.0
@@ -559,7 +561,6 @@ def interpolate_distances(values_map, filename):
     from scipy.interpolate import griddata
     from matplotlib import pyplot as plt
     import persistent as p
-    import os
     filename = os.path.join('distance_map', filename)
     x, y, z = [np.array(dim) for dim in zip(*[a for a in values_map])]
     x_ext = [x.min(), x.max()]
@@ -581,29 +582,53 @@ def interpolate_distances(values_map, filename):
     plt.close(fig)
 
 
-def batch_matching():
-    """Match preselected regions of Paris into a few target cities"""
+def choose_query_region(ground_truths):
+    """Pick among all `ground_truths` regions one that have at least 20
+    venues, and is closest to 150."""
+    if not ground_truths:
+        return None
+    area_size = [(area, len(area['properties']['venues']))
+                 for area in ground_truths
+                 if len(area['properties']['venues']) >= 20]
+    if not area_size:
+        return None
+    return sorted(area_size, key=lambda x: abs(150 - x[1]))[0][0]['geometry']
+
+
+def batch_matching(query_city='paris'):
+    """Match preselected regions of `query_city` into the other target
+    cities"""
     import ujson
-    import os
     global QUERY_NAME
+    global OTMPDIR
     MATLAB.start()
-    with open('static/cpresets.json') as infile:
-        regions = ujson.load(infile)
-    for city in ['newyork', 'barcelona', 'berlin', 'rome', 'washington',
-                 'sanfrancisco']:
+    with open('static/ground_truth.json') as gt:
+        regions = json.load(gt)
+    districts = sorted(regions.keys())
+    cities = sorted(regions.values()[0]['gold'].keys())
+    assert query_city in cities
+    cities.remove(query_city)
+    OTMPDIR = os.path.join(OTMPDIR, 'comparaison_'+query_city)
+    try:
+        os.mkdir(OTMPDIR)
+    except OSError:
+        pass
+    for city in cities:
         print(city)
-        for neighborhood in regions.keys():
+        for neighborhood in districts:
             print(neighborhood)
-            rgeo = regions[neighborhood].get('geo')
+            possible_regions = regions[neighborhood]['gold'].get(query_city)
+            rgeo = choose_query_region(possible_regions)
+            if not rgeo:
+                continue
             for metric in ['jsd', 'emd', 'cluster', 'emd-lmnn', 'leftover']:
                 print(metric)
-                # regions[neighborhood][city] = []
                 for radius in np.linspace(200, 500, 5):
                     print(radius)
                     QUERY_NAME = '{}_{}_{}_{}.my'.format(city, neighborhood,
                                                          int(radius),
                                                          metric)
-                    if os.path.isfile('comparaison/'+QUERY_NAME):
+                    if os.path.isfile(os.path.join(OTMPDIR, QUERY_NAME)):
                         continue
                     res, values, _ = best_match('paris', city, rgeo, radius,
                                                 metric=metric).next()

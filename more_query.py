@@ -23,7 +23,7 @@ import cities
 CITY = cities.HEL
 CITY_BBOX = (CITY[:2], CITY[2:])
 try:
-    from collection import Counter
+    from collections import Counter
 except ImportError:
     from Counter import Counter
 import logging

@@ -8,7 +8,7 @@ from subprocess import check_call
 from timeit import default_timer as clock
 import numpy as np
 import prettyplotlib as ppl
-import lru_cache
+from lru_cache_backport import lru_cache
 import os
 import shlex
 import ujson

@@ -2,7 +2,7 @@
 # vim: set fileencoding=utf-8
 import codecs
 try:
-    from collection import OrderedDict
+    from collections import OrderedDict
 except ImportError:
     from OrderedDict import OrderedDict
 

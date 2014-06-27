@@ -45,7 +45,7 @@ def write_matlab_problem(idx, mlab=None):
     beq = np.vstack([w1.reshape(w1.size, 1), w2.reshape(w2.size, 1), [[1]]])
     A = np.vstack([i_w, j_w])
     A = np.insert(A, A.shape[0], -1, axis=0)
-    b = np.vstack([w1.reshape(w1.size, 1), w2.reshape(w2.size, 1), [[-.8]]])
+    b = np.vstack([w1.reshape(w1.size, 1), w2.reshape(w2.size, 1), [[-.97]]])
     lb = len(vcost)*[0, ]
     ub = len(vcost)*[np.inf, ]
     # f = initial_solution(w1, w2, np.max(costs))
@@ -63,15 +63,25 @@ def write_matlab_problem(idx, mlab=None):
     # return r2.ff
 
 
+MATLAB_CMD = "clear all;mlinprog({});"
 @profile
-def gather_matlab_output(nb_input, mlab):
-    """Call `mlab` to solve the `nb_input` first problems and return the list
+def collect_matlab_output(nb_input, wipeout=False):
+    """Call MATLAB to solve the `nb_input` first problems and return the list
     of EMD cost"""
-    mlab.run_func('mlinprog.m', {'nb_input': nb_input})
+    from subprocess import check_call
+    real_cmd = MATLAB_CMD.format(nb_input)
+    check_call('matlabd "{}"'.format(real_cmd), shell=True)
     costs = []
     for idx in range(nb_input):
-        res = sio.loadmat('{}/{}_{}'.format('/tmp/mats', 'lpout', idx))
-        costs.append(float(res['dst']))
+        filename = '{}/{}_{}.mat'.format('/tmp/mats', 'lpout', idx)
+        try:
+            dst = sio.loadmat(filename)['dst']
+            if wipeout:
+                os.remove(filename)
+                os.remove(filename.replace('lpout', 'lpin'))
+        except IOError:
+            dst = 1e15
+        costs.append(float(dst))
     return costs
 
 
@@ -84,7 +94,6 @@ def solve_by_emd():
 
 
 if __name__ == '__main__':
-    from pymatbridge import Matlab
     nb_test = 2
     for _ in range(nb_test):
         P = np.random.rand(NP, DIM)
@@ -99,10 +108,6 @@ if __name__ == '__main__':
         fw2 = map(float, w2)
         write_matlab_problem(_)
         print(solve_by_emd())
-    # import sys
-    # sys.exit()
-    mlab = Matlab(matlab='/m/fs/software/matlab/r2014a/bin/glnxa64/MATLAB',
-                  maxtime=20)
-    mlab.start()
-    print(gather_matlab_output(nb_test, mlab))
-    mlab.stop()
+    import sys
+    print(collect_matlab_output(nb_test))
+    sys.exit()

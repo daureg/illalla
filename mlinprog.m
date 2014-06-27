@@ -1,7 +1,9 @@
-function dummy = mlinprog(pyinfo)
-	nb_input = pyinfo.nb_input;
+function [] = mlinprog(nb_input)
 	dir = '/tmp/mats/';
-	dummy = 0;
+	% cluster = parcluster('local');
+	% cluster.NumWorkers = 6;
+	% saveProfile(cluster);
+	% parpool('local', 6);
 	parfor idx=1:nb_input
 		filename = sprintf('%s%s_%d.mat', dir, 'lpin', idx-1);
 		if (exist(filename, 'file') == 2)

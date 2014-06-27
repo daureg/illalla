@@ -17,6 +17,7 @@ import itertools as i
 import shapely.geometry as sgeo
 import scipy.cluster.vq as vq
 import emd_leftover
+import logging
 # pylint: disable=E1101
 # pylint: disable=W0621
 NB_CLUSTERS = 3
@@ -237,7 +238,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     nb_y_step = int(3*np.floor(city_size[1]) / hsize + 1)
     best = [1e20, [], [], RADIUS]
     res_map = []
-    pool = multiprocessing.Pool(4)
+    pool = multiprocessing.Pool(6)
 
     x_steps = np.linspace(minx+hsize, maxx-hsize, nb_x_step)
     y_steps = np.linspace(miny+hsize, maxy-hsize, nb_y_step)
@@ -265,6 +266,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
 
     if QUERY_NAME:
         import persistent as p
+        logging.info('wrote: '+str(os.path.join(OTMPDIR, QUERY_NAME)))
         p.save_var(os.path.join(OTMPDIR, QUERY_NAME),
                    [[cell[2], cell[3], [cell[0], cell[1]], RADIUS]
                     for cell in res if cell[0]])
@@ -597,7 +599,7 @@ def batch_matching(query_city='paris'):
     global QUERY_NAME
     global OTMPDIR
     with open('static/ground_truth.json') as gt:
-        regions = json.load(gt)
+        regions = ujson.load(gt)
     districts = sorted(regions.keys())
     cities = sorted(regions.values()[0]['gold'].keys())
     assert query_city in cities
@@ -622,9 +624,10 @@ def batch_matching(query_city='paris'):
                     QUERY_NAME = '{}_{}_{}_{}.my'.format(city, neighborhood,
                                                          int(radius),
                                                          metric)
+                    logging.info('will write: '+str(os.path.join(OTMPDIR, QUERY_NAME)))
                     if os.path.isfile(os.path.join(OTMPDIR, QUERY_NAME)):
                         continue
-                    res, values, _ = best_match('paris', city, rgeo, radius,
+                    res, values, _ = best_match(query_city, city, rgeo, radius,
                                                 metric=metric).next()
                     continue
                     distance, r_vids, center, radius = res
@@ -805,15 +808,15 @@ def clean_tmp_mats():
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    import json
-    with open('static/ground_truth.json') as gt:
-        GROUND_TRUTH = json.load(gt)
-    import persistent as p
-    distances = all_gold_dst()
-    p.save_var('all_gold.my', distances)
+    # import json
+    # with open('static/ground_truth.json') as gt:
+    #     GROUND_TRUTH = json.load(gt)
+    # import persistent as p
+    # distances = all_gold_dst()
+    # p.save_var('all_gold.my', distances)
     import sys
+    batch_matching(sys.argv[1])
     sys.exit()
-    batch_matching()
     import arguments
     args = arguments.two_cities().parse_args()
     origin, dest = args.origin, args.dest

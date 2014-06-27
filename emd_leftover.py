@@ -7,6 +7,7 @@ import os
 from scipy.spatial.distance import cdist
 import scipy.io as sio
 MAX_POINTS = 700
+MATLAB_CMD = "clear all;mlinprog({});"
 
 
 def write_matlab_problem(points1, weights1, points2, weights2, idx,
@@ -30,7 +31,8 @@ def collect_matlab_output(nb_input, wipeout=False):
     """Call MATLAB to solve the `nb_input` first problems and return the list
     of EMD cost"""
     from subprocess import check_call
-    check_call('matlabd mlinprog({});'.format(nb_input), shell=True)
+    real_cmd = MATLAB_CMD.format(nb_input)
+    check_call('matlabd "{}"'.format(real_cmd), shell=True)
     costs = []
     for idx in range(nb_input):
         filename = '{}/{}_{}.mat'.format('/tmp/mats', 'lpout', idx)

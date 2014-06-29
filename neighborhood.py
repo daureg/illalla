@@ -27,7 +27,7 @@ NO_WEIGHT = True
 QUERY_NAME = None
 GROUND_TRUTH = None
 import os
-OTMPDIR = os.environ['OTMPDIR']
+OTMPDIR = os.environ.get('OTMPDIR')
 
 
 def profile(func):

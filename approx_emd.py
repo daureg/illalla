@@ -1,3 +1,6 @@
+#! /usr/bin/python2
+# vim: set fileencoding=utf-8
+"""Try to find low EMD distance regions fast."""
 from scipy.spatial.distance import cdist, pdist, squareform
 from scipy.spatial import ConvexHull
 from sklearn.cluster import DBSCAN
@@ -10,6 +13,7 @@ import neighborhood as nb
 import numpy as np
 import persistent as p
 import ujson
+from shapely.geometry import Polygon, Point
 
 # load data
 with open('static/ground_truth.json') as infile:
@@ -21,7 +25,33 @@ cities_desc = {name: nb.cn.gather_info(name, raw_features=True,
                for name in cities}
 
 
-def cluster_to_venues():
+def test_all_queries(query_city='paris'):
+    all_res = []
+    for query in ALL_Q:
+        target_city, district = query
+        possible_regions = gold_list[district]['gold'].get(query_city)
+        region = nb.choose_query_region(possible_regions)
+        if not region:
+            all_res.append([])
+            continue
+        infos = nb.interpret_query(query_city, target_city, region, 'emd')
+        _, right, _, regions_distance, _, threshold = infos
+        print(query, threshold)
+
+        vloc = cities_venues[target_city]
+        infos = retrieve_closest_venues(district, query_city, target_city)
+        candidates, _, _ = infos
+        eps, mpts = 210, 18
+        clusters = good_clustering(vloc, list(sorted(candidates)), eps, mpts)
+        res = []
+        for cluster in clusters:
+            venues = right['features'][cluster_to_venues(cluster, vloc), :]
+            res.append(regions_distance(venues.tolist(),
+                                        nb.weighting_venues(venues[:, 1])))
+        all_res.append(res)
+
+
+def cluster_to_venues(indices, vloc):
     # Given a cluster (ie a set of venues indices), it should return
     # neighborhoods (ie compact/complete sets of venues indices) that will be
     # evaluated by EMD.
@@ -37,7 +67,11 @@ def cluster_to_venues():
     # candidates venues (so maybe I can build a cKDTree, query a big a circle
     # around the cluster and test individually venues to see if they belong to
     # the considered shape)
-    pass
+    points = vloc[indices, :]
+    hull = points[ConvexHull(points).vertices, :]
+    poly = Polygon(hull)
+    return [idx for idx, loc in enumerate(vloc)
+            if poly.intersects(Point(loc))]
 
 
 def get_candidates_venues(query_features, target_features):
@@ -50,7 +84,8 @@ def get_candidates_venues(query_features, target_features):
 
 def retrieve_closest_venues(district, query_city, target_city):
     """For the given query, return a list of venues indices for knn level of
-    50, as well as a list of indices for each gold area."""
+    50, as well as a list of indices for each gold area and the threshold
+    number of venues."""
     gold = gold_list[district]['gold']
     query = gold[query_city][0]
     query_venues = query['properties']['venues']
@@ -67,7 +102,9 @@ def retrieve_closest_venues(district, query_city, target_city):
         warn(msg.format(district, target_city.title()))
         return None, None
     candidates = get_candidates_venues(query_features, all_target_features)
-    return candidates, gold_venue_indices
+    threshold = int(len(tindex)*1.0*len(query_venues) /
+                    len(cities_desc[query_city]['index']))
+    return candidates, gold_venue_indices, threshold
 
 
 def f_score(recall, precision, beta=2.0):
@@ -168,7 +205,7 @@ def recurse_dbscan(distances, indices, locs, eps, mpts, depth=0):
                 sub_pwd = pwd[np.ix_(k_indices, k_indices)]
                 sub_locs = locs[k_indices, :]
                 sub_indices = recurse_dbscan(sub_pwd, k_indices, sub_locs,
-                                             eps/1.6, int(mpts*1.3), depth+1)
+                                             eps/1.4, int(mpts*1.3), depth+1)
                 cl_list.extend([indices[c] for c in sub_indices])
             else:
                 warn('Cannot break one cluster at level {}'.format(depth))
@@ -208,17 +245,16 @@ def plot_clusters(clusters, candidates, bounds, hulls, shrink=0.9):
     plt.legend()
 
 if __name__ == '__main__':
-    query_city, target_city, district = 'paris', 'newyork', 'marais'
+    query_city, target_city, district = 'paris', 'barcelona', 'triangle'
     vloc = cities_venues[target_city]
     xbounds = np.array([vloc[:, 0].min(), vloc[:, 0].max()])
     ybounds = np.array([vloc[:, 1].min(), vloc[:, 1].max()])
-    top_venues, gold_venues_indices = retrieve_closest_venues(district,
-                                                              query_city,
-                                                              target_city)
+    infos = retrieve_closest_venues(district, query_city, target_city)
+    top_venues, gold_venues_indices, threshold = infos
     gold_venues = set().union(*map(list, gold_venues_indices))
     candidates = top_venues
     hulls = [vloc[tg, :][ConvexHull(vloc[tg, :]).vertices, :]
              for tg in gold_venues_indices]
-    eps, mpts = 200, 20
+    eps, mpts = 210, 18
     sclidx = good_clustering(vloc, list(sorted(candidates)), eps, mpts)
     print(np.array(map(len, sclidx)))

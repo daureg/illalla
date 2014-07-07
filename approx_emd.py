@@ -41,14 +41,18 @@ def test_all_queries(query_city='paris'):
         vloc = cities_venues[target_city]
         infos = retrieve_closest_venues(district, query_city, target_city)
         candidates, _, _ = infos
-        eps, mpts = 210, 18
+        eps, mpts = 210, 18 if len(vloc) < 5000 else 50
         clusters = good_clustering(vloc, list(sorted(candidates)), eps, mpts)
         res = []
         for cluster in clusters:
-            venues = right['features'][cluster_to_venues(cluster, vloc), :]
+            venues = cluster_to_venues(cluster, vloc)
+            if not venues:
+                continue
+            venues = right['features'][venues, :]
             res.append(regions_distance(venues.tolist(),
                                         nb.weighting_venues(venues[:, 1])))
         all_res.append(res)
+    return all_res
 
 
 def cluster_to_venues(indices, vloc):
@@ -68,10 +72,16 @@ def cluster_to_venues(indices, vloc):
     # around the cluster and test individually venues to see if they belong to
     # the considered shape)
     points = vloc[indices, :]
-    hull = points[ConvexHull(points).vertices, :]
-    poly = Polygon(hull)
-    return [idx for idx, loc in enumerate(vloc)
-            if poly.intersects(Point(loc))]
+    try:
+        hull = points[ConvexHull(points).vertices, :]
+        poly = Polygon(hull)
+        return [idx for idx, loc in enumerate(vloc)
+                if poly.intersects(Point(loc))]
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except:
+        print(indices)
+        return []
 
 
 def get_candidates_venues(query_features, target_features):
@@ -186,8 +196,9 @@ def good_clustering(locs, cands, eps, mpts):
 def recurse_dbscan(distances, indices, locs, eps, mpts, depth=0):
     """Do a first DBSCAN with given parameters and if some clusters are too
     big, recluster them using stricter parameters."""
-    msg = '{}Cluster {} points with ({}, {})'
-    print(msg.format(depth*'\t', len(indices), eps, mpts))
+    # msg = '{}Cluster {} points with ({}, {})'
+    # instead http://stackoverflow.com/a/24308860
+    # print(msg.format(depth*'\t', len(indices), eps, mpts))
     pwd = distances
     labels = DBSCAN(eps=eps, min_samples=int(mpts),
                     metric='precomputed').fit(pwd).labels_
@@ -197,8 +208,8 @@ def recurse_dbscan(distances, indices, locs, eps, mpts, depth=0):
             continue
         k_indices = np.argwhere(labels == k).ravel()
         if cluster_is_small_enough(1.3e3, 230, locs[k_indices, :]):
-            msg = '{}add one cluster of size {}'
-            print(msg.format(depth*'\t'+'  ', len(k_indices)))
+            # msg = '{}add one cluster of size {}'
+            # print(msg.format(depth*'\t'+'  ', len(k_indices)))
             cl_list.append(indices[k_indices])
         else:
             if depth < 3:
@@ -212,7 +223,7 @@ def recurse_dbscan(distances, indices, locs, eps, mpts, depth=0):
     return cl_list
 
 
-def plot_clusters(clusters, candidates, bounds, hulls, shrink=0.9):
+def plot_clusters(clusters, candidates, bounds, vloc, hulls, shrink=0.9):
     """Plot all `clusters` among `candidates` with the `bounds` of the city
     (or at least `shrink` of them). Also plot convex `hulls` of gold areas if
     provided."""
@@ -242,9 +253,11 @@ def plot_clusters(clusters, candidates, bounds, hulls, shrink=0.9):
                  label='gold region' if idx == 0 else None)
     plt.xlim(shrink*xbounds)
     plt.ylim(shrink*ybounds)
-    plt.legend()
+    ppl.legend()
 
 if __name__ == '__main__':
+    import sys
+    sys.exit()
     query_city, target_city, district = 'paris', 'barcelona', 'triangle'
     vloc = cities_venues[target_city]
     xbounds = np.array([vloc[:, 0].min(), vloc[:, 0].max()])

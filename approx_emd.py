@@ -14,6 +14,7 @@ import numpy as np
 import persistent as p
 import ujson
 from shapely.geometry import Polygon, Point
+from timeit import default_timer as clock
 
 # load data
 with open('static/ground_truth.json') as infile:
@@ -23,17 +24,20 @@ cities = sorted(gold_list[districts[0]]['gold'].keys())
 cities_desc = {name: nb.cn.gather_info(name, raw_features=True,
                                        hide_category=True)
                for name in cities}
+WHICH_GEO = []
 
 
-def test_all_queries(query_city='paris'):
+def test_all_queries(queries, query_city='paris'):
     all_res = []
-    for query in ALL_Q:
+    timing = []
+    for query in queries:
         target_city, district = query
         possible_regions = gold_list[district]['gold'].get(query_city)
         region = nb.choose_query_region(possible_regions)
         if not region:
             all_res.append([])
             continue
+        start = clock()
         infos = nb.interpret_query(query_city, target_city, region, 'emd')
         _, right, _, regions_distance, _, threshold = infos
         print(query, threshold)
@@ -45,14 +49,17 @@ def test_all_queries(query_city='paris'):
         clusters = good_clustering(vloc, list(sorted(candidates)), eps, mpts)
         res = []
         for cluster in clusters:
-            venues = cluster_to_venues(cluster, vloc)
-            if not venues:
+            venues_areas = cluster_to_venues(cluster, vloc)
+            if len(venues_areas) == 0:
                 continue
-            venues = right['features'][venues, :]
-            res.append(regions_distance(venues.tolist(),
-                                        nb.weighting_venues(venues[:, 1])))
+            for venues in venues_areas:
+                venues = right['features'][venues, :]
+                res.append(regions_distance(venues.tolist(),
+                                            nb.weighting_venues(venues[:, 1])))
+        WHICH_GEO.append(np.argmin(res) % len(venues_areas))
         all_res.append(res)
-    return all_res
+        timing.append(clock() - start)
+    return all_res, timing
 
 
 def cluster_to_venues(indices, vloc):
@@ -74,14 +81,16 @@ def cluster_to_venues(indices, vloc):
     points = vloc[indices, :]
     try:
         hull = points[ConvexHull(points).vertices, :]
-        poly = Polygon(hull)
-        return [idx for idx, loc in enumerate(vloc)
-                if poly.intersects(Point(loc))]
     except (KeyboardInterrupt, SystemExit):
         raise
     except:
         print(indices)
         return []
+    poly = Polygon(hull)
+    box = poly.envelope
+    return [[idx for idx, loc in enumerate(vloc)
+             if region.intersects(Point(loc))]
+            for region in [poly, box]]
 
 
 def get_candidates_venues(query_features, target_features):
@@ -110,7 +119,7 @@ def retrieve_closest_venues(district, query_city, target_city):
     if not gold_venue_indices:
         msg = '{} in {} has no area with at least 20 venues'
         warn(msg.format(district, target_city.title()))
-        return None, None
+        # return None, None, None
     candidates = get_candidates_venues(query_features, all_target_features)
     threshold = int(len(tindex)*1.0*len(query_venues) /
                     len(cities_desc[query_city]['index']))
@@ -189,6 +198,9 @@ def good_clustering(locs, cands, eps, mpts):
     pwd = squareform(pdist(clocs))
     clusters_indices = recurse_dbscan(pwd, np.arange(len(cands)), clocs,
                                       eps, mpts)
+    if not clusters_indices:
+        clusters_indices = recurse_dbscan(pwd, np.arange(len(cands)), clocs,
+                                          eps*1.3, mpts/1.4)
     cands = np.array(cands)
     return [cands[c] for c in clusters_indices]
 
@@ -200,6 +212,7 @@ def recurse_dbscan(distances, indices, locs, eps, mpts, depth=0):
     # instead http://stackoverflow.com/a/24308860
     # print(msg.format(depth*'\t', len(indices), eps, mpts))
     pwd = distances
+    mpts = int(mpts)
     labels = DBSCAN(eps=eps, min_samples=int(mpts),
                     metric='precomputed').fit(pwd).labels_
     cl_list = []
@@ -216,7 +229,7 @@ def recurse_dbscan(distances, indices, locs, eps, mpts, depth=0):
                 sub_pwd = pwd[np.ix_(k_indices, k_indices)]
                 sub_locs = locs[k_indices, :]
                 sub_indices = recurse_dbscan(sub_pwd, k_indices, sub_locs,
-                                             eps/1.4, int(mpts*1.3), depth+1)
+                                             eps/1.4, mpts*1.3, depth+1)
                 cl_list.extend([indices[c] for c in sub_indices])
             else:
                 warn('Cannot break one cluster at level {}'.format(depth))

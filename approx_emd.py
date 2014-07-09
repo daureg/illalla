@@ -1,6 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Try to find low EMD distance regions fast."""
+from collections import defaultdict
 from scipy.spatial.distance import cdist, pdist, squareform
 from scipy.spatial import ConvexHull
 from sklearn.cluster import DBSCAN
@@ -30,6 +31,7 @@ WHICH_GEO = []
 def test_all_queries(queries, query_city='paris'):
     all_res = []
     timing = []
+    raw_result = defaultdict(lambda : defaultdict(list))
     for query in queries:
         target_city, district = query
         possible_regions = gold_list[district]['gold'].get(query_city)
@@ -40,6 +42,7 @@ def test_all_queries(queries, query_city='paris'):
         start = clock()
         infos = nb.interpret_query(query_city, target_city, region, 'emd')
         _, right, _, regions_distance, _, threshold = infos
+        vindex = np.array(right['index'])
         print(query, threshold)
 
         vloc = cities_venues[target_city]
@@ -48,18 +51,31 @@ def test_all_queries(queries, query_city='paris'):
         eps, mpts = 210, 18 if len(vloc) < 5000 else 50
         clusters = good_clustering(vloc, list(sorted(candidates)), eps, mpts)
         res = []
+        areas = []
         for cluster in clusters:
             venues_areas = cluster_to_venues(cluster, vloc)
             if len(venues_areas) == 0:
                 continue
             for venues in venues_areas:
+                vids = vindex[venues]
                 venues = right['features'][venues, :]
-                res.append(regions_distance(venues.tolist(),
-                                            nb.weighting_venues(venues[:, 1])))
+                dst = regions_distance(venues.tolist(),
+                                       nb.weighting_venues(venues[:, 1]))
+                res.append(dst)
+                areas.append({'venues': vids, 'metric': 'femd', 'dst': dst})
+
+        timing.append(clock() - start)
+        venues_so_far = set()
+        for idx in np.argsort(res):
+            # cand = set(areas[idx]['venues'])
+            # if not venues_so_far.intersection(cand):
+            #     venues_so_far.update(cand)
+            raw_result[target_city][district].append(areas[idx])
+            if len(raw_result[target_city][district]) >= 5:
+                break
         WHICH_GEO.append(np.argmin(res) % len(venues_areas))
         all_res.append(res)
-        timing.append(clock() - start)
-    return all_res, timing
+    return all_res, timing, raw_result
 
 
 def cluster_to_venues(indices, vloc):

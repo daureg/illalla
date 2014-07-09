@@ -128,10 +128,13 @@ def retrieve_closest_venues(district, query_city, target_city):
     query_features = cities_desc[query_city]['features'][mask, :]
     all_target_features = cities_desc[target_city]['features']
     tindex = cities_desc[target_city]['index']
-    gold_venue_indices = [np.where(np.in1d(tindex,
-                                           reg['properties']['venues']))[0]
-                          for reg in gold[target_city]
-                          if len(reg['properties']['venues']) >= 20]
+    if target_city in gold:
+        gold_venue_indices = [np.where(np.in1d(tindex,
+                                               reg['properties']['venues']))[0]
+                              for reg in gold[target_city]
+                              if len(reg['properties']['venues']) >= 20]
+    else:
+        gold_venue_indices = []
     if not gold_venue_indices:
         msg = '{} in {} has no area with at least 20 venues'
         warn(msg.format(district, target_city.title()))
@@ -214,9 +217,12 @@ def good_clustering(locs, cands, eps, mpts):
     pwd = squareform(pdist(clocs))
     clusters_indices = recurse_dbscan(pwd, np.arange(len(cands)), clocs,
                                       eps, mpts)
-    if not clusters_indices:
+    depth = 0
+    while not clusters_indices and depth < 5:
+        eps, mpts = eps*1.3, mpts/1.4
         clusters_indices = recurse_dbscan(pwd, np.arange(len(cands)), clocs,
-                                          eps*1.3, mpts/1.4)
+                                          eps, mpts)
+        depth += 1
     cands = np.array(cands)
     return [cands[c] for c in clusters_indices]
 

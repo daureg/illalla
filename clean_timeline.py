@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # pylint: disable=C0103
     city = ARGS.city
     existing = load_existing_ids(ARGS)
-    directory = 'ntweets' if city == 'whole' else 'tml'
+    directory = 'ntweets' if city == 'whole' else 'tml_'+city
     local, outside = load_tweets(directory, city, existing)
     save_checkins_json(local, city)
     save_checkins_json(outside, city)

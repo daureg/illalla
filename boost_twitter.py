@@ -180,10 +180,15 @@ def get_users(args):
     return users.keys()
 
 if __name__ == '__main__':
-    import arguments
+    # import arguments
     import time
     import persistent as p
-    ARGS = arguments.city_parser().parse_args()
+    import sys
+    # ARGS = arguments.city_parser().parse_args()
+    ARGS = lambda : None
+    ARGS.city = sys.argv[1]
+    ARGS.host = 'localhost'
+    ARGS.port = 27017
     # pylint: disable=C0103
     users = []
 
@@ -207,7 +212,10 @@ if __name__ == '__main__':
     print('Still {} users to process.'.format(len(users_id)))
     import random
     start = time.time()
-    end = start + 24*60*60
+    end = start + float(sys.argv[2])*60*60
+    if len(users_id) == 0:
+        with open('nextcity', 'w') as f:
+            f.write('sanfrancisco')
     for user in users_id:  # random.sample(users_id, 35):
         print(user)
         time.sleep(checkins_from_user(user, napi, crawler, [EMPTY, BIG, DONE]))

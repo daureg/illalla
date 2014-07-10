@@ -8,11 +8,12 @@ from sklearn.cluster import DBSCAN
 from warnings import warn
 import itertools
 import matplotlib as mpl
-import prettyplotlib as ppl
 import matplotlib.pyplot as plt
 import neighborhood as nb
 import numpy as np
 import persistent as p
+import prettyplotlib as ppl
+import report_metrics_results as rmr
 import ujson
 from shapely.geometry import Polygon, Point
 from timeit import default_timer as clock
@@ -31,10 +32,12 @@ WHICH_GEO = []
 def test_all_queries(queries, query_city='paris'):
     all_res = []
     timing = []
-    raw_result = defaultdict(lambda : defaultdict(list))
+    raw_result = defaultdict(lambda: defaultdict(list))
     for query in queries:
         target_city, district = query
         possible_regions = gold_list[district]['gold'].get(query_city)
+        gold = [set(_['properties']['venues'])
+                for _ in gold_list[district]['gold'].get(target_city, [])]
         region = nb.choose_query_region(possible_regions)
         if not region:
             all_res.append([])
@@ -47,9 +50,18 @@ def test_all_queries(queries, query_city='paris'):
 
         vloc = cities_venues[target_city]
         infos = retrieve_closest_venues(district, query_city, target_city)
-        candidates, _, _ = infos
+        candidates, gvi, _ = infos
+
+        xbounds = np.array([vloc[:, 0].min(), vloc[:, 0].max()])
+        ybounds = np.array([vloc[:, 1].min(), vloc[:, 1].max()])
+        gold_venues = set().union(*map(list, gvi))
+        hulls = [vloc[tg, :][ConvexHull(vloc[tg, :]).vertices, :]
+                 for tg in gvi]
+
         eps, mpts = 210, 18 if len(vloc) < 5000 else 50
         clusters = good_clustering(vloc, list(sorted(candidates)), eps, mpts)
+        # plot_clusters(clusters, candidates, (xbounds, ybounds), vloc, hulls,
+        #               0.65)
         res = []
         areas = []
         for cluster in clusters:
@@ -62,11 +74,18 @@ def test_all_queries(queries, query_city='paris'):
                 dst = regions_distance(venues.tolist(),
                                        nb.weighting_venues(venues[:, 1]))
                 res.append(dst)
-                areas.append({'venues': vids, 'metric': 'femd', 'dst': dst})
+                areas.append({'venues': set(vids),
+                              'metric': 'femd', 'dst': dst})
 
         timing.append(clock() - start)
-        venues_so_far = set()
+        # venues_so_far = set()
+        # print(map(len, gold))
+        rels = [rmr.relevance(a['venues'], gold) for a in areas]
+        print(np.sort(rels)[::-1])
         for idx in np.argsort(res):
+        # FIXME: Obviously the line below is cheating, we should order by
+        # distance and by how good we know the result is.
+        # for idx in np.argsort(rels)[::-1]:
             # cand = set(areas[idx]['venues'])
             # if not venues_so_far.intersection(cand):
             #     venues_so_far.update(cand)
@@ -102,8 +121,15 @@ def cluster_to_venues(indices, vloc):
     except:
         print(indices)
         return []
+    # first_again = range(len(hull))+[0]
+    # ppl.plot(hull[first_again, 0], hull[first_again, 1], '--',
+    #          c=ppl.colors.almost_black, lw=2.0, alpha=0.9)
+    # TODO add a parameter that tell how many time to “buffer” the poly
     poly = Polygon(hull)
     box = poly.envelope
+    # hull = np.array(box.exterior.coords)
+    # ppl.plot(hull[:, 0], hull[:, 1], '--',
+    #          c=ppl.colors.almost_black, lw=2.0, alpha=0.9)
     return [[idx for idx, loc in enumerate(vloc)
              if region.intersects(Point(loc))]
             for region in [poly, box]]

@@ -98,7 +98,7 @@ def compute_scores(raw_result):
                 print(query_city, city, district, metric)
                 dst = RES_SIZE*[0.0, ]
             scores[metric].append(DCG([relevance(r_i, gold)
-                                       for r_i in res]) + LOWEST)
+                                       for r_i in res[:RES_SIZE]]) + LOWEST)
             distances[metric].append(dst)
     return scores, distances
 

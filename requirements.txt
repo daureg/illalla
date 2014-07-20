@@ -19,6 +19,7 @@ prettytable
 pycurl
 pymongo
 pytz
+requests
 scikit-learn
 scipy
 Shapely

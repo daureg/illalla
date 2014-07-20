@@ -5,9 +5,7 @@ insert them with additional information in a mongo database."""
 import datetime
 import calendar
 import CommonMongo as cm
-import json
-import urllib
-import urllib2
+import requests
 import flickr_api as flickr_api
 from api_keys import FLICKR_KEY as API_KEY
 import re
@@ -28,7 +26,7 @@ logging.basicConfig(filename=os.path.join(TMPDIR, LOG_FILE),
                     format='%(asctime)s [%(levelname)s]: %(message)s')
 
 TITLE_AND_TAGS = re.compile(r'^(?P<title>[^#]*)\s*(?P<tags>(?:#\w+\s*)*)$')
-BASE_URL = "http://api.flickr.com/services/rest/"
+BASE_URL = "https://api.flickr.com/services/rest/"
 PER_PAGE = 225
 # According to https://secure.flickr.com/services/developer/api/, one api key
 # can only make 3600 request per hour so we need to keep track of our usage to
@@ -79,13 +77,11 @@ def send_request(**args):
     args['format'] = 'json'
     args['api_key'] = API_KEY
     args['nojsoncallback'] = 1
-    req = urllib2.Request(BASE_URL, urllib.urlencode(args))
+    req = requests.get(BASE_URL, params=args)
     try:
-        r = json.loads(urllib2.urlopen(req).read())
+        r = req.json()
         CURRENT_REQ += 1
         return r['photos']['photo'], r['photos']['total']
-    except urllib2.HTTPError as e:
-        raise flickr_api.FlickrError(e.read().split('&')[0])
     except BadStatusLine:
         raise flickr_api.FlickrError('BadStatusLine')
     except:
@@ -301,8 +297,7 @@ def make_request(start_time, bbox, page, need_answer=False, max_tries=3):
     bbox = '{:.9f},{:.9f},{:.9f},{:.9f}'.format(bbox[0][1], bbox[0][0],
                                                 bbox[1][1], bbox[1][0])
     min_upload = calendar.timegm(start_time.utctimetuple())
-    # max_upload = calendar.timegm(datetime.datetime.now().utctimetuple())
-    max_upload = calendar.timegm(datetime.datetime(2011,1,1).utctimetuple())
+    max_upload = calendar.timegm(datetime.datetime.now().utctimetuple())
     while max_tries > 0:
         error = False
         try:
@@ -348,7 +343,7 @@ if __name__ == '__main__':
     CITY = (cities.US + cities.EU)[cities.INDEX[city]]
     HINT = city
     bbox = (CITY[:2], CITY[2:])
-    start_time = datetime.datetime(2008, 1, 1)
+    start_time = datetime.datetime(2014, 3, 1)
     total = higher_request(start_time, bbox, photos)
 
     logging.info('Saved a total of {} photos.'.format(total))

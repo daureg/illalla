@@ -343,7 +343,7 @@ if __name__ == '__main__':
     CITY = (cities.US + cities.EU)[cities.INDEX[city]]
     HINT = city
     bbox = (CITY[:2], CITY[2:])
-    start_time = datetime.datetime(2014, 3, 1)
+    start_time = datetime.datetime(2014, 7, 19)
     total = higher_request(start_time, bbox, photos)
 
     logging.info('Saved a total of {} photos.'.format(total))

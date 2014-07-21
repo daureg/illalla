@@ -215,7 +215,7 @@ if __name__ == '__main__':
     end = start + float(sys.argv[2])*60*60
     if len(users_id) == 0:
         with open('nextcity', 'w') as f:
-            f.write('sanfrancisco')
+            f.write('berlin')
     for user in users_id:  # random.sample(users_id, 35):
         print(user)
         time.sleep(checkins_from_user(user, napi, crawler, [EMPTY, BIG, DONE]))

@@ -3,7 +3,7 @@
 """Try to find low EMD distance regions fast."""
 from collections import defaultdict
 from scipy.spatial.distance import cdist, pdist, squareform
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, cKDTree
 from sklearn.cluster import DBSCAN
 from warnings import warn
 import itertools
@@ -15,7 +15,7 @@ import persistent as p
 import prettyplotlib as ppl
 import report_metrics_results as rmr
 import ujson
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Polygon
 from timeit import default_timer as clock
 
 # load data
@@ -29,6 +29,11 @@ cities_desc = {name: nb.cn.gather_info(name, raw_features=True,
 WHICH_GEO = []
 
 
+# def profile(f):
+#     return f
+
+
+@profile
 def test_all_queries(queries, query_city='paris'):
     all_res = []
     timing = []
@@ -52,11 +57,11 @@ def test_all_queries(queries, query_city='paris'):
         infos = retrieve_closest_venues(district, query_city, target_city)
         candidates, gvi, _ = infos
 
-        xbounds = np.array([vloc[:, 0].min(), vloc[:, 0].max()])
-        ybounds = np.array([vloc[:, 1].min(), vloc[:, 1].max()])
-        gold_venues = set().union(*map(list, gvi))
-        hulls = [vloc[tg, :][ConvexHull(vloc[tg, :]).vertices, :]
-                 for tg in gvi]
+        # xbounds = np.array([vloc[:, 0].min(), vloc[:, 0].max()])
+        # ybounds = np.array([vloc[:, 1].min(), vloc[:, 1].max()])
+        # gold_venues = set().union(*map(list, gvi))
+        # hulls = [vloc[tg, :][ConvexHull(vloc[tg, :]).vertices, :]
+        #          for tg in gvi]
 
         eps, mpts = 210, 18 if len(vloc) < 5000 else 50
         clusters = good_clustering(vloc, list(sorted(candidates)), eps, mpts)
@@ -65,7 +70,8 @@ def test_all_queries(queries, query_city='paris'):
         res = []
         areas = []
         for cluster in clusters:
-            venues_areas = cluster_to_venues(cluster, vloc)
+            venues_areas = cluster_to_venues(cluster, vloc,
+                                             cities_kdtree[target_city])
             if len(venues_areas) == 0:
                 continue
             for venues in venues_areas:
@@ -82,10 +88,10 @@ def test_all_queries(queries, query_city='paris'):
         # print(map(len, gold))
         rels = [rmr.relevance(a['venues'], gold) for a in areas]
         print(np.sort(rels)[::-1])
-        for idx in np.argsort(res):
         # FIXME: Obviously the line below is cheating, we should order by
         # distance and by how good we know the result is.
         # for idx in np.argsort(rels)[::-1]:
+        for idx in np.argsort(res):
             # cand = set(areas[idx]['venues'])
             # if not venues_so_far.intersection(cand):
             #     venues_so_far.update(cand)
@@ -97,7 +103,8 @@ def test_all_queries(queries, query_city='paris'):
     return all_res, timing, raw_result
 
 
-def cluster_to_venues(indices, vloc):
+@profile
+def cluster_to_venues(indices, vloc, kdtree, n_steps=5):
     # Given a cluster (ie a set of venues indices), it should return
     # neighborhoods (ie compact/complete sets of venues indices) that will be
     # evaluated by EMD.
@@ -108,11 +115,8 @@ def cluster_to_venues(indices, vloc):
     # previous shapes.
     # I can also add or remove individual points (but it's unclear which one,
     # see notebook) while maintaining more or less neighborhood property.
-    # Also given, these shapes, it would be nice to retrieve corresponding
-    # venues fast, given that at this point, I know only pairwise distance of
-    # candidates venues (so maybe I can build a cKDTree, query a big a circle
-    # around the cluster and test individually venues to see if they belong to
-    # the considered shape)
+
+    # Get initial polygon
     points = vloc[indices, :]
     try:
         hull = points[ConvexHull(points).vertices, :]
@@ -121,18 +125,32 @@ def cluster_to_venues(indices, vloc):
     except:
         print(indices)
         return []
-    # first_again = range(len(hull))+[0]
-    # ppl.plot(hull[first_again, 0], hull[first_again, 1], '--',
-    #          c=ppl.colors.almost_black, lw=2.0, alpha=0.9)
-    # TODO add a parameter that tell how many time to “buffer” the poly
     poly = Polygon(hull)
-    box = poly.envelope
-    # hull = np.array(box.exterior.coords)
-    # ppl.plot(hull[:, 0], hull[:, 1], '--',
-    #          c=ppl.colors.almost_black, lw=2.0, alpha=0.9)
-    return [[idx for idx, loc in enumerate(vloc)
-             if region.intersects(Point(loc))]
-            for region in [poly, box]]
+    center = np.array(poly.centroid.coords)
+
+    # Query neighboring venues
+    radius = np.max(cdist(np.array(poly.exterior.coords), center))
+    cd_idx = kdtree.query_ball_point(center, 2.0*radius)[0]
+
+    # Build increasing regions
+    inc = radius/n_steps
+    extensions = [poly]
+    extensions += [poly.buffer(i*inc,
+                               resolution=2).convex_hull.simplify(40, False)
+                   for i in range(1, n_steps+1)]
+
+    # Get venues inside them
+    remaining = set(cd_idx)
+    inside = set([])
+    res_cluster = []
+    for region in extensions:
+        cpoly = np.array(region.exterior.coords)
+        inside_this = set([idx for idx in remaining
+                           if point_inside_poly(cpoly, vloc[idx, :])])
+        remaining.difference_update(inside_this)
+        inside.update(inside_this)
+        res_cluster.append(list(inside))
+    return res_cluster
 
 
 def get_candidates_venues(query_features, target_features):
@@ -175,10 +193,22 @@ def f_score(recall, precision, beta=2.0):
     return (1+beta*beta)*(recall * precision)/(beta*beta*precision + recall)
 
 
+def point_inside_poly(poly, point):
+    """Tell whether `point` is inside convex `poly` based on dot product with
+    every edges:
+    demonstrations.wolfram.com/AnEfficientTestForAPointToBeInAConvexPolygon/
+    """
+    tpoly = poly - point
+    size = tpoly.shape[0] - 1
+    angles = tpoly[1:, 0]*tpoly[:size, 1] - tpoly[:size, 0]*tpoly[1:, 1]
+    return int(np.abs(np.sign(angles).sum())) == size
+
+
 # load venues location for all cities
 cities_venues_raw = {name: p.load_var(name+'_svenues.my') for name in cities}
 cities_venues = {}
 cities_index = {}
+cities_kdtree = {}
 for city in cities:
     vids, _, locs = cities_venues_raw[city].all()
     vindex = cities_desc[city]['index']
@@ -189,7 +219,7 @@ for city in cities:
         pos = cities_index[city].get(vid)
         if pos is not None:
             cities_venues[city][pos, :] = loc
-
+    cities_kdtree[city] = cKDTree(cities_venues[city])
 gray = '#bdbdbd'
 red = '#e51c23'
 green = '#64dd17'

@@ -164,4 +164,20 @@ d3.tsv(filename, function(error, data) {
             .style("text-anchor", "begin")
             .text(function(d) {console.log(d); return d; });
     }
+    save_svg_code();
 });
+function save_svg_code() {
+	var MINI = require('minified');
+	var _=MINI._, $=MINI.$;
+	var svg = document.getElementsByTagName("svg")[0];
+	var svg_xml = (new XMLSerializer).serializeToString(svg);
+	svg_xml = vkbeautify.xml(svg_xml);
+	$.request('post', 'http://localhost:8087/out', {xml: svg_xml})
+	.then(function success(result){
+		console.log(result);
+	})
+	.error(function(status, statusText, responseText) {
+		console.log(status, statusText, responseText);
+	});
+	// document.getElementById("svg_code").text(svg_xml);
+}

@@ -34,12 +34,9 @@ LCATS = {}
 
 def load_matrix(city, hide_category=False):
     """Open `city` matrix or compute it."""
-    # import os
     filename = city
     if not filename.endswith('.mat'):
         filename = city + '_fv.mat'
-    # if not os.path.exists(filename):
-    #     vf.describe_city(city)
     mat = vf.sio.loadmat(filename)
     log_nb_users = []
     # pylint: disable=E1101
@@ -49,8 +46,8 @@ def load_matrix(city, hide_category=False):
             mat['v'] = np.insert(mat['v'], 4, values=0, axis=1)
         else:
             mat['v'][:, 0:3] = np.log(mat['v'][:, 0:3])
-            is_inf = np.isinf(mat['v'][:, 0]).ravel()
-            mat['v'][is_inf, 0] = 0.0
+            is_inf = np.argwhere(np.isinf(mat['v'][:, 0:3]))
+            mat['v'][is_inf] = 0.0
             log_nb_users = mat['v'][:, 1].flatten()
         LCATS[city] = np.ceil(mat['v'][:, 5]).astype(int)
         mat['v'][:, 5] = np.divide(LCATS[city], 1000)*1000
@@ -209,21 +206,12 @@ def brand_awareness(brand, src, dst):
     dst_venues = p.load_var('{}_{}.my'.format(dst['city'], brand))
     among = 0
     for venue in src_venues:
-        pos, among = find_first(venue, src, dst, dst_venues)
-        res.append(pos)
-    chance = among/len(dst_venues)
-    # pylint: disable=E1101
-    return res, np.interp(res, [0, chance, 2*chance, among], [.0, .35, .8, 1])
+        _, ids, _, _, among = find_closest(venue, src, dst)
+        ranks = [pos for pos, res_id in enumerate(ids)
+                 if res_id in dst_venues]
+        res.append((len(dst_venues), among, ranks))
+    return res
 
-
-def find_first(vid, origin, dest, candidate):
-    """Match `vid` from `origin` to `dest` and return the rank of the first
-    answer that belongs to `candidate`."""
-    _, ids, _, _, among = find_closest(vid, origin, dest)
-    for pos, res_id in enumerate(ids):
-        if res_id in candidate:
-            return pos, among
-    return among, among
 
 SEED = 1234
 if __name__ == '__main__':
@@ -234,10 +222,11 @@ if __name__ == '__main__':
     # left = gather_info(args.origin+suffix, 350, mat, raw)
     # right = gather_info(args.dest+suffix, 350, mat, raw)
     # ir.evaluate_by_NDCG(left, right, find_closest, LCATS, mat)
-    raise Exception
+    # raise Exception
     # db, client = cm.connect_to_db('foursquare', args.host, args.port)
     import scipy.io as sio
-    learned = sio.loadmat('allthree_A_30_2.mat')['A']
+    # learned = sio.loadmat('allthree_A_30_2.mat')['A']
+    learned = sio.loadmat('ITMLall.mat')['A']
     # pylint: disable=E1101
     learned = np.insert(learned, 5, values=0, axis=1)
     learned = np.insert(learned, 5, values=0, axis=0)
@@ -246,17 +235,18 @@ if __name__ == '__main__':
                                      for one in cats_r[i]])
     metrics = ['Euclidean', 'Random Diagonal', 'ITML', 'GB-LMNN', '2D t-SNE',
                'Random ordering']
+    smetrics = ['euclidean', 'diagonal', 'itml', 'lmnn', 'tsne', 'random']
     br_res = [{brand: [] for brand in brands} for method in metrics]
     res_br = [{brand: [] for brand in brands} for method in metrics]
     for seed in range(88, 89):
-        SEED = seed
-        np.random.seed(SEED)
+        # SEED = seed
+        # np.random.seed(SEED)
         random_diag = np.diag((22*np.random.random((1, 31))+0.5).ravel())
         mats = [None, random_diag, learned, None, None, None]
         three = []
         four = []
         for idx, mat in enumerate(mats):
-            print(metrics[idx])
+            # print(metrics[idx])
             raw = idx != 3
             if idx == 4:
                 suffix = '_tsne.mat'
@@ -265,14 +255,25 @@ if __name__ == '__main__':
                 suffix = ''
                 RESTRICTED = np.arange(len(FEATURES))
             fake = idx == 5
-            left = gather_info(args.origin+suffix, knn=350, mat=mat,
-                               raw_features=raw)
-            right = gather_info(args.dest+suffix, knn=350, mat=mat,
-                                raw_features=raw)
+            left = gather_info(args.origin+suffix, knn=540, mat=mat,
+                               raw_features=raw, hide_category=True)
+            right = gather_info(args.dest+suffix, knn=540, mat=mat,
+                                raw_features=raw, hide_category=True)
             three.append(ir.evaluate_by_NDCG(left, right, LCATS, mat, fake))
-            four.append(ir.evaluate_by_NDCG(right, left, LCATS, mat, fake))
+            # four.append(ir.evaluate_by_NDCG(right, left, LCATS, mat, fake))
             # Evaluation by brand
             # for brand in brands:
+            #     p.save_var('eval_brands/{}_{}_{}_{}.my'.format(args.origin,
+            #                                                    args.dest,
+            #                                                    brand,
+            #                                                    smetrics[idx]),
+            #                brand_awareness(brand, left, right))
+            #     p.save_var('eval_brands/{}_{}_{}_{}.my'.format(args.dest,
+            #                                                    args.origin,
+            #                                                    brand,
+            #                                                    smetrics[idx]),
+            #                brand_awareness(brand, right, left))
+
             #     print(seed, idx, brand)
             #     br_res[idx][brand] = brand_awareness(brand, left, right)
             #     res_br[idx][brand] = brand_awareness(brand, right, left)
@@ -289,6 +290,13 @@ if __name__ == '__main__':
         # lmnn = extract(three[0], 0)-extract(three[3], 0)
         # print(2000*np.sum(lmnn[np.argsort(lmnn)[1:]]) -
         #       2000*np.sum(rnd[np.argsort(rnd)[1:]]))
+    import cities as C
+    w = np.argwhere(three[1] > 0.8).ravel()
+    vindex = set(range(left['features'].shape[0]))
+    nw = np.array(list(vindex.difference(list(w))))
+    print('\t'.join([C.FULLNAMES[args.origin].ljust(15),
+                     C.FULLNAMES[args.dest].ljust(15)] +
+                    map(lambda x: '{:.4f}'.format(np.mean(x[nw])), three)))
 
     def explain(query, answer):
         """Explains distance between `query` and `answer` as a data frame."""

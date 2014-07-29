@@ -85,11 +85,11 @@ d3.tsv(filename, function(error, data) {
     .data(data)
     .enter().append(shape)
     .attr("class", function(d) { return city_to_shape(d.city)+' dot '+ CATS[d.cat] + ' '+ d.city;})
-    .attr("width", 8)
-    .attr("height", 8)
-    .attr('rx', function(d) { return (!ALL_CITIES && city_to_shape(d.city) === 'circle') ?  '4px' : '0';})
-    .attr('ry', function(d) { return (!ALL_CITIES && city_to_shape(d.city) === 'circle') ?  '4px' : '0';})
-    .attr('r', ALL_CITIES ? 4 : 0)
+    .attr("width", 6)
+    .attr("height", 6)
+    .attr('rx', function(d) { return (!ALL_CITIES && city_to_shape(d.city) === 'circle') ?  '3px' : '0';})
+    .attr('ry', function(d) { return (!ALL_CITIES && city_to_shape(d.city) === 'circle') ?  '3px' : '0';})
+    .attr('r', ALL_CITIES ? 3 : 0)
     .attr("transform", ztransform)
     .style("fill", function(d) { return color(d.cat); });
     function zoomed() {

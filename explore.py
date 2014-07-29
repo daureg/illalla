@@ -168,6 +168,7 @@ def collapse(values, chunk_size, offset=0):
     array([0, 6])
     >>> collapse(range(6), 2, 1)
     array([3, 7, 5])"""
+    values = list(values.ravel())
     length = len(values)
     assert length % chunk_size == 0, 'there will be leftovers'
     # pylint: disable=E1101

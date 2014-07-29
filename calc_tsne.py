@@ -87,7 +87,7 @@ def bh_tsne(samples, perplexity=DEFAULT_PERPLEXITY, theta=DEFAULT_THETA,
 
         if verbose:
             shutil.copy(os.path.join(tmp_dir_path, 'data.dat'),
-                        '/home/lefag/thesis/illalla')
+                        '/users/lefag/illalla')
         # Call bh_tsne and let it do its thing
         with open('/dev/null', 'w') as dev_null:
             # bh_tsne is very noisy on stdout, tell it to use stderr if it is

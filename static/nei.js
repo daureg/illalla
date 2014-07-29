@@ -1,6 +1,6 @@
 var AUTOMATED = false;
-var JUST_READING = false;
-var COMPARING = true;
+var JUST_READING = true;
+var COMPARING = false;
 var VENUES_LOC = {};
 function make_icon(color) {
     var ratio = 4/5;
@@ -71,8 +71,8 @@ function canvas_display(result, nside, map) {
 var MyLayer = L.FullCanvas.extend({
     drawSource: function(point, ctx) {
         ctx.beginPath();
-        ctx.fillStyle = "rgba(33, 33, 33, .62)";
-        ctx.arc(point.x, point.y , 1.3, 0, 2 * Math.PI, true);
+        ctx.fillStyle = "rgba(33, 33, 33, .82)";
+        ctx.arc(point.x, point.y , 2.3, 0, 2 * Math.PI, true);
         ctx.fill();
     }
 });

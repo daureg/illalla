@@ -238,7 +238,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     nb_y_step = int(3*np.floor(city_size[1]) / hsize + 1)
     best = [1e20, [], [], RADIUS]
     res_map = []
-    pool = multiprocessing.Pool(6)
+    pool = multiprocessing.Pool(4)
 
     x_steps = np.linspace(minx+hsize, maxx-hsize, nb_x_step)
     y_steps = np.linspace(miny+hsize, maxy-hsize, nb_y_step)
@@ -345,7 +345,7 @@ def interpret_query(from_city, to_city, region, metric):
     global RIGHT_SUPPORT
     RIGHT_SUPPORT = right_support
 
-    # given extents, compute treshold of candidate
+    # given extents, compute threshold of candidate
     threshold = 0.7 * venue_proportion * right['features'].shape[0]
     right_desc = [right_city_size, right_support, right, right_infos]
 
@@ -361,8 +361,9 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
 
     infos = interpret_query(from_city, to_city, region, metric)
     left, right, right_desc, regions_distance, vids, threshold = infos
+    threshold /= 4.0
     if JUST_READING:
-        yield len(vids), None, None
+        yield vids, None, None
         raise Exception()
 
     res, vals = None, None
@@ -609,15 +610,20 @@ def batch_matching(query_city='paris'):
         os.mkdir(OTMPDIR)
     except OSError:
         pass
+    # cities = ['berlin']
+    # districts = ['montmartre', 'triangle']
     for city in cities:
         print(city)
         for neighborhood in districts:
+    # for _ in [1]:
+    #     for city, neighborhood in [('washington', 'marais'), ('washington', 'montmartre')]:
             print(neighborhood)
             possible_regions = regions[neighborhood]['gold'].get(query_city)
             rgeo = choose_query_region(possible_regions)
             if not rgeo:
                 continue
-            for metric in ['jsd', 'emd', 'cluster', 'emd-lmnn', 'leftover']:
+            for metric in ['emd']:
+            # for metric in ['jsd', 'emd', 'cluster', 'emd-lmnn', 'leftover']:
                 print(metric)
                 for radius in np.linspace(200, 500, 5):
                     print(radius)

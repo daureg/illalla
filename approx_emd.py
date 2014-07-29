@@ -29,12 +29,16 @@ cities_desc = {name: nb.cn.gather_info(name, raw_features=True,
 WHICH_GEO = []
 
 
-# def profile(f):
-#     return f
+def profile(f):
+    return f
 
 
 @profile
-def test_all_queries(queries, query_city='paris'):
+def test_all_queries(queries, query_city='paris', n_steps=5, k=50):
+    """Run all `queries` from `query_city`, expanding each recover region by
+    `n_steps`-1. Return the list of all distances, corresponding computation
+    time and a dictionary with the best results that can be feed to a DCG
+    computer."""
     all_res = []
     timing = []
     raw_result = defaultdict(lambda: defaultdict(list))
@@ -46,20 +50,20 @@ def test_all_queries(queries, query_city='paris'):
         region = nb.choose_query_region(possible_regions)
         if not region:
             all_res.append([])
+            timing.append([])
             continue
         start = clock()
         infos = nb.interpret_query(query_city, target_city, region, 'emd')
-        _, right, _, regions_distance, _, threshold = infos
+        _, right, _, regions_distance, _, _ = infos
         vindex = np.array(right['index'])
-        print(query, threshold)
+        print(query)
 
         vloc = cities_venues[target_city]
-        infos = retrieve_closest_venues(district, query_city, target_city)
+        infos = retrieve_closest_venues(district, query_city, target_city, k)
         candidates, gvi, _ = infos
 
         # xbounds = np.array([vloc[:, 0].min(), vloc[:, 0].max()])
         # ybounds = np.array([vloc[:, 1].min(), vloc[:, 1].max()])
-        # gold_venues = set().union(*map(list, gvi))
         # hulls = [vloc[tg, :][ConvexHull(vloc[tg, :]).vertices, :]
         #          for tg in gvi]
 
@@ -71,7 +75,8 @@ def test_all_queries(queries, query_city='paris'):
         areas = []
         for cluster in clusters:
             venues_areas = cluster_to_venues(cluster, vloc,
-                                             cities_kdtree[target_city])
+                                             cities_kdtree[target_city],
+                                             n_steps)
             if len(venues_areas) == 0:
                 continue
             for venues in venues_areas:
@@ -82,14 +87,19 @@ def test_all_queries(queries, query_city='paris'):
                 res.append(dst)
                 areas.append({'venues': set(vids),
                               'metric': 'femd', 'dst': dst})
+                # TODO if after a few steps, we are not getting closer to the
+                # current minimum distance, we may want to break the loop to
+                # avoid further EMD calls (although it could hurt relevance
+                # later as they are not well correlated).
 
         timing.append(clock() - start)
         # venues_so_far = set()
-        # print(map(len, gold))
-        rels = [rmr.relevance(a['venues'], gold) for a in areas]
-        print(np.sort(rels)[::-1])
-        # FIXME: Obviously the line below is cheating, we should order by
-        # distance and by how good we know the result is.
+        gold_venues = sum(map(len, gold))
+        # rels = [-1 if gold_venues == 0 else rmr.relevance(a['venues'], gold)
+        #         for a in areas]
+        # print(np.sort(rels)[::-1])
+        # Obviously the line below is cheating, we should order by
+        # distance and not by how good we know the result is.
         # for idx in np.argsort(rels)[::-1]:
         for idx in np.argsort(res):
             # cand = set(areas[idx]['venues'])
@@ -98,7 +108,7 @@ def test_all_queries(queries, query_city='paris'):
             raw_result[target_city][district].append(areas[idx])
             if len(raw_result[target_city][district]) >= 5:
                 break
-        WHICH_GEO.append(np.argmin(res) % len(venues_areas))
+        # WHICH_GEO.append(np.argmin(res) % len(venues_areas))
         all_res.append(res)
     return all_res, timing, raw_result
 
@@ -133,7 +143,7 @@ def cluster_to_venues(indices, vloc, kdtree, n_steps=5):
     cd_idx = kdtree.query_ball_point(center, 2.0*radius)[0]
 
     # Build increasing regions
-    inc = radius/n_steps
+    inc = 1.0*radius/n_steps
     extensions = [poly]
     extensions += [poly.buffer(i*inc,
                                resolution=2).convex_hull.simplify(40, False)
@@ -153,17 +163,17 @@ def cluster_to_venues(indices, vloc, kdtree, n_steps=5):
     return res_cluster
 
 
-def get_candidates_venues(query_features, target_features):
-    """Return the set of all 50 closest venues from `query_features` to
+def get_candidates_venues(query_features, target_features, k=50):
+    """Return the set of all `k` closest venues from `query_features` to
     `target_features`."""
     distances = cdist(query_features, target_features)
     ordered = np.argsort(distances, 1)
-    return set(ordered[:, :50].ravel())
+    return set(ordered[:, :k].ravel())
 
 
-def retrieve_closest_venues(district, query_city, target_city):
+def retrieve_closest_venues(district, query_city, target_city, k=50):
     """For the given query, return a list of venues indices for knn level of
-    50, as well as a list of indices for each gold area and the threshold
+    `k`, as well as a list of indices for each gold area and the threshold
     number of venues."""
     gold = gold_list[district]['gold']
     query = gold[query_city][0]
@@ -183,7 +193,7 @@ def retrieve_closest_venues(district, query_city, target_city):
         msg = '{} in {} has no area with at least 20 venues'
         warn(msg.format(district, target_city.title()))
         # return None, None, None
-    candidates = get_candidates_venues(query_features, all_target_features)
+    candidates = get_candidates_venues(query_features, all_target_features, k)
     threshold = int(len(tindex)*1.0*len(query_venues) /
                     len(cities_desc[query_city]['index']))
     return candidates, gold_venue_indices, threshold

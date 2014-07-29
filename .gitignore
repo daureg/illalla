@@ -1,3 +1,12 @@
+static/Google.js
+static/cmp_barcelona.js
+static/cmp_metricsnw.js
+static/cmp_newyork.js
+static/cmp_rome.js
+static/cmp_washington.js
+static/notebook.css
+static/world.js
+static/world_result.js
 static/*.json
 non_venue_id_*
 *.lprof

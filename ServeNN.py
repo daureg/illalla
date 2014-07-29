@@ -42,14 +42,16 @@ def perform_search(from_city, to_city, region, metric):
         # print(progress)
         try:
             distance, r_vids, center, radius = res
-        except TypeError:
+        except (ValueError, TypeError):
             import json
             desc = {"type": "Feature", "properties":
-                    {"nb_venues": res,
-                     "ref": from_city+' '+SEARCH_STATUS['name']},
+                    {"nb_venues": len(res),
+                     "venues": res,
+                     "origin": from_city},
                     "geometry": region}
             with open('scratch.json', 'a') as out:
-                out.write(json.dumps(desc)+'\n')
+                out.write(json.dumps(desc, sort_keys=True, indent=2,
+                                     separators=(',', ': '))+'\n')
             return
         if len(center) == 2:
             center = c.euclidean_to_geo(to_city, center)

@@ -15,7 +15,7 @@ html {
 }
 svg {
     font: 10pt sans-serif;
-    shape-rendering: crispEdges;
+    /* shape-rendering: crispEdges; */
 }
 
 rect {
@@ -25,6 +25,6 @@ rect {
 .dot {
     stroke: none;
 }
-.circle {border-radius: 4px;}
+.circle {border-radius: 3px;}
 #info {width:100%; text-align:center; max-height: 1.2em; height: 1.2em;}
 #info span {text-decoration: underline; cursor: pointer;}

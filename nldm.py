@@ -130,20 +130,27 @@ if __name__ == '__main__':
     origin = None
     cities = ['stockholm', 'prague', 'paris', 'barcelona', 'rome', 'berlin',
               'london', 'helsinki', 'amsterdam', 'moscow']
-    cities = ['helsinki']
+    cities = ['amsterdam', 'atlanta', 'barcelona', 'berlin', 'chicago',
+              'helsinki', 'houston', 'indianapolis', 'london', 'losangeles',
+              'moscow', 'newyork', 'paris', 'prague', 'rome', 'sanfrancisco',
+              'seattle', 'stlouis', 'stockholm', 'washington']
+    # cities = ['helsinki']
     if len(cities) > 1:
         features, origin = join_cities(cities)
     else:
         features = load_matrix(city)['v']
         origin = features.shape[0] * [0, ]
+    # sio.savemat('tmp', {'A': features}, do_compression=True)
+    # sys.exit()
     features[:, 5] = features[:, 5] / 8e5
-    to_keep = set(range(6, 15))
-    to_keep = set(range(18, 24)+range(25, 31))
-    to_keep = set(range(0, 5))
+    # to_keep = set(range(6, 15))
+    # to_keep = set(range(18, 24)+range(25, 31))
+    # to_keep = set(range(0, 5))
     cats = (8*features[:, 5]).astype(int)
-    to_delete = set(range(features.shape[1])).difference(to_keep)
-    features = np.delete(features, list(to_delete), axis=1)
-    print(features.shape)
+    features[:, 5] = 0
+    # to_delete = set(range(features.shape[1])).difference(to_keep)
+    # features = np.delete(features, list(to_delete), axis=1)
+    # print(features.shape)
     # features[:, 5] *= 0.0
     # print(np.sum(features[:, 5]))
     Axes3D
@@ -165,18 +172,18 @@ if __name__ == '__main__':
                'Sparse PCA', 'SVD', 'Factor Analysis', 'ICA']
     methods = ['t-SNE']
 
-    for i, method in enumerate(methods):
-        reduced, how_long = compute_embedding(features, method, nb_dim)
+    # for i, method in enumerate(methods):
+    #     reduced, how_long = compute_embedding(features, method, nb_dim)
     #     sio.savemat('tsne_'+city, {'cl': cats, 'data': reduced})
-        plot_embedding(fig, i, method, how_long, reduced, cats, nb_dim)
-        print("{}: {:.3f} sec".format(method, how_long))
+    #     plot_embedding(fig, i, method, how_long, reduced, cats, nb_dim)
+    #     print("{}: {:.3f} sec".format(method, how_long))
     # outfile = '{}_DR_{}.png'.format(city, nb_dim)
     # plt.savefig(outfile, frameon=False, bbox_inches='tight',
     #             pad_inches=0.05)
-    # reduced, how_long = compute_embedding(features, 't-SNE', 2)
-    # split_cities(cities, reduced, origin, features)
+    reduced, how_long = compute_embedding(features, 't-SNE', 2)
+    split_cities(cities, reduced, origin, features)
     city_name = np.array(map(lambda x: cities[int(x)], origin))
     to_export = np.hstack([reduced, cats.reshape((reduced.shape[0], 1)),
                            city_name.reshape((reduced.shape[0], 1))])
-    np.savetxt('rest.tsv', to_export, comments='', delimiter='\t', fmt='%s',
+    np.savetxt('allCities.tsv', to_export, comments='', delimiter='\t', fmt='%s',
                header='posx posy cat city'.replace(' ', '\t'))

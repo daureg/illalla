@@ -414,7 +414,9 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
-    describe_city(city)
+    # describe_city(city)
+    for c in ['amsterdam', 'london', 'moscow', 'prague', 'stockholm']:
+        global_info(c, standalone=False)
     # global_info(city, standalone=True)
     # lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
     # svenues = s.Surrounding(DB.venue, {'city': city}, [], lvenues)

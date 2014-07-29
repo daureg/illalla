@@ -17,8 +17,8 @@ var smallIcon = new L.Icon.Small();
 function barycenter(points) {
     var lat = 0, lng = 0, n = points.length;
     for (var i = n - 1; i >= 0; i--) {
-        lat += points[i].lat;
-        lng += points[i].lng;
+        lat += points[i].lat || points[i][1];
+        lng += points[i].lng || points[i][0];
     }
     return new L.LatLng(lat/n, lng/n);
 }
@@ -42,12 +42,12 @@ function create_map(div_id, bbox, extras) {
     var bbounds = compute_bound(bbox);
     var center = new L.LatLng(0.5*(bbox[0][0]+bbox[2][0]),
                               0.5*(bbox[0][1]+bbox[2][1]));
-    var options = {zoom: 14, minZoom: 10, center: center, layers:
+    var options = {zoom: 4, minZoom: 2, center: center, layers:
                   [carto_layer], maxBounds: bbounds};
     _.extend(options, extras);
     var map = new L.Map(div_id, options)
         .fitBounds(bbounds);
-    L.polygon(bbox, {fill: false, weight: 3}).addTo(map);
+    // L.polygon(bbox, {fill: false, weight: 3}).addTo(map);
     return map;
 }
 

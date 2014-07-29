@@ -28,15 +28,15 @@ def plot_city(city, weekly=False, clusters=5):
         if current_disto < min_disto:
             min_disto, ak, kl = current_disto, tak, tkl
     std_ord = np.argsort((np.argsort(ak)), 0)[:, -1]
-    vf.draw_classes(ak[std_ord, :], shift, chunk)
-    vf.plt.title('{}, {} venues'.format(city, len(enough)))
-    vf.plt.ylim([0, 0.28 if weekly else 0.9])
+    # vf.draw_classes(ak[std_ord, :], shift, chunk)
+    # vf.plt.title('{}, {} venues'.format(city, len(enough)))
+    # vf.plt.ylim([0, 0.28 if weekly else 0.9])
     city = 'times/' + city
     city += '_weekly' if weekly else '_daily'
     sio.savemat(city+'_time', {'t': ak[std_ord, :]}, do_compression=True)
-    vf.plt.savefig(city+'_time.png', dpi=160, transparent=False, frameon=False,
-                   bbox_inches='tight', pad_inches=0.1)
-    vf.plt.clf()
+    # vf.plt.savefig(city+'_time.png', dpi=160, transparent=False, frameon=False,
+    #                bbox_inches='tight', pad_inches=0.1)
+    # vf.plt.clf()
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     for city in reversed(xp.cm.cities.SHORT_KEY):
         print(city)
         plot_city(city, weekly=False, clusters=5)
-        plot_city(city, weekly=True, clusters=3)
+        # plot_city(ciy, weekly=True, clusters=)
     #     venue_visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
     #     res.update({k: len(v) for k, v in venue_visits.iteritems()})
     # p.save_var('venue_visits', res)

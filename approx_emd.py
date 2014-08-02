@@ -42,6 +42,7 @@ def test_all_queries(queries, query_city='paris', n_steps=5, k=50):
     all_res = []
     timing = []
     raw_result = defaultdict(lambda: defaultdict(list))
+    biased_raw_result = defaultdict(lambda: defaultdict(list))
     for query in queries:
         target_city, district = query
         possible_regions = gold_list[district]['gold'].get(query_city)
@@ -56,7 +57,7 @@ def test_all_queries(queries, query_city='paris', n_steps=5, k=50):
         infos = nb.interpret_query(query_city, target_city, region, 'emd')
         _, right, _, regions_distance, _, _ = infos
         vindex = np.array(right['index'])
-        print(query)
+        # print(query)
 
         vloc = cities_venues[target_city]
         infos = retrieve_closest_venues(district, query_city, target_city, k)
@@ -93,24 +94,35 @@ def test_all_queries(queries, query_city='paris', n_steps=5, k=50):
                 # later as they are not well correlated).
 
         timing.append(clock() - start)
-        # venues_so_far = set()
+        venues_so_far = set()
         gold_venues = sum(map(len, gold))
-        # rels = [-1 if gold_venues == 0 else rmr.relevance(a['venues'], gold)
-        #         for a in areas]
+        rels = [-1 if gold_venues == 0 else rmr.relevance(a['venues'], gold)
+                for a in areas]
         # print(np.sort(rels)[::-1])
         # Obviously the line below is cheating, we should order by
         # distance and not by how good we know the result is.
-        # for idx in np.argsort(rels)[::-1]:
         for idx in np.argsort(res):
-            # cand = set(areas[idx]['venues'])
-            # if not venues_so_far.intersection(cand):
-            #     venues_so_far.update(cand)
+            cand = set(areas[idx]['venues'])
+            if not venues_so_far.intersection(cand):
+                venues_so_far.update(cand)
+            else:
+                continue
             raw_result[target_city][district].append(areas[idx])
             if len(raw_result[target_city][district]) >= 5:
                 break
+        venues_so_far = set()
+        for idx in np.argsort(rels)[::-1]:
+            cand = set(areas[idx]['venues'])
+            if not venues_so_far.intersection(cand):
+                venues_so_far.update(cand)
+            else:
+                continue
+            biased_raw_result[target_city][district].append(areas[idx])
+            if len(biased_raw_result[target_city][district]) >= 5:
+                break
         # WHICH_GEO.append(np.argmin(res) % len(venues_areas))
         all_res.append(res)
-    return all_res, timing, raw_result
+    return all_res, timing, raw_result, biased_raw_result
 
 
 @profile

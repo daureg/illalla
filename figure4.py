@@ -1,7 +1,7 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 import matplotlib as mpl
-mpl.use('pgf')
+# mpl.use('pgf')
 
 pgf_with_rc_fonts = {
     "font.family": "serif",
@@ -28,15 +28,16 @@ with open('static/ground_truth.json') as infile:
     gold_list = ujson.load(infile)
 districts = sorted(gold_list.iterkeys())
 cities = sorted(gold_list[districts[0]]['gold'].keys())
-euclidean_ground_metric = {name: nb.cn.gather_info(name, raw_features=True, hide_category=True) 
-                           for name in cities}
-lmnn_ground_metric = {name: nb.cn.gather_info(name, raw_features=False, hide_category=True) 
-                      for name in cities}
-cities_desc = euclidean_ground_metric
-
 query_city = 'paris'
 district = 'pigalle'
 target_city = 'barcelona'
+cities = [query_city, target_city]
+euclidean_ground_metric = {name: nb.cn.gather_info(name, raw_features=True, hide_category=True) 
+                           for name in cities}
+# lmnn_ground_metric = {name: nb.cn.gather_info(name, raw_features=False, hide_category=True) 
+#                       for name in cities}
+cities_desc = euclidean_ground_metric
+
 
 query_venues = gold_list[district]['gold'][query_city][0]['properties']['venues']
 mask = np.where(np.in1d(cities_desc[query_city]['index'], query_venues))[0]
@@ -47,7 +48,7 @@ print('Venues in query: {}'.format(len(query_venues)))
 print('Venues in target cities: {}'.format(len(all_target_features)))
 distances = cdist(query_features, all_target_features)
 
-gold_target_venues_indices = [np.where(np.in1d(cities_desc[target_city]['index'], reg['properties']['venues']))[0] 
+gold_target_venues_indices = [np.where(np.in1d(cities_desc[target_city]['index'], reg['properties']['venues']))[0]
                               for reg in gold_list[district]['gold'][target_city]]
 print('There are {} corresponding ground truth areas'.format(len(gold_target_venues_indices)))
 
@@ -57,6 +58,8 @@ query_order=np.argsort(sorted_distances[:, 50])
 
 fig, ax = plt.subplots(1)
 _=ppl.pcolormesh(fig, ax, sorted_distances[query_order, :], norm=mpl.colors.LogNorm(vmin=sorted_distances[:, 0].min(), vmax=sorted_distances[:, -1].max()))
+barcelona_venues = sorted_distances[query_order, :]
+gold_rank_venues = []
 tg=0
 for qv in query_order:
     venue_indices_sorted = np.argsort(ordered[qv, :])
@@ -71,4 +74,4 @@ _=plt.xlim([0, len(all_target_features)])
 ax.tick_params(axis='both', which='major', labelsize=fs)
 fig.delaxes(fig.axes[1])
 ax.set_aspect(45)
-plt.savefig('fig4.pgf')
+plt.savefig('nfig4.png')

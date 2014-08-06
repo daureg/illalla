@@ -51,7 +51,7 @@ def get_checkins(client, city):
 # lratio = np.log(np.zeros(p.shape))
 # nz = np.log(ratio)
 # lratio[both] = nz
-def full_disc_json(lratio, nz):
+def full_disc_json(lratio, nz, city='paris'):
     it = np.nditer(lratio, flags=['f_index'])
     colormap = mpl.cm.ScalarMappable(sps.mcolor.Normalize(nz.min(), nz.max()),
                                      'coolwarm')
@@ -68,7 +68,7 @@ def full_disc_json(lratio, nz):
                           {'ratio': val, 'color': get_color(val)}})
         it.iternext()
     print(polys[0])
-    name = 'maps/paris_full_d.json'
+    name = 'maps/'+city+'_full_d.json'
     write_collection(polys, name, schema)
 
 
@@ -188,26 +188,28 @@ if __name__ == '__main__':
     import CommonMongo as cm
     import arguments
     import cities
+    import sys
+    sys.exit()
     args = arguments.city_parser().parse_args()
     city = args.city
     _, client = cm.connect_to_db('foursquare', args.host, args.port)
     # client = None
     photos_in_background = True
-    k = 200
+    k = 100
     sps.GRID_SIZE = k
-    sps.MAX_SUPPORT = 250
+    sps.MAX_SUPPORT = 200
     bbox = (cities.US+cities.EU)[cities.INDEX[city]]
     sps.BBOX = bbox
     _, _, sps.index_to_rect = sps.k_split_bbox(bbox, k)
     options = {'city': city, 'photos_background': True,
                'bbox': cities.bbox_to_polygon(bbox), 'only': False}
-    # top_loc, ratio = do_scan(client, city, k, options['photos_background'])
-    # options['ratio'] = ratio
-    # output_json(sps.merge_regions(top_loc), options)
-    # options['photos_background'] = False
-    # top_loc, ratio = do_scan(client, city, k, options['photos_background'])
-    # options['ratio'] = ratio
-    # output_json(sps.merge_regions(top_loc), options)
+    top_loc, ratio = do_scan(client, city, k, options['photos_background'])
+    options['ratio'] = ratio
+    output_json(sps.merge_regions(top_loc), options)
+    options['photos_background'] = False
+    top_loc, ratio = do_scan(client, city, k, options['photos_background'])
+    options['ratio'] = ratio
+    output_json(sps.merge_regions(top_loc), options)
 
     # options['only'] = True
     # for pb in [True, False]:

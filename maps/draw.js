@@ -7,16 +7,16 @@ function barycenter(points) {
     }
     return new L.LatLng(lat/n, lng/n);
 }
-
+full_d = false;
 function create_map(div_id, center, main_layer, bbox) {
     var offset = 0.01;
     var opacity = full_d ? 0.5 : 1;
     var southWest = new L.LatLng(bbox[0][0] - offset, bbox[0][1] - offset);
     var northEast = new L.LatLng(bbox[2][0] + offset, bbox[2][1] + offset);
     var bounds = new L.LatLngBounds(southWest, northEast);
-    var map = new L.Map(div_id, {zoom: 12, minZoom: 11, center: center,
+    var map = new L.Map(div_id, {zoom: 13, minZoom: 11, center: center,
                                  layers: [main_layer.setOpacity(opacity)], maxBounds: bounds})
-        .fitBounds(bounds);
+        // .fitBounds(bounds);
     L.polygon(bbox, {fill: false, weight: 2}).addTo(map);
     return map;
 }
@@ -89,7 +89,7 @@ function plot_discrepancies(what, discrepancies) {
 			var ph = p.photos.toFixed(0);
 			var ch = p.checkins.toFixed(0);
             var more = how_many_more(what, ph, ch);
-			layer.bindLabel(d+'<br>photos: '+ph+'<br>checkins: '+ch+more);
+			layer.bindLabel('photos: '+ph+'<br>checkins: '+ch+more);
 		}
 	}).addTo(map);
 }
@@ -99,6 +99,6 @@ if (full_d) {
 } else {
 	read_discrepancies('checkins');
 	read_discrepancies('photos');
-	read_discrepancies('only_photos');
-	read_discrepancies('only_checkins');
+	// read_discrepancies('only_photos');
+	// read_discrepancies('only_checkins');
 }

@@ -11,16 +11,16 @@ var urlParams;
         urlParams[decode(match[1])] = decode(match[2]);
 })();
 
-var filename = urlParams.file || 'EU.tsv';
+var filename = urlParams.file || 'hs.tsv';
 if (filename.substr(filename.length - 4) !== '.tsv') {filename += '.tsv';}
 var ALL_CITIES = filename !== 'pbh.tsv';
 var city_state = -1,
     cat_state = -1;
-var margin = {top: 5, right: 35, bottom: 20, left: 28},
+var margin = {top: 0, right: 0, bottom: 0, left: 0},
     // width = 900 - margin.left - margin.right,
     // height = 500 - margin.top - margin.bottom;
     width = window.innerWidth - margin.left - margin.right,
-    height = window.innerHeight - 27 - margin.top - margin.bottom;
+    height = window.innerHeight - 0 - margin.top - margin.bottom;
 
 var x = d3.scale.linear().range([0, width]);
 var y = d3.scale.linear().range([height, 0]);
@@ -112,7 +112,7 @@ d3.tsv(filename, function(error, data) {
         if (cat_state === d) {d = -1;}
         cat_state = d;
         dots.style('opacity', 0.1).filter(should_be_visible).style('opacity', 1);
-        document.getElementById('cat').innerHTML = (d === -1) ? '' : CATS[d]+': '+CATS_COUNT[d];
+        document.getElementById('cat').innerHTML = (d === -1) ? '' : CATS[d]+': '+CATS_COUNT[d]+' ('+(100*CATS_COUNT[d]/CATS_COUNT.reduce(function (a,b){return a+b;}, 0)).toFixed(1)+'%)';
     }
     function should_be_visible(d) {
         if (city_state > -1 && CITIES.indexOf(d.city) != city_state) {return false;}
@@ -123,7 +123,7 @@ d3.tsv(filename, function(error, data) {
         .data(color.domain())
         .enter().append("g")
         .attr("class", "legend")
-        .attr("transform", function(d, i) { return "translate(20," + i * 20 + ")"; });
+        .attr("transform", function(d, i) { return "translate(-2," + (2 + i * 20) + ")"; });
 
     legend.append("rect")
         .attr("x", width - 18)

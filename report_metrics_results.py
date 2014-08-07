@@ -22,7 +22,7 @@ if __name__ == '__main__':
         results = json.load(gt)
     METRICS = sorted(set([str(_['metric'])
                           for _ in results.values()[0].values()[0]]))
-    METRICS = ['femd']
+    METRICS = ['emd', 'femd']
     with open('static/ground_truth.json') as gt:
         regions = json.load(gt)
     DISTRICTS = sorted(regions.keys())
@@ -45,9 +45,9 @@ if __name__ == '__main__':
     #     print('There is no ground truth for:\n')
     #     print(nogt.to_html(index=False))
     RES_QUERIES = {(c, d) for c in results.keys() for d in results[c].keys()}
-    # NO_RES = sorted(ALL_QUERIES.difference(set(NO_GOLD), RES_QUERIES))
-    # nogt = pd.DataFrame(data={"City": map(lambda x: c.FULLNAMES[x[0]], NO_RES),
-    #                           "District": map(itemgetter(1), NO_RES)})
+    NO_RES = sorted(ALL_QUERIES.difference(set(NO_GOLD), RES_QUERIES))
+    nogt = pd.DataFrame(data={"City": map(lambda x: c.FULLNAMES[x[0]], NO_RES),
+                              "District": map(itemgetter(1), NO_RES)})
     # if len(nogt) > 0:
     #     print('\nNo result for:\n')
     #     print(nogt.to_html(index=False))
@@ -172,7 +172,7 @@ if __name__ == '__main___':
     plot_score(mat)
     plt.title('Score in {} with no venues weight'.format(c.FULLNAMES[query_city]))
     img_name = 'metrics_from_{}.png'.format(query_city)
-    plt.savefig(img_name, dpi=96, transparent=False, frameon=False,
-                bbox_inches='tight', pad_inches=0.1)
+    # plt.savefig(img_name, dpi=96, transparent=False, frameon=False,
+    #             bbox_inches='tight', pad_inches=0.1)
     plt.clf()
     print('<img src="{}">\n\n'.format(img_name))

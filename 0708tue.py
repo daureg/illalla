@@ -68,7 +68,7 @@ for n_step in [1]:
                                              k=50)
         Adsts.append(dsts)
         Atms.append(tms)
-        # Arr.append(rrs)
+        Arr.append(rrs)
         with open('static/cmp_{}.json'.format(qcity)) as infile:
             star = ap.ujson.load(infile)
         get_gold = lambda c, d: [_['dst'] for _ in star[c][d] if _['metric'] == 'emd']
@@ -82,7 +82,7 @@ for n_step in [1]:
         fast = np.hstack([fast, np.array([10 if len(_) == 0 else min(_) for _ in itertools.compress(dsts, rq)])])
     full_data.append((Adsts, Atms, Arr, t_fast, t_slow, fast, slow))
 import persistent as p
-p.save_var('lastchance_change_size.my', full_data)
+p.save_var('approx_brute_relevance.my', full_data)
 import sys
 sys.exit()
 del full_data[:]

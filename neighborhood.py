@@ -21,7 +21,7 @@ import logging
 # pylint: disable=E1101
 # pylint: disable=W0621
 NB_CLUSTERS = 3
-JUST_READING = False
+JUST_READING = True
 MAX_EMD_POINTS = 750
 NO_WEIGHT = True
 QUERY_NAME = None
@@ -285,7 +285,7 @@ def interpret_query(from_city, to_city, region, metric):
     center, radius, _, contains = polygon_to_local(from_city, region)
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
-    print('{} venues in query region.'.format(len(vids)))
+    # print('{} venues in query region.'.format(len(vids)))
     venue_proportion = 1.0*len(vids) / left['features'].shape[0]
 
     # And use them to define the metric that will be used

@@ -158,7 +158,7 @@ def cluster_to_venues(indices, vloc, kdtree, n_steps=5):
     inc = 1.0*radius/n_steps
     extensions = [poly]
     extensions += [poly.buffer(i*inc,
-                               resolution=2).convex_hull.simplify(40, False)
+                               resolution=2).convex_hull.simplify(30, False)
                    for i in range(1, n_steps+1)]
 
     # Get venues inside them
@@ -166,6 +166,8 @@ def cluster_to_venues(indices, vloc, kdtree, n_steps=5):
     inside = set([])
     res_cluster = []
     for region in extensions:
+        if region.exterior is None:
+            continue
         cpoly = np.array(region.exterior.coords)
         inside_this = set([idx for idx in remaining
                            if point_inside_poly(cpoly, vloc[idx, :])])
@@ -320,7 +322,7 @@ def recurse_dbscan(distances, indices, locs, eps, mpts, depth=0):
         if k == -1:
             continue
         k_indices = np.argwhere(labels == k).ravel()
-        if cluster_is_small_enough(1.3e3, 230, locs[k_indices, :]):
+        if cluster_is_small_enough(1.5e3, 250, locs[k_indices, :]):
             # msg = '{}add one cluster of size {}'
             # print(msg.format(depth*'\t'+'  ', len(k_indices)))
             cl_list.append(indices[k_indices])

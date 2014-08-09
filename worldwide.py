@@ -45,7 +45,8 @@ def retrieve_closest_venues(query_venues, query_city, target_city):
     query_features = cities_desc[query_city]['features'][mask, :]
     all_target_features = cities_desc[target_city]['features']
     tindex = cities_desc[target_city]['index']
-    candidates = app.get_candidates_venues(query_features, all_target_features)
+    candidates = app.get_candidates_venues(query_features,
+                                           all_target_features, k=60)
     threshold = int(len(tindex)*1.0*len(query_venues) /
                     len(cities_desc[query_city]['index']))
     return candidates, threshold
@@ -61,12 +62,12 @@ def query_in_one_city(source, target, region):
     candidates, _ = infos
     print(source, target)
 
-    eps, mpts = 210, 16 if len(vloc) < 5000 else 40
+    eps, mpts = 250, 10 if len(vloc) < 5000 else 40
     clusters = app.good_clustering(vloc, list(sorted(candidates)), eps, mpts)
     areas = []
     for cluster in clusters:
         venues_areas = app.cluster_to_venues(cluster, vloc,
-                                             cities_kdtree[target], 0)
+                                             cities_kdtree[target], 4)
         if len(venues_areas) == 0:
             continue
         for venues in venues_areas:
@@ -76,7 +77,13 @@ def query_in_one_city(source, target, region):
                                    nb.weighting_venues(venues[:, 1]))
             areas.append({'venues': set(vids), 'dst': dst})
     res = [a['dst'] for a in areas]
+    venues_so_far = set()
     for idx in np.argsort(res):
+        cand = set(areas[idx]['venues'])
+        if not venues_so_far.intersection(cand):
+            venues_so_far.update(cand)
+        else:
+            continue
         raw_result.append(areas[idx])
         if len(raw_result) >= 5:
             break

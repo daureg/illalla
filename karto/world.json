@@ -1,0 +1,21 @@
+{
+	"layers": {
+		"lands": {
+			"src": "ne_110m_land.shp"
+		},
+		"houston": {"src": "houston.shp", "labeling": {"key": "name"}},
+"indianapolis": {"src": "indianapolis.shp", "labeling": {"key": "name"}}, "sanfrancisco": {"src": "sanfrancisco.shp", "labeling": {"key": "name"}}, "chicago": {"src": "chicago.shp", "labeling": {"key": "name"}}, "newyork": {"src": "newyork.shp", "labeling": {"key": "name"}}, "prague": {"src": "prague.shp", "labeling": {"key": "name"}}, "helsinki": {"src": "helsinki.shp", "labeling": {"key": "name"}}, "washington": {"src": "washington.shp", "labeling": {"key": "name"}}, "barcelona": {"src": "barcelona.shp", "labeling": {"key": "name"}}, "rome": {"src": "rome.shp", "labeling": {"key": "name"}}, "stlouis": {"src": "stlouis.shp", "labeling": {"key": "name"}}, "berlin": {"src": "berlin.shp", "labeling": {"key": "name"}}, "losangeles": {"src": "losangeles.shp", "labeling": {"key": "name"}}, "london": {"src": "london.shp", "labeling": {"key": "name"}}, "stockholm": {"src": "stockholm.shp", "labeling": {"key": "name"}}, "paris": {"src": "paris.shp", "labeling": {"key": "name"}}, "amsterdam": {"src": "amsterdam.shp", "labeling": {"key": "name"}}, "atlanta": {"src": "atlanta.shp", "labeling": {"key": "name"}}, "seattle": {"src": "seattle.shp", "labeling": {"key": "name"}}, "moscow": {"src": "moscow.shp", "labeling": {"key": "name"}}
+	},
+	"bounds": {
+		"mode": "bbox",
+		"data": [-128, 30, 35, 68]
+	},
+	"proj": {
+		"id": "robinson",
+		"lon0": -39.45
+	},
+"export": {
+"width": 1400,
+   "height": 900
+}
+}

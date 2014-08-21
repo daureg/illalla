@@ -128,6 +128,8 @@ def describe_city(city):
         daily_visits = xp.aggregate_visits(own_visits, 1, 4)[0]
         numeric[idx, 18:24] = xp.to_frequency(daily_visits)
         numeric[idx, 25:31] = xp.to_frequency(around_visits)
+    weird = np.argwhere(np.logical_or(np.isnan(numeric), np.isinf(numeric)))
+    numeric[weird] = 0.0
     sio.savemat(city+'_fv', {'v': numeric, 'c': categories,
                              'i': np.array(list(info.index)),
                              'stat': [nb_visitors]}, do_compression=True)
@@ -414,9 +416,13 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
+    for c in cm.cities.SHORT_KEY:
+        if c == 'newyork':
+            continue
+        describe_city(c)
     # describe_city(city)
-    for c in ['amsterdam', 'london', 'moscow', 'prague', 'stockholm']:
-        global_info(c, standalone=False)
+    # for c in ['amsterdam', 'london', 'moscow', 'prague', 'stockholm']:
+    #     global_info(c, standalone=False)
     # global_info(city, standalone=True)
     # lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
     # svenues = s.Surrounding(DB.venue, {'city': city}, [], lvenues)

@@ -16,13 +16,13 @@ import pandas as pd
 from operator import itemgetter
 
 if __name__ == '__main__':
-    RES_SIZE = 5
+    RES_SIZE = 3
     query_city = sys.argv[1]
     with open('static/cmp_{}.json'.format(query_city)) as gt:
         results = json.load(gt)
     METRICS = sorted(set([str(_['metric'])
                           for _ in results.values()[0].values()[0]]))
-    METRICS = ['emd', 'femd']
+    METRICS = ['emd']
     with open('static/ground_truth.json') as gt:
         regions = json.load(gt)
     DISTRICTS = sorted(regions.keys())
@@ -37,8 +37,8 @@ if __name__ == '__main__':
         for city in missing:
             NO_GOLD.append((city, d))
     print_region = lambda x: '  • '+str(x[0]).ljust(15)+str(x[1])
-    print('# Querying from {} {{#{}}}\n'.format(c.FULLNAMES[query_city],
-                                                query_city))
+    # print('# Querying from {} {{#{}}}\n'.format(c.FULLNAMES[query_city],
+    #                                             query_city))
     nogt = pd.DataFrame(data={"City": map(lambda x: c.FULLNAMES[x[0]], NO_GOLD),
                               "District": map(itemgetter(1), NO_GOLD)})
     # if len(nogt) > 0:
@@ -52,6 +52,7 @@ if __name__ == '__main__':
     #     print('\nNo result for:\n')
     #     print(nogt.to_html(index=False))
     RES_QUERIES.difference_update(NO_GOLD)
+    RES_QUERIES = list(RES_QUERIES)
 
 
 def jaccard(s1, s2):
@@ -95,7 +96,7 @@ def compute_scores(raw_result):
             try:
                 dst = pad_list(dst, RES_SIZE, max(dst))
             except ValueError:
-                print(query_city, city, district, metric)
+                # print(query_city, city, district, metric)
                 dst = RES_SIZE*[0.0, ]
             scores[metric].append(DCG([relevance(r_i, gold)
                                        for r_i in res[:RES_SIZE]]) + LOWEST)
@@ -103,8 +104,16 @@ def compute_scores(raw_result):
     return scores, distances
 
 
-def final_result(raw_results):
+def final_result(raw_results, femd=False):
+    global METRICS
+    if femd:
+        METRICS = ['femd']
     scores, distances = compute_scores(raw_results)
+    for m in METRICS:
+        for s, q in zip(scores[m], RES_QUERIES):
+            print(';'.join(['{:.8f}'.format(s), query_city, q[0], q[1], m]))
+    import sys
+    sys.exit()
     print(query_city, [np.mean(scores[m]) for m in METRICS],
           file=sys.stderr)
     final_order = sorted([(metric, np.mean(dcgs))
@@ -113,7 +122,7 @@ def final_result(raw_results):
     return final_order, scores, distances
 
 
-if __name__ == '__main___':
+if __name__ == '__main__':
     ww, scores, distances = final_result(results)
     nogt = pd.DataFrame(data={"Metric": map(itemgetter(0), ww),
                               "Score": map(itemgetter(1), ww)})

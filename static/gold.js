@@ -15,7 +15,7 @@ var GOLD = new L.FeatureGroup();
 var LEFT_CANVAS = null, LC_VISIBLE = false;
 var map = create_map('map', BBOX, {zoomAnimation: false});
 var left = map;
-// populate('left', canvas_display);
+populate('left', canvas_display);
 var MyLayer = L.FullCanvas.extend({
     drawSource: function(point, ctx) {
         ctx.beginPath();
@@ -50,17 +50,16 @@ function geojson_to_polygon(geo, pstyle) {
 	}
 	return L.circle([geo.center[0], geo.center[1]], geo.radius, style);
 }
+var BOUNDS = null;
 function plot_gold(features) {
-	var poly = null,
-		bounds = null;
+	var poly = null;
 	GOLD.clearLayers();
 	for (var i = 0, l = features.length; i < l; i++) {
 		poly = geojson_to_polygon(features[i].geometry);
-		if (bounds) {bounds.extend(poly.getBounds());}
-		else {bounds = poly.getBounds();}
+		if (BOUNDS) {BOUNDS.extend(poly.getBounds());}
+		else {BOUNDS = poly.getBounds();}
 		GOLD.addLayer(poly);
 	}
-    map.fitBounds(bounds, {maxZoom: 12});
 }
 function plot_answers(features, metric) {
 	var poly = null;
@@ -69,9 +68,11 @@ function plot_answers(features, metric) {
 			console.log(features[i].geo);
 			poly = geojson_to_polygon(features[i].geo, {color: '#5677fc', opacity: 0.6});
 			// console.log(poly);
+			// BOUNDS.extend(poly.getBounds());
 			GOLD.addLayer(poly);
 		}
 	}
+    map.fitBounds(BOUNDS);
 }
 var AREAS = null;
 $(function() {

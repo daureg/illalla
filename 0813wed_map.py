@@ -21,9 +21,9 @@ c = np.array([[408584,373005,362979,67803,1744890],
               [6724,8394,27503,3213,27849]])
 d=np.log(np.sum(c[:,:3],1)*1.0/np.sum(c[:,:3]))
 # d *= 1/d.max()
-off=5
+off=4
 mn = d.min()
-20*(d-mn+off)/((d-mn+off).max())
+22*(d-mn+off)/((d-mn+off).max())
 ct = ['newyork', 'losangeles', 'chicago', 'sanfrancisco', 'london',
       'washington', 'seattle', 'amsterdam', 'houston', 'atlanta', 'paris',
       'stockholm', 'indianapolis', 'moscow', 'barcelona', 'berlin', 'stlouis',

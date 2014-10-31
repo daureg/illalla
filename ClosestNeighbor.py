@@ -86,7 +86,10 @@ def gather_info(city, knn=2, mat=None, raw_features=True, hide_category=False):
         mask = res['features'][:, 5] == cat
         venues = matrix['i'][mask]
         if len(venues) > 0:
-            idx_subset = np.ix_(mask, RESTRICTED)  # pylint: disable=E1101
+            frange = np.array(range(len(FEATURES)))
+            if city.endswith('_tsne.mat'):
+                frange = np.arange(5)
+            idx_subset = np.ix_(mask, frange)  # pylint: disable=E1101
             algo = NN(knn) if mat is None else NN(knn, metric='mahalanobis',
                                                   VI=np.linalg.inv(mat))
             res[int(cat)] = (algo.fit(res['features'][idx_subset]), venues)

@@ -21,7 +21,7 @@ import logging
 # pylint: disable=E1101
 # pylint: disable=W0621
 NB_CLUSTERS = 3
-JUST_READING = True
+JUST_READING = False
 MAX_EMD_POINTS = 750
 NO_WEIGHT = True
 QUERY_NAME = None
@@ -276,7 +276,9 @@ def brute_search(city_desc, hsize, distance_function, threshold,
 def interpret_query(from_city, to_city, region, metric):
     """Load informations about cities and compute useful quantities."""
     # Load info of the first city
-    left = cn.gather_info(from_city, knn=1, raw_features='lmnn' not in metric,
+    suffix = '_tsne.mat' if metric == 'emd-tsne' else ''
+    left = cn.gather_info(from_city+suffix, knn=1,
+                          raw_features='lmnn' not in metric,
                           hide_category=metric != 'jsd')
     left_infos = load_surroundings(from_city)
     left_support = features_support(left['features'])
@@ -301,6 +303,10 @@ def interpret_query(from_city, to_city, region, metric):
     if 'emd' in metric:
         from emd import emd
         from emd_dst import dist_for_emd
+        if 'tsne' in metric:
+            from specific_emd_dst import dst_tsne as dist_for_emd
+        if 'itml' in metric:
+            from specific_emd_dst import dst_itml as dist_for_emd
         query_num = features_as_lists(features)
 
         @profile
@@ -336,7 +342,8 @@ def interpret_query(from_city, to_city, region, metric):
                                   theta)
 
     # Load info of the target city
-    right = cn.gather_info(to_city, knn=2, raw_features='lmnn' not in metric,
+    right = cn.gather_info(to_city+suffix, knn=2,
+                           raw_features='lmnn' not in metric,
                            hide_category=metric != 'jsd')
     right_infos = load_surroundings(to_city)
     minx, miny, maxx, maxy = right_infos[1]
@@ -357,7 +364,7 @@ def best_match(from_city, to_city, region, tradius, progressive=False,
     """Try to match a `region` from `from_city` to `to_city`. If progressive,
     yield intermediate result."""
     assert metric in ['jsd', 'emd', 'jsd-nospace', 'jsd-greedy', 'cluster',
-                      'leftover', 'emd-lmnn']
+                      'leftover', 'emd-lmnn', 'emd-itml', 'emd-tsne']
 
     infos = interpret_query(from_city, to_city, region, metric)
     left, right, right_desc, regions_distance, vids, threshold = infos
@@ -605,7 +612,7 @@ def batch_matching(query_city='paris'):
     cities = sorted(regions.values()[0]['gold'].keys())
     assert query_city in cities
     cities.remove(query_city)
-    OTMPDIR = os.path.join(OTMPDIR, 'comparaison_'+query_city)
+    OTMPDIR = os.path.join(OTMPDIR, 'www_comparaison_'+query_city)
     try:
         os.mkdir(OTMPDIR)
     except OSError:
@@ -622,7 +629,7 @@ def batch_matching(query_city='paris'):
             rgeo = choose_query_region(possible_regions)
             if not rgeo:
                 continue
-            for metric in ['emd']:
+            for metric in ['emd-itml', 'emd-tsne']:
             # for metric in ['jsd', 'emd', 'cluster', 'emd-lmnn', 'leftover']:
                 print(metric)
                 for radius in np.linspace(200, 500, 5):

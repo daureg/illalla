@@ -3,6 +3,8 @@
 """Distance function between two venues for ITML and t-SNE."""
 import scipy.io as sio
 import numpy as np
+import scipy
+import math
 
 COV = sio.loadmat('ITMLall.mat')['A']
 # pylint: disable=E1101

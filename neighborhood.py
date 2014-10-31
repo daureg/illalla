@@ -78,7 +78,7 @@ def describe_region(center, radius, belongs_to, surroundings, city_fv,
     # _, ptime = gather_entities(sphotos, center, radius, belongs_to)
     mask = np.where(np.in1d(city_fv['index'], vids))[0]
     assert mask.size == len(vids)
-    weights = weighting_venues(city_fv['users'][mask])
+    weights = weighting_venues(mask if NO_WEIGHT else city_fv['users'][mask])
     # time_activity = lambda visits: xp.aggregate_visits(visits, 1, 4)[0]
     # activities = np.hstack([xp.to_frequency(time_activity(ctime)),
     #                         xp.to_frequency(time_activity(ptime))])

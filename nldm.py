@@ -134,6 +134,9 @@ if __name__ == '__main__':
               'helsinki', 'houston', 'indianapolis', 'london', 'losangeles',
               'moscow', 'newyork', 'paris', 'prague', 'rome', 'sanfrancisco',
               'seattle', 'stlouis', 'stockholm', 'washington']
+    cities = ['paris', 'barcelona', 'rome', 'berlin', 'barcelona',
+              'sanfrancisco', 'washington', 'newyork']
+
     # cities = ['helsinki']
     if len(cities) > 1:
         features, origin = join_cities(cities)
@@ -182,8 +185,8 @@ if __name__ == '__main__':
     #             pad_inches=0.05)
     reduced, how_long = compute_embedding(features, 't-SNE', 2)
     split_cities(cities, reduced, origin, features)
-    city_name = np.array(map(lambda x: cities[int(x)], origin))
-    to_export = np.hstack([reduced, cats.reshape((reduced.shape[0], 1)),
-                           city_name.reshape((reduced.shape[0], 1))])
-    np.savetxt('allCities.tsv', to_export, comments='', delimiter='\t', fmt='%s',
-               header='posx posy cat city'.replace(' ', '\t'))
+    # city_name = np.array(map(lambda x: cities[int(x)], origin))
+    # to_export = np.hstack([reduced, cats.reshape((reduced.shape[0], 1)),
+    #                        city_name.reshape((reduced.shape[0], 1))])
+    # np.savetxt('allCities.tsv', to_export, comments='', delimiter='\t', fmt='%s',
+    #            header='posx posy cat city'.replace(' ', '\t'))

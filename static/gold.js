@@ -40,7 +40,7 @@ function canvas_display(result, nside, map) {
     map.addLayer(venue_dots);
 }
 function geojson_to_polygon(geo, pstyle) {
-	var style = pstyle || {color: '#e65100', opacity: 0.4};
+	var style = pstyle || {color: '#056f00', opacity: 0.4};
 	if (geo.type === 'Polygon') {
 		var coords = geo.coordinates[0], latlngs = [];
 		for (var i = 0, l = coords.length; i < l-1; i++) {
@@ -51,16 +51,20 @@ function geojson_to_polygon(geo, pstyle) {
 	return L.circle([geo.center[0], geo.center[1]], geo.radius, style);
 }
 var BOUNDS = null;
-function plot_gold(district) {
-	var features = AREAS[district].gold[CITY];
-	document.getElementById('label').innerText = district;
-	var poly = null;
+var COLORS = ['#e65100', '#5677fc', '#056f00'];
+function plot_gold(district_arg) {
+	districts = district_arg.split(',');
 	GOLD.clearLayers();
-	for (var i = 0, l = features.length; i < l; i++) {
-		poly = geojson_to_polygon(features[i].geometry);
-		if (BOUNDS) {BOUNDS.extend(poly.getBounds());}
-		else {BOUNDS = poly.getBounds();}
-		GOLD.addLayer(poly);
+	var poly = null;
+	for (var j = 0, len = districts.length; j < len; j++) {
+		var features = AREAS[districts[j]].gold[CITY];
+		document.getElementById('label').innerHTML += '<span style="color: '+COLORS[j]+'">'+districts[j]+'</span><br>';
+		for (var i = 0, l = features.length; i < l; i++) {
+			poly = geojson_to_polygon(features[i].geometry, {opacity: 0.4, color: COLORS[j]});
+			if (BOUNDS) {BOUNDS.extend(poly.getBounds());}
+			else {BOUNDS = poly.getBounds();}
+			GOLD.addLayer(poly);
+		}
 	}
     map.fitBounds(BOUNDS, {maxZoom: 18});
 }
@@ -79,7 +83,6 @@ function plot_answers(features, metric) {
 }
 var AREAS = null;
 $(function() {
-	console.log(urlParams);
 	map.addLayer(GOLD);
     $.request('get', $SCRIPT_ROOT+'/static/ground_truth.json')
 	.then(function get_gt(result) {

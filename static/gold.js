@@ -13,7 +13,7 @@ var urlParams;
 var VENUES_LOC = {};
 var GOLD = new L.FeatureGroup();
 var LEFT_CANVAS = null, LC_VISIBLE = false;
-var map = create_map('map', BBOX, {zoomAnimation: false});
+var map = create_map('map', BBOX, {zoomAnimation: false, zoomControl: false});
 var left = map;
 populate('left', canvas_display);
 var MyLayer = L.FullCanvas.extend({
@@ -40,7 +40,7 @@ function canvas_display(result, nside, map) {
     map.addLayer(venue_dots);
 }
 function geojson_to_polygon(geo, pstyle) {
-	var style = pstyle || {color: '#b22222', opacity: 0.6};
+	var style = pstyle || {color: '#e65100', opacity: 0.4};
 	if (geo.type === 'Polygon') {
 		var coords = geo.coordinates[0], latlngs = [];
 		for (var i = 0, l = coords.length; i < l-1; i++) {
@@ -51,7 +51,9 @@ function geojson_to_polygon(geo, pstyle) {
 	return L.circle([geo.center[0], geo.center[1]], geo.radius, style);
 }
 var BOUNDS = null;
-function plot_gold(features) {
+function plot_gold(district) {
+	var features = AREAS[district].gold[CITY];
+	document.getElementById('label').innerText = district;
 	var poly = null;
 	GOLD.clearLayers();
 	for (var i = 0, l = features.length; i < l; i++) {
@@ -60,6 +62,7 @@ function plot_gold(features) {
 		else {BOUNDS = poly.getBounds();}
 		GOLD.addLayer(poly);
 	}
+    map.fitBounds(BOUNDS, {maxZoom: 18});
 }
 function plot_answers(features, metric) {
 	var poly = null;
@@ -81,7 +84,7 @@ $(function() {
     $.request('get', $SCRIPT_ROOT+'/static/ground_truth.json')
 	.then(function get_gt(result) {
 		AREAS = $.parseJSON(result);
-		plot_gold(AREAS[DISTRICT].gold[CITY]);
+		plot_gold(DISTRICT);
 	})
     .error(function(status, statusText, responseText) {
         console.log(status, statusText, responseText);
@@ -116,6 +119,6 @@ $(function() {
 			87: 'weekend', // W eekend
 		};
 		var district = infos[event.keyCode];
-		if (district) {plot_gold(AREAS[district].gold[CITY]);}
+		if (district) {plot_gold(district);}
 	});
 });

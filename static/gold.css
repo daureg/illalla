@@ -13,3 +13,17 @@ html, body {
 	top: 0;
 	left: 0;
 }
+#label {
+	position: absolute;
+	top: 1em;
+	left: 1em;
+	background-color: rgba(33,33,33,0.65);
+	color: white;
+	font-size: 20pt;
+	font-family: serif;
+	border-radius: 10px;
+	/* display: none; */
+	z-index: 500;
+	padding: 0.1em .5em;
+	text-transform: capitalize;
+}

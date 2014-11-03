@@ -16,13 +16,13 @@ import pandas as pd
 from operator import itemgetter
 
 if __name__ == '__main__':
-    RES_SIZE = 3
+    RES_SIZE = 5
     query_city = sys.argv[1]
-    with open('static/cmp_{}.json'.format(query_city)) as gt:
+    with open('static/www_cmp_{}.json'.format(query_city)) as gt:
         results = json.load(gt)
     METRICS = sorted(set([str(_['metric'])
                           for _ in results.values()[0].values()[0]]))
-    METRICS = ['emd']
+    METRICS = ['emd-itml', 'emd-tsne']
     with open('static/ground_truth.json') as gt:
         regions = json.load(gt)
     DISTRICTS = sorted(regions.keys())
@@ -112,9 +112,7 @@ def final_result(raw_results, femd=False):
     for m in METRICS:
         for s, q in zip(scores[m], RES_QUERIES):
             print(';'.join(['{:.8f}'.format(s), query_city, q[0], q[1], m]))
-    import sys
-    sys.exit()
-    print(query_city, [np.mean(scores[m]) for m in METRICS],
+    print(query_city, [round(np.mean(scores[m]), 4) for m in METRICS],
           file=sys.stderr)
     final_order = sorted([(metric, np.mean(dcgs))
                           for metric, dcgs in scores.iteritems()],
@@ -124,6 +122,8 @@ def final_result(raw_results, femd=False):
 
 if __name__ == '__main__':
     ww, scores, distances = final_result(results)
+    import sys
+    sys.exit()
     nogt = pd.DataFrame(data={"Metric": map(itemgetter(0), ww),
                               "Score": map(itemgetter(1), ww)})
     print('\n## Overall score\n')

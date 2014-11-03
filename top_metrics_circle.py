@@ -42,20 +42,20 @@ def to_json(city, cell, pos, alt=False):
             'pos': pos}
 
 
-CITIES = ['barcelona', 'sanfrancisco', 'rome', 'newyork', 'washington',
-          'berlin', 'paris']
+CITIES = ['barcelona', 'sanfrancisco', 'rome', 'newyork', 'washington', 'paris']
 # CITIES = ['barcelona']
 NEIGHBORHOODS = ["triangle", "latin", "montmartre", "pigalle", "marais",
                  "official", "weekend", "16th"]
 # NEIGHBORHOODS = ['triangle', 'latin']
-METRICS = ['jsd', 'emd', 'cluster', 'emd-lmnn', 'leftover']
+# METRICS = ['jsd', 'emd', 'cluster', 'emd-lmnn', 'leftover']
+METRICS = ['emd-itml', 'emd-tsne']
 if __name__ == '__main__':
     # pylint: disable=C0103
     import json
     query_city = sys.argv[1]
     assert query_city in CITIES, ', '.join(CITIES)
     CITIES.remove(query_city)
-    input_dir = 'comparaison_' + query_city
+    input_dir = 'www_comparaison_' + query_city
     res = {city: defaultdict(list) for city in CITIES}
     for city in res.keys():
         for neighborhood in NEIGHBORHOODS:
@@ -72,7 +72,7 @@ if __name__ == '__main__':
                 json_cell = [to_json(city, x[1]+[metric], x[0]+1)
                              for x in enumerate(top)]
                 res[city][neighborhood].extend(json_cell)
-    out_name = 'static/cmp_{}.js'.format(query_city)
+    out_name = 'static/www_cmp_{}.js'.format(query_city)
     with open(out_name, 'w') as out:
         out.write('var TOPREG =\n' + json.dumps(res, sort_keys=True, indent=2,
                                                 separators=(',', ': ')) + ';')

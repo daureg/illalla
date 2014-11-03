@@ -1,13 +1,14 @@
+var WSIZE = 1500 ,
+HSIZE = 1500;
 var casper = require('casper').create({
     verbose: true,
     logLevel: "debug",
-    viewportSize: {width: 1280, height: 720}
+    viewportSize: {width: WSIZE, height: HSIZE}
 });
-var METRIC="emd"
+var METRIC="emd";
 var BASE_URL = "http://0.0.0.0:5000/gold/TARGET/DISTRICT?from=SOURCE&m="+METRIC;
 CASES = [
 /*
-	  */
          {source: "paris",
 	district: "official",
 	  target:  "barcelona"},
@@ -17,10 +18,11 @@ CASES = [
          {source: "newyork",
 	district: "latin",
 	  target:  "sanfrancisco"},
-	  /*
+	  */
          {source: "washington",
 	district: "16th",
 	  target:  "newyork"},
+	  /*
          {source: "barcelona",
 	district: "montmartre",
 	  target:  "rome"},
@@ -44,8 +46,8 @@ casper.start("http://0.0.0.0:5000/");
 casper.each(CASES, function(casper, tcase) {
     var fcase = JSON.parse(JSON.stringify(tcase));
     this.thenOpen(case_to_url(tcase), function() {
-        this.wait(1000, function takeScreenshot() {
-            this.capture('best_metric/'+case_to_name(tcase), {top: 0, left: 0, width: 1280, height: 720});
+        this.wait(3000, function takeScreenshot() {
+            this.capture('best_metric/'+case_to_name(tcase), {top: 0, left: 0, width: WSIZE, height: HSIZE});
         });
     });
 });

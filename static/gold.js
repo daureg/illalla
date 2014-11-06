@@ -54,12 +54,14 @@ var BOUNDS = null;
 var COLORS = ['#e65100', '#5677fc', '#056f00'];
 function plot_gold(district_arg) {
 	districts = district_arg.split(',');
-	GOLD.clearLayers();
+	// GOLD.clearLayers();
 	var poly = null;
 	for (var j = 0, len = districts.length; j < len; j++) {
 		var features = AREAS[districts[j]].gold[CITY];
 		document.getElementById('label').innerHTML += '<span style="color: '+COLORS[j]+'">'+districts[j]+'</span><br>';
 		for (var i = 0, l = features.length; i < l; i++) {
+			// if (i !== 2) continue;
+			// console.log(features[i].properties.nb_venues);
 			poly = geojson_to_polygon(features[i].geometry, {opacity: 0.4, color: COLORS[j]});
 			if (BOUNDS) {BOUNDS.extend(poly.getBounds());}
 			else {BOUNDS = poly.getBounds();}
@@ -68,18 +70,19 @@ function plot_gold(district_arg) {
 	}
     map.fitBounds(BOUNDS, {maxZoom: 18});
 }
+var A_NUM = 1;
 function plot_answers(features, metric) {
 	var poly = null;
 	for (var i = 0, l = features.length; i < l; i++) {
-		if (features[i].metric === metric && features[i].pos < 4) {
-			console.log(features[i].geo);
-			poly = geojson_to_polygon(features[i].geo, {color: '#5677fc', opacity: 0.6});
-			// console.log(poly);
-			// BOUNDS.extend(poly.getBounds());
+		if (i === 0 && A_NUM ===1) {continue;}
+		if (features[i].metric === metric && features[i].pos < 6) {
+			poly = geojson_to_polygon(features[i].geo, {color: COLORS[A_NUM], opacity: 0.6});
+			BOUNDS.extend(poly.getBounds());
 			GOLD.addLayer(poly);
 		}
 	}
     map.fitBounds(BOUNDS);
+	A_NUM += 1;
 }
 var AREAS = null;
 $(function() {
@@ -100,11 +103,17 @@ $(function() {
 		});
 	}
 	if (urlParams.m === 'femd') {
-		$.request('get', $SCRIPT_ROOT+'/static/'+urlParams.from+'_'+DISTRICT+'_'+CITY+'.json')
+		all_from = urlParams.from.split(',');
+		console.log(all_from);
+		for (var i = 0, len = all_from.length; i < len; i++) {
+			console.log($SCRIPT_ROOT+'/static/'+all_from[i]+'_'+DISTRICT+'_'+CITY+'.json');
+		$.request('get', $SCRIPT_ROOT+'/static/'+all_from[i]+'_'+DISTRICT+'_'+CITY+'.json')
 		.then(function get_emd(result) {
 			AREAS = $.parseJSON(result);
+			console.table(AREAS);
 			plot_answers(AREAS, 'femd');
 		});
+		}
 	}
 // {65: 'A', 66: 'B', 67: 'C', 68: 'D', 69: 'E', 70: 'F', 71: 'G', 72: 'H',
 // 73: 'I', 74: 'J', 75: 'K', 76: 'L', 77: 'M', 78: 'N', 79: 'O', 80: 'P', 81:

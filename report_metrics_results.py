@@ -18,11 +18,11 @@ from operator import itemgetter
 RES_SIZE = 5
 if __name__ == '__main__':
     query_city = sys.argv[1]
-    with open('static/www_cmp_{}.json'.format(query_city)) as gt:
+    with open('static/cmp_{}.json'.format(query_city)) as gt:
         results = json.load(gt)
     METRICS = sorted(set([str(_['metric'])
                           for _ in results.values()[0].values()[0]]))
-    METRICS = ['emd-itml', 'emd-tsne']
+    METRICS = ['emd']
     with open('static/ground_truth.json') as gt:
         regions = json.load(gt)
     DISTRICTS = sorted(regions.keys())

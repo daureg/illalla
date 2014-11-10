@@ -110,6 +110,8 @@ def test_all_queries(queries, query_city='paris', n_steps=5, k=50):
             raw_result[target_city][district].append(areas[idx])
             if len(raw_result[target_city][district]) >= 5:
                 break
+        outfile = 'static/{}_{}_{}_femd.json'.format(query_city, district,
+                                                     target_city)
         venues_so_far = set()
         for idx in np.argsort(rels)[::-1]:
             cand = set(areas[idx]['venues'])

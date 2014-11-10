@@ -34,13 +34,13 @@ CASES = [
 	  target:  "rome"},
 	  */
 /*
+*/
 {"source": "washington", "target": "barcelona", "district": "pigalle"},
 {"source": "washington", "target": "barcelona", "district": "latin"},
 {"source": "washington", "target": "barcelona", "district": "triangle"},
 {"source": "washington", "target": "barcelona", "district": "montmartre"},
 {"source": "washington", "target": "barcelona", "district": "official"},
 {"source": "washington", "target": "barcelona", "district": "16th"},
-*/
 {"source": "washington", "target": "barcelona", "district": "marais"},
 	  ];
 function case_to_name(full_case) {

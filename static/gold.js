@@ -60,7 +60,7 @@ function plot_gold(district_arg) {
 		var features = AREAS[districts[j]].gold[CITY];
 		document.getElementById('label').innerHTML += '<span style="color: '+COLORS[j]+'">'+districts[j]+'</span><br>';
 		for (var i = 0, l = features.length; i < l; i++) {
-			// if (i !== 2) continue;
+			// if (i !== 0) continue;
 			// console.log(features[i].properties.nb_venues);
 			poly = geojson_to_polygon(features[i].geometry, {opacity: 0.4, color: COLORS[j]});
 			if (BOUNDS) {BOUNDS.extend(poly.getBounds());}
@@ -100,6 +100,14 @@ $(function() {
 		.then(function get_emd(result) {
 			AREAS = $.parseJSON(result);
 			plot_answers(AREAS[CITY][DISTRICT], 'emd');
+		});
+	}
+	if (urlParams.m === 'rnd') {
+		$.request('get', $SCRIPT_ROOT+'/static/random_'+CITY+'_'+DISTRICT+'.json')
+		.then(function get_emd(result) {
+			AREAS = $.parseJSON(result);
+			console.log(AREAS);
+			plot_answers(AREAS, 'random');
 		});
 	}
 	if (urlParams.m === 'femd') {

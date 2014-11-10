@@ -120,19 +120,24 @@ if __name__ == '__main__':
     city, districts = sys.argv[1], []
     city_info = load_data(city)
     gold_list = city_info[-1]
-    districts = sorted(gold_list.keys())
+    districts = sorted([nn for nn, gold in gold_list.iteritems()
+                        if city in gold['gold']])
     try:
         os.mkdir('random')
     except OSError:
         pass
     for district in districts:
+        savename = 'random/{}_{}.my'.format(city, district)
+        print(savename)
+        if os.path.isfile(savename):
+            continue
         distrib, best_score, best_region = [], 0, None
         for i in range(NTEST):
             regions, score = mock_random_list(city, district, city_info)
             if score > best_score:
                 best_score, best_region = score, regions
             distrib.append(score)
-        p.save_var('random/{}_{}.my'.format(city, district), distrib)
+        p.save_var(savename, distrib)
         outjson = [{
             'pos': rank+1, 'metric': 'random', 'dst': -1, 'venues': r[1],
             'geo': mapping(Polygon(np.fliplr(c.euclidean_to_geo(city, r[0]))))}

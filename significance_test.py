@@ -116,11 +116,11 @@ def mock_random_list(city, district, city_info):
 if __name__ == '__main__':
     import sys
     import os
-    NTEST = 20
+    NTEST = 2000
     city, districts = sys.argv[1], []
     city_info = load_data(city)
     gold_list = city_info[-1]
-    districts = sorted(gold_list.keys())[:2]
+    districts = sorted(gold_list.keys())
     try:
         os.mkdir('random')
     except OSError:

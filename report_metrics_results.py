@@ -15,8 +15,8 @@ import cities as c
 import pandas as pd
 from operator import itemgetter
 
+RES_SIZE = 5
 if __name__ == '__main__':
-    RES_SIZE = 5
     query_city = sys.argv[1]
     with open('static/www_cmp_{}.json'.format(query_city)) as gt:
         results = json.load(gt)
@@ -65,8 +65,7 @@ def jaccard(s1, s2):
 def relevance(one_result, all_gold):
     return max([jaccard(one_result, g) for g in all_gold])
 
-if __name__ == '__main__':
-    discount_factor = np.log2(np.arange(1, RES_SIZE+1) + 1)
+discount_factor = np.log2(np.arange(1, RES_SIZE+1) + 1)
 
 
 def pad_list(short_list, new_size, value=0.0):
@@ -78,8 +77,7 @@ def DCG(relevance):
     relevance = pad_list(relevance, RES_SIZE)
     return np.sum((np.array(relevance)**2 - 1) / discount_factor)
 
-if __name__ == '__main__':
-    LOWEST = -DCG(RES_SIZE*[0.0, ])
+LOWEST = -DCG(RES_SIZE*[0.0, ])
 
 
 def compute_scores(raw_result):

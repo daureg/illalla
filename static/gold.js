@@ -74,7 +74,7 @@ var A_NUM = 1;
 function plot_answers(features, metric) {
 	var poly = null;
 	for (var i = 0, l = features.length; i < l; i++) {
-		if (i === 0 && A_NUM ===1) {continue;}
+		// if (i === 0 && A_NUM ===1) {continue;}
 		if (features[i].metric === metric && features[i].pos < 6) {
 			poly = geojson_to_polygon(features[i].geo, {color: COLORS[A_NUM], opacity: 0.6});
 			BOUNDS.extend(poly.getBounds());

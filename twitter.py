@@ -101,7 +101,7 @@ def read_twitter_stream(client, end, logging_step=60):
     until current time is more than `end`. Log info every `logging_step` new
     valid candidate."""
     global NB_TWEETS
-    req = client.request('statuses/filter', {'track': '4sq com'})
+    req = client.request('statuses/filter', {'track': '4sq,swarmapp'})
     new_tweet = 'get {}, {}/{}, {:.1f} seconds to go'
     nb_cand = 0
     for item in req.get_iterator():

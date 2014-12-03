@@ -38,10 +38,10 @@ def parse_tweet(tweet):
     urls = u.get_nested(tweet, ['entities', 'urls'], [])
     # short url of the checkin that need to be expand, either using bitly API
     # or by VenueIdCrawler. Once we get the full URL, we still need to request
-    # 4SQ (500 per hours) to get info (or look at page body, which contains the
-    # full checkin in a javascript field)
+    # 4SQ (500 per hours) to get info.
+    is_foursquare_url = lambda u: '4sq.com' in u or 'swarmapp.com' in u
     fsq_urls = [url['expanded_url'] for url in urls
-                if '4sq.com' in url['expanded_url']]
+                if is_foursquare_url(url['expanded_url'])]
     if not fsq_urls:
         return None
     lid = str(fsq_urls[0])

@@ -54,6 +54,10 @@ def get_slice(tuple_request):
     return vals, queries
 emd, AQ = get_slice((None, None, None, 'emd', None))
 emd = np.array(emd)
+import scipy.io as sio
+sio.savemat('timing', {'t': emd})
+import sys
+sys.exit()
 queries = lambda src: [_[1:] for _ in AQ if _[0] == src]
 from operator import itemgetter
 QCITIES = ['barcelona', 'newyork', 'paris', 'rome', 'sanfrancisco', 'washington']

@@ -65,6 +65,10 @@ class CheckinAPICrawler(object):
             expanded = itertools.repeat(None, BITLY_SIZE)
         return [get_id_and_signature(url) for url in expanded]
 
+    # TODO: Swarm checkin don't have signature in their public URL and they
+    # don't need it because there is a new API call that deals with that:
+    # https://developer.foursquare.com/docs/checkins/resolve
+    # Check if it's already in foursquare python api
     def query_foursquare(self, id_and_sig):
         """Request Foursquare to get raw info about checkins in `id_and_sig`"""
         for cid, sig in id_and_sig:

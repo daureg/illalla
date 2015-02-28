@@ -1,5 +1,6 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+"""Send request to get venue id from short url checkins"""
 from timeit import default_timer as clock
 import pycurl
 import cStringIO as cs

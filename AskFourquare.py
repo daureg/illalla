@@ -1,5 +1,6 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+"""Parse JSON Foursquare response to relevant python object"""
 from datetime import datetime
 from read_foursquare import Location
 import foursquare

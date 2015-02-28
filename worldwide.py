@@ -53,6 +53,9 @@ def retrieve_closest_venues(query_venues, query_city, target_city):
 
 
 def query_in_one_city(source, target, region):
+    """`source` and `target` are two cities name while `region` is a JSON
+    polygon. Return the five polygon in `target` that are the closest to
+    `region` according to approximate EMD metrics."""
     raw_result = []
     infos = nb.interpret_query(source, target, region, 'emd')
     _, right, _, regions_distance, vids, _ = infos

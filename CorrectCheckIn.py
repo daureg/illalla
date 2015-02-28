@@ -1,5 +1,6 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
+"""Clean previous dataset"""
 from api_keys import FOURSQUARE_ID as CLIENT_ID
 from api_keys import FOURSQUARE_SECRET as CLIENT_SECRET
 import foursquare

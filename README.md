@@ -2,7 +2,7 @@ Code supporting my Master Thesis about finding similar neighborhood across citie
 
 You can get more information by reading [our blogpost](http://northernbytes.co/2014/11/25/similar-neighborhoods/), [a two pages academic summary](http://geraud.so/neighborhoods.pdf) or if you have more time on your hands, my [complete thesis](https://aaltodoc.aalto.fi/handle/123456789/13900).
 
-Below I provide more technical details. Yet it should be noted that for now, data are not included with the code and thus there is no simple demonstration one can quickly test. Hopefully this will soon be remedied :)
+Below I provide more technical details. Yet it should be noted that for now, not all data are included with the code (although [the most important can be found on dropbox](https://dl.dropboxusercontent.com/u/23609132/cities_features_matrix.zip)and thus there is no simple demonstration one can quickly test. Hopefully this will soon be remedied :)
 
 How it works
 ====================

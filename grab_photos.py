@@ -17,6 +17,7 @@ import logging
 import os
 import arguments
 import sys
+requests.packages.urllib3.disable_warnings()
 now = datetime.datetime.now().strftime('%Y%m%d_%H%M')
 HINT = now if len(sys.argv) < 2 else sys.argv[1].strip()
 LOG_FILE = 'photos_{}.log'.format(HINT)
@@ -204,6 +205,8 @@ def higher_request(start_time, bbox, db, level=0):
 
     _, total = make_request(start_time, bbox, 1, need_answer=True,
                             max_tries=10)
+    if level == 0:
+        logging.info('Aiming for {} photos'.format(total))
     if total > 4000:
         photos = 0
         start = clock()

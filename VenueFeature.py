@@ -30,9 +30,9 @@ LEGEND = 'v^<>s*xo|8d+'
 CATS = ['Arts & Entertainment', 'College & University', 'Food',
         'Nightlife Spot', 'Outdoors & Recreation', 'Shop & Service',
         'Professional & Other Places', 'Residence', 'Travel & Transport']
-# top_cats = [top_cat.name for top_cat in CATS.sub if top_cat.name != 'Event']
+# top_cats = [top_cat.name for top_cat in fsc.CATS.sub if top_cat.name != 'Event']
 # cats2 = {sub_cat.name: int(1e5)*top_cats.index(top_cat.name)+idx+1
-#          for top_cat in CATS.sub if top_cat.name != 'Event'
+#          for top_cat in fsc.CATS.sub if top_cat.name != 'Event'
 #          for idx, sub_cat in enumerate(top_cat.sub)}
 # p.save_var('cat_depth_2.my', cats2)
 TOP_CATS = {None: None}
@@ -60,11 +60,9 @@ def is_event(cat_id):
 
 def global_info(city, standalone=False):
     """Gather global statistics about `city`."""
-    lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
-    lcheckins = geo_project(city, DB.checkin.find({'city': city}, {'loc': 1}))
-    lphotos = geo_project(city, CLIENT.world.photos.find({'hint': city},
-                                                         {'loc': 1}))
-    local_projection = [lvenues, lcheckins, lphotos]
+    lvenues = geo_project(city, DB.emre_venue.find({'city': city}, {'loc': 1}))
+    lcheckins = geo_project(city, DB.emre_checkin.find({'city': city}, {'loc': 1}))
+    local_projection = [lvenues, lcheckins]
     visits = xp.get_visits(CLIENT, xp.Entity.venue, city)
     visitors = xp.get_visitors(CLIENT, city)
     density = estimate_density(city)
@@ -73,14 +71,12 @@ def global_info(city, standalone=False):
     TOP_CATS = p.load_var('top_cats.my')
     infos = {'venue': [] if standalone else ['cat', 'cats'],
              'photo': ['taken'] if standalone else ['venue']}
-    svenues = s.Surrounding(DB.venue, {'city': city}, infos['venue'], lvenues)
-    scheckins = s.Surrounding(DB.checkin, {'city': city}, ['time'], lcheckins)
-    sphotos = s.Surrounding(CLIENT.world.photos, {'hint': city},
-                            infos['photo'], lphotos)
-    surroundings = [svenues, scheckins, sphotos]
+    svenues = s.Surrounding(DB.emre_venue, {'city': city}, infos['venue'], lvenues)
+    scheckins = s.Surrounding(DB.emre_checkin, {'city': city}, ['time'], lcheckins)
+    surroundings = [svenues, scheckins]
     p.save_var('{}_s{}s.my'.format(city, 'venue'), svenues)
     if standalone:
-        for name, var in zip(['venue', 'checkin', 'photo'], surroundings):
+        for name, var in zip(['venue', 'checkin'], surroundings):
             p.save_var('{}_s{}s.my'.format(city, name), var)
     return local_projection + activity + surroundings
 
@@ -91,18 +87,18 @@ def describe_city(city):
     # a few venues don't have level 2 categories (TODO add it manually?)
     CATS2.update({cat: int(idx*1e5) for idx, cat in enumerate(CATS)})
     info = global_info(city)
-    lvenues, lcheckins, lphotos = info[:3]
-    visits, visitors, density = info[3:6]
+    lvenues, lcheckins = info[:2]
+    visits, visitors, density = info[2:5]
     nb_visitors = np.unique(np.array([v for place in visitors.itervalues()
                                       for v in place])).size
-    svenues, scheckins, sphotos = info[6:]
+    svenues, scheckins = info[5:]
     categories = categories_repartition(city, svenues, lvenues, RADIUS)
-    venues = DB.venue.find({'city': city, 'closed': {'$ne': True},
+    venues = DB.emre_venue.find({'city': city, 'closed': {'$ne': True},
                             'cat': {'$ne': None}, 'usersCount': {'$gt': 1}},
                            {'cat': 1})
     chosen = [v['_id'] for v in venues
-              if len(visits.get(v['_id'], [])) > 4 and
-              len(np.unique(visitors.get(v['_id'], []))) > 1 and
+              if len(visits.get(v['_id'], [])) >= 1 and
+              len(np.unique(visitors.get(v['_id'], []))) >= 1 and
               not is_event(v['cat'])]
     print("Chosen {} venues in {}.".format(len(chosen), city))
     info, _ = venues_info(chosen, visits, visitors, density, depth=2,
@@ -117,12 +113,12 @@ def describe_city(city):
     numeric[:, 5] = [CATS2[c] for c in info['cat']]
     numeric[:, 24] = np.array(info['Ht'])
     for idx, vid in enumerate(info.index):
-        surrounding = full_surrounding(vid, lvenues, lphotos, lcheckins,
-                                       svenues, scheckins, sphotos, city)
-        cat, focus, ratio, around_visits = surrounding
+        surrounding = full_surrounding(vid, lvenues, lcheckins, svenues,
+                                       scheckins, city)
+        cat, _, _, around_visits = surrounding
         numeric[idx, 6:15] = cat
-        numeric[idx, 15] = focus
-        numeric[idx, 16] = ratio
+        # numeric[idx, 15] = focus
+        # numeric[idx, 16] = ratio
         own_visits = visits[vid]
         numeric[idx, 17] = is_week_end_place(own_visits)
         daily_visits = xp.aggregate_visits(own_visits, 1, 4)[0]
@@ -139,11 +135,11 @@ def venues_info(vids, visits=None, visitors=None, density=None, depth=10,
                 tags_freq=True):
     """Return various info about from the venue ids `vids`."""
     tags = defaultdict(int)
-    city = DB.venue.find_one({'_id': vids[0]})['city']
+    city = DB.emre_venue.find_one({'_id': vids[0]})['city']
     visits = visits or xp.get_visits(CLIENT, xp.Entity.venue, city)
     visitors = visitors or xp.get_visitors(CLIENT, city)
     density = density or estimate_density(city)
-    venues = list(DB.venue.find({'_id': {'$in': vids}},
+    venues = list(DB.emre_venue.find({'_id': {'$in': vids}},
                                 {'cat': 1, 'name': 1, 'loc': 1,
                                  'price': 1, 'rating': 1, 'tags': 1,
                                  'likes': 1, 'usersCount': 1,
@@ -180,7 +176,7 @@ def venues_info(vids, visits=None, visitors=None, density=None, depth=10,
 def estimate_density(city):
     """Return a Gaussian KDE of venues in `city`."""
     kde = KernelDensity(bandwidth=175, rtol=1e-4)
-    surround = xp.build_surrounding(DB.venue, city, likes=-1, checkins=1)
+    surround = xp.build_surrounding(DB.emre_venue, city, likes=-1, checkins=1)
     kde.fit(surround.venues[:, :2])
     max_density = approximate_maximum_density(kde, surround.venues[:, :2])
     # pylint: disable=E1101
@@ -213,26 +209,22 @@ def smoothed_location(loc, center, radius, city, pmapping):
     return SMOOTH.pdf(ploc/20)/SMOOTH_MAX
 
 
-def full_surrounding(vid, vmapping, pmapping, cmapping, svenues, scheckins,
-                     sphotos, city, radius=350):
+def full_surrounding(vid, vmapping, cmapping, svenues, scheckins, city,
+                     radius=350):
     """Return a list of photos, checkins and venues categories in a `radius`
     around `vid`, within `city`. The mappings are dict({id: 2dpos})"""
     cat_distrib = categories_repartition(city, svenues, vmapping, radius, vid)
     center = vmapping[vid]
-    pids, infos, _ = sphotos.around(center, radius)
-    pvenue = infos[0]
     cids, infos, _ = scheckins.around(center, radius)
     ctime = infos[0]
-    focus = photo_focus(vid, center, pids, pvenue, radius, pmapping)
-    photogeny, c_smoothed = photo_ratio(center, pids, cids, radius, pmapping,
-                                        cmapping)
+    c_smoothed = smoothed_location(cids, center, radius, None, cmapping)
     if len(ctime) < 5:
         print(vid + ' is anomalous because there is less than 5 check-in in a 350m radius')
     if len(ctime) == 0:
         surround_visits = np.ones(6)
     else:
         surround_visits = xp.aggregate_visits(ctime, 1, 4, c_smoothed)[0]
-    return cat_distrib, focus, photogeny, surround_visits
+    return cat_distrib, None, None, surround_visits
 
 
 def photo_focus(vid, center, pids, pvenue, radius, mapping):
@@ -335,7 +327,7 @@ def parenting_cat(cat, depth=1):
 
 def get_loc(vid):
     """Return coordinated of the venue `vid` (or None if it's not in DB)."""
-    res = DB.venue.find_one({'_id': vid}, {'loc': 1})
+    res = DB.emre_venue.find_one({'_id': vid}, {'loc': 1})
     if res:
         return u.get_nested(res, ['loc', 'coordinates'])
     return None
@@ -343,7 +335,7 @@ def get_loc(vid):
 
 def get_venue(vid, depth=1):
     """Return a textual description of venue `vid` or None."""
-    venue = DB.venue.find_one({'_id': vid}, {'cat': 1, 'name': 1})
+    venue = DB.emre_venue.find_one({'_id': vid}, {'cat': 1, 'name': 1})
     if not venue:
         return None
     cat = parenting_cat(venue.get('cat'), depth)
@@ -416,15 +408,13 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
-    for c in cm.cities.SHORT_KEY:
-        if c == 'newyork':
-            continue
-        describe_city(c)
-    # describe_city(city)
+    describe_city(city)
     # for c in ['amsterdam', 'london', 'moscow', 'prague', 'stockholm']:
     #     global_info(c, standalone=False)
     # global_info(city, standalone=True)
-    # lvenues = geo_project(city, DB.venue.find({'city': city}, {'loc': 1}))
-    # svenues = s.Surrounding(DB.venue, {'city': city}, [], lvenues)
+    # lvenues = geo_project(city, DB.emre_venue.find({'city': city}, {'loc': 1}))
+    # svenues = s.Surrounding(DB.emre_venue, {'city': city}, [], lvenues)
     # p.save_var('{}_s{}s.my'.format(city, 'venue'), svenues)
     # p.save_var('{}_l{}s.my'.format(city, 'venue'), lvenues)
+# db.emre_venue.update({"loc": {"$near": {"$geometry": { "type": "Point" , "coordinates": [ 2.34, 48.862] }, "$maxDistance": 55000, "$minDistance": 0}}}, {"$set": {"city": "paris"}}, {"multi": true})
+# db.emre_venue.update({"loc": {"$near": {"$geometry": { "type": "Point" , "coordinates": [ -122.14, 37.76] }, "$maxDistance": 15000, "$minDistance": 0}}}, {"$set": {"city": "sanfrancisco"}}, {"multi": true})

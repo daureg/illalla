@@ -100,7 +100,7 @@ def get_visitors(mongo, city=None, ball=None):
     ((lng, lat), radius) by querying a `mongo` client."""
     operation, _ = choose_query_type(mongo, Entity.venue)
     location = get_spatial_query(Entity.venue, city, ball)
-    return query_for_visits(operation, location, 'tuid', mongo, city)
+    return query_for_visits(operation, location, 'uid', mongo, city)
 
 
 def get_visits(mongo, entity, city=None, ball=None):
@@ -115,7 +115,7 @@ def get_visits(mongo, entity, city=None, ball=None):
 def choose_query_type(mongo, entity):
     """Return appropriate db operation and time field name."""
     if entity == Entity.venue:
-        return mongo.foursquare.checkin.aggregate, 'time'
+        return mongo.foursquare.emre_checkin.aggregate, 'time'
     elif entity == Entity.photo:
         return mongo.world.photos.find, 'taken'
     else:
@@ -143,7 +143,7 @@ def query_for_visits(operation, location, time, mongo, city):
         return answer_to_dict(operation(location, {time: 1}))
     # $near is not supported in aggregate $match
     if 'loc' in location:
-        ids = mongo.foursquare.venue.find({'city': city,
+        ids = mongo.foursquare.emre_venue.find({'city': city,
                                            'loc': location['loc']}, {'_id': 1})
         ids = [v['_id'] for v in ids]
         location['lid'] = {'$in': ids}
@@ -153,7 +153,7 @@ def query_for_visits(operation, location, time, mongo, city):
     group = {'$group': {'_id': '$lid', 'visits': {'$push': '$time'}}}
     query = [match, project, group]
     convert = (lambda x: map(int, x)) if time == 'tuid' else None
-    return answer_to_dict(itertools.chain(operation(query)['result']), convert)
+    return answer_to_dict(itertools.chain(operation(query)), convert)
 
 
 import Chunker

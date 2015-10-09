@@ -96,11 +96,12 @@ def describe_city(city):
     venues = DB.emre_venue.find({'city': city, 'closed': {'$ne': True},
                             'cat': {'$ne': None}, 'usersCount': {'$gt': 1}},
                            {'cat': 1})
-    chosen = [v['_id'] for v in venues
-              if len(visits.get(v['_id'], [])) >= 1 and
-              len(np.unique(visitors.get(v['_id'], []))) >= 1 and
-              not is_event(v['cat'])]
-    print("Chosen {} venues in {}.".format(len(chosen), city))
+    ids = [v['_id'] for v in venues if not is_event(v['cat'])]
+    tu, tv = (1, 1) if len(ids) < 14000 else (2, 2)
+    chosen = [vid for vid in ids
+              if len(visits.get(vid, [])) >= tu and
+              len(np.unique(visitors.get(vid, []))) >= tv]
+    print("Chosen {} out of {} venues in {}.".format(len(chosen), len(ids), city))
     info, _ = venues_info(chosen, visits, visitors, density, depth=2,
                           tags_freq=False)
     print("{} of them will be in the matrix.".format(len(info)))

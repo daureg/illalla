@@ -54,19 +54,31 @@ AMS = [52.3337, 4.730, 52.4175, 4.986]
 HEL = [60.1463, 24.839, 60.2420, 25.0200]
 STO = [59.3003, 17.996, 59.3614, 18.162]
 BAR = [41.3253, 2.1004, 41.4669, 2.240]
-US = [NYC, WAS, SAF, ATL, IND, LAN, SEA, HOU, SLO, CHI]
-EU = [LON, PAR, BER, ROM, PRA, MOS, AMS, HEL, STO, BAR]
+ANK = [ 39.8117, 32.5579, 40.0785, 33.0324]
+ANT = [ 36.8348, 30.5684, 37.0159, 30.8423]
+IST = [40.8138, 28.6866, 41.2137, 29.2634]
+IZM = [ 27.0119, 38.3362, 38.5213, 27.2605]
+SAL = [ -13.03399, -38.55445, -12.80242, -38.33061]
+SAD = [ 32.537551, -117.29827, 32.99138, -116.8272] 
+SAP = [ -23.8582, -46.9116, -23.2615, -46.2222]
+
+US = [NYC, WAS, SAF, ATL, IND, LAN, SEA, HOU, SLO, CHI, SAL, SAD, SAP]
+EU = [LON, PAR, BER, ROM, PRA, MOS, AMS, HEL, STO, BAR, ANK, ANT, IST, IZM]
 NAMES = ['New York', 'Washington', 'San Francisco', 'Atlanta', 'Indianapolis',
          'Los Angeles', 'Seattle', 'Houston', 'St. Louis', 'Chicago',
+         'Salvador', 'San Diego', 'Sao Paulo',
          'London', 'Paris', 'Berlin', 'Rome', 'Prague', 'Moscow', 'Amsterdam',
-         'Helsinki', 'Stockholm', 'Barcelona']
+         'Helsinki', 'Stockholm', 'Barcelona', 'Ankara', 'Antalya', 'Istanbul',
+         'Izmir']
 _TIMEZONES = ['America/New_York', 'America/New_York', 'America/Los_Angeles',
               'America/New_York', 'America/Indiana/Indianapolis',
               'America/Los_Angeles', 'America/Los_Angeles', 'America/Chicago',
-              'America/Chicago', 'America/Chicago', 'Europe/London',
+              'America/Chicago', 'America/Chicago', 'America/Sao_Paulo',
+              'America/Los_Angeles', 'America/Sao_Paulo', 'Europe/London',
               'Europe/Paris', 'Europe/Berlin', 'Europe/Rome', 'Europe/Prague',
               'Europe/Moscow', 'Europe/Amsterdam', 'Europe/Helsinki',
-              'Europe/Stockholm', 'Europe/Madrid']
+              'Europe/Stockholm', 'Europe/Madrid', 'Europe/Istanbul',
+              'Europe/Istanbul', 'Europe/Istanbul', 'Europe/Istanbul']
 UTC_TZ = pytz.utc
 SHORT_KEY = [short_name(city) for city in NAMES]
 FULLNAMES = bidict.bidict(zip(SHORT_KEY, NAMES))
@@ -77,6 +89,8 @@ middle = lambda bbox: (.5*(bbox[0] + bbox[2]), (.5*(bbox[1] + bbox[3])))
 GEO_TO_2D = {name: lc.LocalCartesian(*middle(city)).forward
              for name, city in zip(SHORT_KEY, US+EU)}
 BBOXES = dict(zip(SHORT_KEY, [bbox_to_polygon(b) for b in US+EU]))
+WWW_CITIES = ['ankara', 'antalya', 'istanbul', 'izmir', 'losangeles',
+              'newyork', 'paris', 'salvador', 'sandiego', 'saopaulo']
 
 
 def euclidean_to_geo(city, coords):

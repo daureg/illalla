@@ -22,10 +22,10 @@ if __name__ == '__main__':
         if isinstance(tmp, list) and len(tmp) > 0:
             venues = tmp
     # run it and save output in normalized file
-    # best = query_in_one_city(source, target, geo, venues)[0]
+    best = query_in_one_city(source, target, geo, venues)[0]
     import persistent as p
-    # p.save_var('best.my', best)
-    best = p.load_var('best.my')
+    p.save_var('best.my', best)
+    # best = p.load_var('best.my')
     # print(best)
     res = {"type": "Feature",
            "properties": {"source": source, "target": target,

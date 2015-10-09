@@ -46,10 +46,10 @@ SMOOTH_MAX = SMOOTH.pdf([0, 0])
 def geo_project(city, entities):
     """Return {id: euclidean projection in `city`} for objects in
     `entities`."""
-    ids, loc = zip(*[(_['_id'], list(reversed(_['loc']['coordinates'])))
-                     for _ in entities])
+    ids, loc = list(zip(*[(_['_id'], list(reversed(_['loc']['coordinates'])))
+                     for _ in entities]))
     project = cm.cities.GEO_TO_2D[city]
-    return dict(zip(ids, project(np.array(loc))))
+    return dict(list(zip(ids, project(np.array(loc)))))
 
 
 @u.memodict
@@ -89,7 +89,7 @@ def describe_city(city):
     info = global_info(city)
     lvenues, lcheckins = info[:2]
     visits, visitors, density = info[2:5]
-    nb_visitors = np.unique(np.array([v for place in visitors.itervalues()
+    nb_visitors = np.unique(np.array([v for place in visitors.values()
                                       for v in place])).size
     svenues, scheckins = info[5:]
     categories = categories_repartition(city, svenues, lvenues, RADIUS)
@@ -169,7 +169,7 @@ def venues_info(vids, visits=None, visitors=None, density=None, depth=10,
         for venue in venues:
             for tag in venue['tags']:
                 tags[normalized_tag(tag)] += 1
-    return res, OrderedDict(sorted(tags.iteritems(), key=lambda x: x[1],
+    return res, OrderedDict(sorted(iter(tags.items()), key=lambda x: x[1],
                                    reverse=True))
 
 
@@ -287,7 +287,7 @@ def categories_repartition(city, svenues, vmapping, radius, vid=None):
 def venue_entropy(visitors):
     """Compute the entropy of venue given the list of its `visitors`."""
     # pylint: disable=E1101
-    return u.compute_entropy(np.array(Counter(visitors).values(), dtype=float))
+    return u.compute_entropy(np.array(list(Counter(visitors).values()), dtype=float))
 
 
 def time_entropy(visits):
@@ -348,7 +348,7 @@ def photos_around(id_, centroid, offset, daily, radius=200):
     pattern (`daily` or not), and its distance to every `centroid`."""
     center = get_loc(id_)
     photos = xp.get_visits(CLIENT, xp.Entity.photo, ball=(center, radius))
-    kind = xp.to_frequency(xp.aggregate_visits(photos.values(), offset)[daily])
+    kind = xp.to_frequency(xp.aggregate_visits(list(photos.values()), offset)[daily])
     nb_class = centroid.shape[0]
     # pylint: disable=E1101
     classes = np.linalg.norm(np.tile(kind, (nb_class, 1)) - centroid, axis=1)
@@ -372,12 +372,12 @@ def named_ticks(kind, offset=0, chunk=3):
 def draw_classes(centroid, offset, chunk=3):
     """Plot each time patterns in `centroid`."""
     size = centroid.shape[0]
-    for i, marker in zip(range(size), LEGEND[:size]):
+    for i, marker in zip(list(range(size)), LEGEND[:size]):
         ppl.plot(centroid[i, :], marker+'-', ms=9, c=ppl.colors.set1[i])
     if centroid.shape[1] == 24/chunk:
-        plt.xticks(range(24/chunk), named_ticks('day', offset, chunk))
+        plt.xticks(list(range(24/chunk)), named_ticks('day', offset, chunk))
     else:
-        plt.xticks(range(7*3), named_ticks('mix'))
+        plt.xticks(list(range(7*3)), named_ticks('mix'))
 
 
 def get_distorsion(ak, kl, sval):
@@ -398,13 +398,13 @@ if __name__ == '__main__':
     def getclass(c, kl, visits):
         """Return {id: time pattern} of the venues in class `c` of
         `kl`."""
-        return {v[0]: v[1] for v, k in zip(visits.iteritems(), kl) if k == c}
+        return {v[0]: v[1] for v, k in zip(iter(visits.items()), kl) if k == c}
 
     def peek_at_class(c, kl, visits, k=15):
         """Return a table of `k` randomly chosen venues in class `c` of
         `kl`."""
         sample = r.sample([get_venue(i)
-                           for i in getclass(c, kl, visits).keys()], k)
+                           for i in list(getclass(c, kl, visits).keys())], k)
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})

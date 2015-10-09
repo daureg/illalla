@@ -21,7 +21,7 @@ def parse_categories(top_list, depth=0):
         subs = []
         if isinstance(cat, dict) and 'categories' in cat:
             subs = parse_categories(cat['categories'], depth+1)
-        id_, name = str(cat['id']), unicode(cat['name'])
+        id_, name = str(cat['id']), str(cat['name'])
         CAT_TO_ID[name] = id_
         res.append(Category(id_, name, depth+1, subs))
     return res

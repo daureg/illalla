@@ -15,7 +15,7 @@ from operator import itemgetter
 
 # load venues location for all cities
 print('start loading city info')
-cities = set(c.SHORT_KEY)
+cities = {'paris', 'newyork', 'sanfrancisco'}
 cities_venues_raw = {name: p.load_var(name+'_svenues.my')
                      for name in cities}
 cities_desc = {name: nb.cn.gather_info(name, raw_features=True,
@@ -28,9 +28,9 @@ for city in cities:
     vids, _, locs = cities_venues_raw[city].all()
     vindex = cities_desc[city]['index']
     cities_venues[city] = np.zeros((len(vindex), 2))
-    cities_index[city] = dict(itertools.imap(lambda x: (x[1], x[0]),
+    cities_index[city] = dict(map(lambda x: (x[1], x[0]),
                                              enumerate(vindex)))
-    for vid, loc in itertools.izip(vids, locs):
+    for vid, loc in zip(vids, locs):
         pos = cities_index[city].get(vid)
         if pos is not None:
             cities_venues[city][pos, :] = loc
@@ -52,12 +52,12 @@ def retrieve_closest_venues(query_venues, query_city, target_city):
     return candidates, threshold
 
 
-def query_in_one_city(source, target, region):
+def query_in_one_city(source, target, region, explicit_venues=None):
     """`source` and `target` are two cities name while `region` is a JSON
     polygon. Return the five polygon in `target` that are the closest to
     `region` according to approximate EMD metrics."""
     raw_result = []
-    infos = nb.interpret_query(source, target, region, 'emd')
+    infos = nb.interpret_query(source, target, region, 'emd', explicit_venues)
     _, right, _, regions_distance, vids, _ = infos
     vindex = np.array(right['index'])
     vloc = cities_venues[target]

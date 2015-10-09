@@ -111,7 +111,7 @@ def xzip(items, fields):
     [[], []]
     """
     unpack = lambda x: [x[f] for f in fields]
-    res = zip(*[unpack(x) for x in items])
+    res = list(zip(*[unpack(x) for x in items]))
     if res == []:
         return len(fields)*[[], ]
     return res
@@ -166,11 +166,11 @@ def answer_to_dict(cursor, transfo=None, default=None):
     dictionary id: `transfo`(value) (provided that there is only one other
     field) (or `default`)."""
     try:
-        first = cursor.next()
+        first = next(cursor)
     except StopIteration:
         return {}
     transfo = transfo or (lambda x: x)
-    keys = first.keys()
+    keys = list(first.keys())
     assert '_id' in keys and len(keys) == 2
     field_name = keys[(keys.index('_id') + 1) % 2]
     res = {first['_id']: transfo(first.get(field_name, default))}

@@ -4,7 +4,7 @@
 specified cities.
 In the following, x refers to the latitude and y to the longitude"""
 import cities
-import urlparse
+import urllib.parse
 import pymongo
 from VenueIdCrawler import VenueIdCrawler
 from collections import namedtuple, defaultdict
@@ -65,7 +65,7 @@ def extract_url_from_msg(msg):
     last_word = msg.split()[-1]
     url = None
     if last_word.startswith('htt') and len(last_word) < 24:
-        host = urlparse.urlparse(last_word).netloc
+        host = urllib.parse.urlparse(last_word).netloc
         if host in BLACKLIST:
             last_word = None
         url = last_word

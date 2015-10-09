@@ -1,6 +1,6 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
-import cPickle as pickle
+import pickle as pickle
 
 
 def save_var(filename, d):

@@ -48,12 +48,12 @@ def spits_latex_table(N=10):
     for grid in [200, 80, 20]:
         tmp = read_entropies(grid)
         print(grid, max(tmp.values()), 2*log(grid))
-        e.append(tmp.items()[:N])
-        e.append(tmp.items()[-N:])
+        e.append(list(tmp.items())[:N])
+        e.append(list(tmp.items())[-N:])
         tmp = read_entropies(grid, True)
-        k.append(tmp.items()[:N])
-        k.append(tmp.items()[-N:])
-    line = u'{} & {:.3f} & {} & {:.3f} & {} & {:.3f} \\\\'
+        k.append(list(tmp.items())[:N])
+        k.append(list(tmp.items())[-N:])
+    line = '{} & {:.3f} & {} & {:.3f} & {} & {:.3f} \\\\'
     # for i in range(N):
     #     print(line.format(e[0][i][0], e[0][i][1]/(2*log(200)),
     #                       e[2][i][0], e[2][i][1]/(2*log(80)),
@@ -75,18 +75,18 @@ def spits_latex_table(N=10):
 def get_max_KL(grid=200):
     """Return maximum KL divergence with size `grid`."""
     filename = 'freq_{}__background.mat'.format(grid)
-    count = sio.loadmat(filename).values()[0]
+    count = list(sio.loadmat(filename).values())[0]
     return -log(np.min(count[count > 0])/float(np.sum(count)))
 
 
 def disc_latex(N=11):
-    line = u'{} & {:.3f} & {} & {:.3f} & {} & {:.3f} \\\\'
+    line = '{} & {:.3f} & {} & {:.3f} & {} & {:.3f} \\\\'
     from rank_disc import top_discrepancy
     t = [persistent.load_var('disc/all'),
          persistent.load_var('disc/all_80'),
          persistent.load_var('disc/all_20')]
     supported = [v[0] for v in persistent.load_var('supported')]
-    d = zip(*[top_discrepancy(l, supported) for l in t])
+    d = list(zip(*[top_discrepancy(l, supported) for l in t]))
     display = lambda v: line.format(v[0][2], v[0][0], v[1][2], v[1][0],
                                     v[2][2], v[2][0])
     for v in d[:N]:
@@ -139,7 +139,7 @@ def get_spatial_query(kind, city, ball):
 def query_for_visits(operation, location, time, mongo, city):
     """Return a dict resulting of the call of `operation` with `location` and
     `time` arguments."""
-    if 'find' in str(operation.im_func):
+    if 'find' in str(operation.__func__):
         return answer_to_dict(operation(location, {time: 1}))
     # $near is not supported in aggregate $match
     if 'loc' in location:
@@ -152,7 +152,7 @@ def query_for_visits(operation, location, time, mongo, city):
     project = {'$project': {'time': '$'+time, 'lid': 1, '_id': 0}}
     group = {'$group': {'_id': '$lid', 'visits': {'$push': '$time'}}}
     query = [match, project, group]
-    convert = (lambda x: map(int, x)) if time == 'tuid' else None
+    convert = (lambda x: list(map(int, x))) if time == 'tuid' else None
     return answer_to_dict(itertools.chain(operation(query)), convert)
 
 
@@ -247,10 +247,10 @@ def describe_venue(venues, city, depth=2, limit=None):
             nb_venues += count
             summary[cat] = (summary[cat][0] + count, summary[cat][1] + like)
 
-    for cat, stat in summary.iteritems():
+    for cat, stat in summary.items():
         count, like = stat
         summary[cat] = (100.0*count/nb_venues, count, like)
-    return OrderedDict(sorted(summary.items(), key=lambda u: u[1][0],
+    return OrderedDict(sorted(list(summary.items()), key=lambda u: u[1][0],
                               reverse=True))
 
 
@@ -299,7 +299,7 @@ def collect_similars(venues_db, client, city):
     """Find similars venues for 100 location in city, save the result in DB and
     return matching venues that were already in DB."""
     venues = answer_to_dict(venues_db.find({'city': city}, {'loc': 1}))
-    chosen = sample(venues.items(), 500)
+    chosen = sample(list(venues.items()), 500)
     distances = []
     all_match = []
     for vid, loc in chosen:
@@ -313,7 +313,7 @@ def collect_similars(venues_db, client, city):
                                                  {'loc': 1}))
         all_match.append(matching)
         distances.append([geodesic_distance(loc, sloc)
-                          for sloc in matching.itervalues()])
+                          for sloc in matching.values()])
     return chosen, distances, all_match
 
 

@@ -92,7 +92,7 @@ def euclidean_to_geo(city, coords):
         cmd = 'CartConvert -r -l {} {} 0 --input-file {}'
         output = sp.check_output(cmd.format(*(center + [fpath])), shell=True)
         os.remove(fpath)
-        raw = [float(c) for line in output.split('\n')
+        raw = [float(c) for line in output.decode('utf8').split('\n')
                for c in line.split()[:2]]
         return lc.numpy.array(raw).reshape(len(coords), 2)
     cmd = 'echo {} {} 0 |CartConvert -r -l {} {} 0'

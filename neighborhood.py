@@ -7,7 +7,7 @@ Input:
 Output:
     a list of coordinates that make up a polygon in the other city
 """
-from __future__ import print_function
+
 import cities
 import ClosestNeighbor as cn
 # import explore as xp
@@ -71,7 +71,7 @@ def describe_region(center, radius, belongs_to, surroundings, city_fv,
                               threshold)
     if not vids:
         return None, None, None, None
-    vids = filter(city_fv['index'].__contains__, vids)
+    vids = list(filter(city_fv['index'].__contains__, vids))
     if len(vids) < threshold:
         return None, None, None, None
     # _, ctime = gather_entities(scheckins, center, radius, belongs_to)
@@ -90,7 +90,7 @@ def describe_region(center, radius, belongs_to, surroundings, city_fv,
 def features_support(features):
     """Return a list of intervals representing the support of the probability
     distribution for each dimension."""
-    return zip(np.min(features, 0), np.max(features, 0))
+    return list(zip(np.min(features, 0), np.max(features, 0)))
 
 
 @u.memodict
@@ -146,7 +146,7 @@ def gather_entities(surrounding, center, radius, belongs_to, threshold=0):
     if belongs_to is None:
         return ids, info
     is_inside = lambda t: belongs_to(sgeo.Point(t[2]))
-    res = zip(*(i.ifilter(is_inside, i.izip(ids, info, locs))))
+    res = list(zip(*(filter(is_inside, zip(ids, info, locs)))))
     if len(res) != 3:
         return None, None
     ids[:], info[:], locs[:] = res
@@ -245,7 +245,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     x_vals, y_vals = np.meshgrid(x_steps, y_steps)
     to_cell_arg = lambda _: (float(_[1][0]), float(_[1][1]), _[0] % nb_x_step,
                              _[0]/nb_x_step, _[0])
-    cells = i.imap(to_cell_arg, enumerate(i.izip(np.nditer(x_vals),
+    cells = i.imap(to_cell_arg, enumerate(zip(np.nditer(x_vals),
                                                  np.nditer(y_vals))))
     res = pool.map(one_cell, cells)
     pool.close()
@@ -253,7 +253,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     res_map = []
     if metric == 'leftover':
         dsts = emd_leftover.collect_matlab_output(len(res))
-        for cell, dst in i.izip(res, dsts):
+        for cell, dst in zip(res, dsts):
             if cell[0]:
                 cell[2] = dst
         clean_tmp_mats()
@@ -273,7 +273,7 @@ def brute_search(city_desc, hsize, distance_function, threshold,
     yield best, res_map, 1.0
 
 
-def interpret_query(from_city, to_city, region, metric):
+def interpret_query(from_city, to_city, region, metric, explicit_venues=None):
     """Load informations about cities and compute useful quantities."""
     # Load info of the first city
     suffix = '_tsne.mat' if metric == 'emd-tsne' else ''
@@ -287,6 +287,8 @@ def interpret_query(from_city, to_city, region, metric):
     center, radius, _, contains = polygon_to_local(from_city, region)
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
+    if explicit_venues:
+        vid = explicit_venues
     # print('{} venues in query region.'.format(len(vids)))
     venue_proportion = 1.0*len(vids) / left['features'].shape[0]
 
@@ -313,8 +315,8 @@ def interpret_query(from_city, to_city, region, metric):
         def regions_distance(r_features, r_weigths):
             if len(r_features) >= MAX_EMD_POINTS:
                 return 1e20
-            return emd((query_num, map(float, weights)),
-                       (r_features, map(float, r_weigths)),
+            return emd((query_num, list(map(float, weights))),
+                       (r_features, list(map(float, r_weigths))),
                        lambda a, b: float(dist_for_emd(a, b, ltheta)))
     elif 'cluster' in metric:
         from scipy.spatial.distance import cdist
@@ -511,7 +513,7 @@ def get_knn_candidates(vids, left_knn, right_knn, at_least, at_most=None):
     nb_venues = min(at_most, max(len(vids)*knn, at_least))
     for idx, vid in enumerate(vids):
         _, rid, ridx, dst, _ = cn.find_closest(vid, left_knn, right_knn)
-        for dst_, rid_, ridx_, idx_ in zip(dst, rid, ridx, range(knn)):
+        for dst_, rid_, ridx_, idx_ in zip(dst, rid, ridx, list(range(knn))):
             if rid_ not in candidates_id:
                 candidates_id.append(rid_)
                 heapq.heappush(candidates, (dst_, idx*knn+idx_,
@@ -609,7 +611,7 @@ def batch_matching(query_city='paris'):
     with open('static/ground_truth.json') as gt:
         regions = ujson.load(gt)
     districts = sorted(regions.keys())
-    cities = sorted(regions.values()[0]['gold'].keys())
+    cities = sorted(list(regions.values())[0]['gold'].keys())
     assert query_city in cities
     cities.remove(query_city)
     OTMPDIR = os.path.join(OTMPDIR, 'www_comparaison_'+query_city)
@@ -640,8 +642,8 @@ def batch_matching(query_city='paris'):
                     logging.info('will write: '+str(os.path.join(OTMPDIR, QUERY_NAME)))
                     if os.path.isfile(os.path.join(OTMPDIR, QUERY_NAME)):
                         continue
-                    res, values, _ = best_match(query_city, city, rgeo, radius,
-                                                metric=metric).next()
+                    res, values, _ = next(best_match(query_city, city, rgeo, radius,
+                                                metric=metric))
                     continue
                     distance, r_vids, center, radius = res
                     print(distance)
@@ -669,10 +671,10 @@ def find_promising_seeds(good_ids, venues_infos, method, right):
     Return a list of convex hulls with associated list of good and bad
     venues id"""
     vids, _, venues_loc = venues_infos.all()
-    significant_id = {vid: loc for vid, loc in i.izip(vids, venues_loc)
+    significant_id = {vid: loc for vid, loc in zip(vids, venues_loc)
                       if vid in right['index']}
     good_loc = np.array([significant_id[v] for v in good_ids])
-    bad_ids = [v for v in significant_id.iterkeys() if v not in good_ids]
+    bad_ids = [v for v in significant_id.keys() if v not in good_ids]
     bad_loc = np.array([significant_id[v] for v in bad_ids])
     if method == 'discrepancy':
         hulls, gcluster, bcluster = discrepancy_seeds((good_ids, good_loc),
@@ -683,7 +685,7 @@ def find_promising_seeds(good_ids, venues_infos, method, right):
                                                  (bad_ids, bad_loc))
     else:
         raise ValueError('{} is not supported'.format(method))
-    clusters = zip(hulls, gcluster, bcluster)
+    clusters = list(zip(hulls, gcluster, bcluster))
     return sorted(clusters, key=lambda x: len(x[1]), reverse=True)
 
 
@@ -779,8 +781,8 @@ def all_gold_dst():
     """Compute the distance between all gold regions and the query ones for
     all metrics."""
     assert GROUND_TRUTH, 'load GROUND_TRUTH before calling'
-    districts = GROUND_TRUTH.keys()
-    cities = GROUND_TRUTH.items()[0][1]['gold'].keys()
+    districts = list(GROUND_TRUTH.keys())
+    cities = list(GROUND_TRUTH.items())[0][1]['gold'].keys()
     cities.remove('paris')
     metrics = ['cluster', 'emd', 'emd-lmnn', 'jsd']
     results = {}
@@ -840,8 +842,8 @@ if __name__ == '__main__':
                                    [2.3006272315979004, 48.86419005209702]]]}
     get_seed_regions(origin, dest, user_input)
     sys.exit()
-    res, values, _ = best_match(origin, dest, user_input, 400,
-                                metric='leftover').next()
+    res, values, _ = next(best_match(origin, dest, user_input, 400,
+                                metric='leftover'))
     distance, r_vids, center, radius = res
     print(distance)
     sys.exit()

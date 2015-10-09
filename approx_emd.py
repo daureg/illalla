@@ -19,10 +19,12 @@ from shapely.geometry import Polygon
 from timeit import default_timer as clock
 
 # load data
-with open('static/ground_truth.json') as infile:
-    gold_list = ujson.load(infile)
-districts = sorted(gold_list.iterkeys())
-cities = sorted(gold_list[districts[0]]['gold'].keys())
+# with open('static/ground_truth.json') as infile:
+#     gold_list = ujson.load(infile)
+# districts = sorted(gold_list.iterkeys())
+# cities = sorted(gold_list[districts[0]]['gold'].keys())
+gold_list, districts = None, None
+cities = sorted({'paris', 'newyork', 'sanfrancisco'})
 cities_desc = {name: nb.cn.gather_info(name, raw_features=True,
                                        hide_category=True)
                for name in cities}
@@ -239,9 +241,9 @@ for city in cities:
     vids, _, locs = cities_venues_raw[city].all()
     vindex = cities_desc[city]['index']
     cities_venues[city] = np.zeros((len(vindex), 2))
-    cities_index[city] = dict(itertools.imap(lambda x: (x[1], x[0]),
+    cities_index[city] = dict(map(lambda x: (x[1], x[0]),
                                              enumerate(vindex)))
-    for vid, loc in itertools.izip(vids, locs):
+    for vid, loc in zip(vids, locs):
         pos = cities_index[city].get(vid)
         if pos is not None:
             cities_venues[city][pos, :] = loc
@@ -275,12 +277,13 @@ def evaluate_clustering(labels, candidates_indices, gold_indices_list):
     return [np.mean(np.nan_to_num(fscores)), n_clusters]
 
 
-QUERIES = itertools.product(cities, districts)
-ALL_Q = [(city, district) for city, district in QUERIES
-         if city not in ['paris', 'berlin'] and
-         city in gold_list[district]['gold'] and
-         [1 for reg in gold_list[district]['gold'][city]
-          if len(reg['properties']['venues']) >= 20]]
+QUERIES, ALL_Q = None, None
+# QUERIES = itertools.product(cities, districts)
+# ALL_Q = [(city, district) for city, district in QUERIES
+#          if city not in ['paris', 'berlin'] and
+#          city in gold_list[district]['gold'] and
+#          [1 for reg in gold_list[district]['gold'][city]
+#           if len(reg['properties']['venues']) >= 20]]
 
 
 def cluster_is_small_enough(max_length, max_venues, vloc):
@@ -346,14 +349,14 @@ def plot_clusters(clusters, candidates, bounds, vloc, hulls, shrink=0.9):
     provided."""
     xbounds, ybounds = bounds
     unique_labels = len(clusters)
-    clustered = set().union(*map(list, clusters))
+    clustered = set().union(*list(map(list, clusters)))
     noise = list(candidates.difference(clustered))
     if unique_labels > 5:
         colors = mpl.cm.Spectral(np.linspace(0, 1, unique_labels+1))
     else:
         colors = [gray, red, green, blue, orange]
     plt.figure(figsize=(20, 15))
-    for k, indices, col in zip(range(unique_labels+1), [noise]+clusters,
+    for k, indices, col in zip(list(range(unique_labels+1)), [noise]+clusters,
                                colors):
         k -= 1
         if k == -1:
@@ -364,7 +367,7 @@ def plot_clusters(clusters, candidates, bounds, vloc, hulls, shrink=0.9):
                     label='noise' if k == -1 else 'cluster {}'.format(k+1))
     hulls = hulls or []
     for idx, hull in enumerate(hulls):
-        first_again = range(len(hull))+[0]
+        first_again = list(range(len(hull)))+[0]
         ppl.plot(hull[first_again, 0], hull[first_again, 1], '--',
                  c=ppl.colors.almost_black, lw=1.0, alpha=0.9,
                  label='gold region' if idx == 0 else None)
@@ -381,10 +384,10 @@ if __name__ == '__main__':
     ybounds = np.array([vloc[:, 1].min(), vloc[:, 1].max()])
     infos = retrieve_closest_venues(district, query_city, target_city)
     top_venues, gold_venues_indices, threshold = infos
-    gold_venues = set().union(*map(list, gold_venues_indices))
+    gold_venues = set().union(*list(map(list, gold_venues_indices)))
     candidates = top_venues
     hulls = [vloc[tg, :][ConvexHull(vloc[tg, :]).vertices, :]
              for tg in gold_venues_indices]
     eps, mpts = 210, 18
     sclidx = good_clustering(vloc, list(sorted(candidates)), eps, mpts)
-    print(np.array(map(len, sclidx)))
+    print(np.array(list(map(len, sclidx))))

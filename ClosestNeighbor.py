@@ -28,7 +28,7 @@ FEATURES.extend(['activity at ' + t for t in vf.named_ticks('day', 1, 4)])
 FEATURES.append('opening')
 FEATURES.extend(['surrounding activity at ' + t
                  for t in vf.named_ticks('day', 1, 4)])
-RESTRICTED = np.array(range(len(FEATURES)))  # pylint: disable=E1101
+RESTRICTED = np.array(list(range(len(FEATURES))))  # pylint: disable=E1101
 LCATS = {}
 
 
@@ -54,8 +54,11 @@ def load_matrix(city, hide_category=False):
         if hide_category:
             mat['v'][:, 5] = np.zeros((mat['v'].shape[0],))
         if filename.endswith('_fv.mat'):
-            non_categorical = range(len(FEATURES))
+            non_categorical = list(range(len(FEATURES)))
             del non_categorical[non_categorical.index(5)]
+            # because these two are now uniform
+            del non_categorical[non_categorical.index(15)]
+            del non_categorical[non_categorical.index(16)]
             del non_categorical[non_categorical.index(17)]
             weird = np.logical_or(np.isinf(mat['v'][:, 16]),
                                   np.isnan(mat['v'][:, 16])).ravel()
@@ -86,7 +89,7 @@ def gather_info(city, knn=2, mat=None, raw_features=True, hide_category=False):
         mask = res['features'][:, 5] == cat
         venues = matrix['i'][mask]
         if len(venues) > 0:
-            frange = np.array(range(len(FEATURES)))
+            frange = np.array(list(range(len(FEATURES))))
             if city.endswith('_tsne.mat'):
                 frange = np.arange(5)
             idx_subset = np.ix_(mask, frange)  # pylint: disable=E1101
@@ -234,7 +237,7 @@ if __name__ == '__main__':
     learned = np.insert(learned, 5, values=0, axis=1)
     learned = np.insert(learned, 5, values=0, axis=0)
     learned[5, 5] = 1.0
-    extract = lambda r, i: np.array([one for cats_r in r.itervalues()
+    extract = lambda r, i: np.array([one for cats_r in r.values()
                                      for one in cats_r[i]])
     metrics = ['Euclidean', 'Random Diagonal', 'ITML', 'GB-LMNN', '2D t-SNE',
                'Random ordering']
@@ -299,7 +302,7 @@ if __name__ == '__main__':
     nw = np.array(list(vindex.difference(list(w))))
     print('\t'.join([C.FULLNAMES[args.origin].ljust(15),
                      C.FULLNAMES[args.dest].ljust(15)] +
-                    map(lambda x: '{:.4f}'.format(np.mean(x[nw])), three)))
+                    ['{:.4f}'.format(np.mean(x[nw])) for x in three]))
 
     def explain(query, answer):
         """Explains distance between `query` and `answer` as a data frame."""

@@ -3,11 +3,11 @@
 """Send request to get venue id from short url checkins"""
 from timeit import default_timer as clock
 import pycurl
-import cStringIO as cs
+import io as cs
 import re
 import logging
 import os
-import urlparse
+import urllib.parse
 logging.basicConfig(filename=os.path.expanduser('~/venue.log'),
                     level=logging.INFO,
                     format='%(asctime)s [%(levelname)s]: %(message)s')
@@ -111,7 +111,7 @@ class VenueIdCrawler(object):
         if curl_object.getinfo(pycurl.HTTP_CODE) != 200:
             return None
         url = curl_object.getinfo(pycurl.EFFECTIVE_URL)
-        domain = urlparse.urlparse(url).netloc
+        domain = urllib.parse.urlparse(url).netloc
         if 'foursquare' not in domain:
             return None
         id_ = url.split('/')[-1]
@@ -161,8 +161,8 @@ TEST_DATA = {
     'http://4sq.com/eCaKGm': '4d1759fd25cda143c24876d6',
     'http://4sq.com/1fUl5jB': '4b3b5b13f964a520d97225e3',
     'http://4sq.com/1n6608z': '4e5b759eb0fbdca30a171b16',
-    u'http://4sq.com/1h1Ii5S': '4bbcab08a0a0c9b654971a0f',
-    u'http://4sq.com/1qjygUa': '49bb36fcf964a520dc531fe3',
+    'http://4sq.com/1h1Ii5S': '4bbcab08a0a0c9b654971a0f',
+    'http://4sq.com/1qjygUa': '49bb36fcf964a520dc531fe3',
     # venue page
     'http://4sq.com/ccIVP3': '4e57dbd3227131507c9381df',
     'http://4sq.com/9nNdot': '4a270788f964a520268e1fe3',
@@ -177,7 +177,7 @@ TEST_DATA = {
 
 if __name__ == '__main__':
     r = VenueIdCrawler()
-    query_url = TEST_DATA.keys()
+    query_url = list(TEST_DATA.keys())
     res = r.venue_id_from_urls(query_url)
     res_dict = {u: i for u, i in zip(query_url, res)}
     print('correct: {}/{}'.format(len(res), len(TEST_DATA)))

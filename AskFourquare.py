@@ -7,7 +7,7 @@ import foursquare
 import cities
 import CommonMongo as cm
 import pycurl
-import cStringIO as cs
+import io as cs
 from utils import get_nested
 from lxml import etree
 PARSER = etree.HTMLParser()
@@ -57,7 +57,7 @@ def parse_opening_time(info):
 
 def venue_profile(venue):
     """Return a Venue object from a venue json description."""
-    assert len(venue.keys()) > 1, "don't send top-level object"
+    assert len(list(venue.keys())) > 1, "don't send top-level object"
     vid = venue['id']
     name = venue['name']
     loc = venue['location']
@@ -101,7 +101,7 @@ def venue_profile(venue):
 
 def user_profile(user):
     """Return a User object from a user json description."""
-    assert len(user.keys()) > 1, "don't send top-level object"
+    assert len(list(user.keys())) > 1, "don't send top-level object"
     uid = int(user['id'])
     firstName = user.get('firstName', None)
     lastName = user.get('lastName', None)

@@ -74,10 +74,11 @@ def global_info(city, standalone=False):
     svenues = s.Surrounding(DB.emre_venue, {'city': city}, infos['venue'], lvenues)
     scheckins = s.Surrounding(DB.emre_checkin, {'city': city}, ['time'], lcheckins)
     surroundings = [svenues, scheckins]
-    p.save_var('{}_s{}s.my'.format(city, 'venue'), svenues)
     if standalone:
         for name, var in zip(['venue', 'checkin'], surroundings):
             p.save_var('{}_s{}s.my'.format(city, name), var)
+    else:
+        p.save_var('{}_s{}s.my'.format(city, 'venue'), svenues)
     return local_projection + activity + surroundings
 
 
@@ -409,6 +410,10 @@ if __name__ == '__main__':
         return pd.DataFrame({'cat': [_[0] for _ in sample],
                              'name': [_[1] for _ in sample],
                              'id': [_[2] for _ in sample]})
+    for c in cm.cities.WWW_CITIES:
+        global_info(c, standalone=False)
+    import sys
+    sys.exit()
     describe_city(city)
     # for c in ['amsterdam', 'london', 'moscow', 'prague', 'stockholm']:
     #     global_info(c, standalone=False)

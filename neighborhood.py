@@ -18,11 +18,12 @@ import shapely.geometry as sgeo
 import scipy.cluster.vq as vq
 import emd_leftover
 import logging
+import random
 # pylint: disable=E1101
 # pylint: disable=W0621
 NB_CLUSTERS = 3
 JUST_READING = False
-MAX_EMD_POINTS = 750
+MAX_EMD_POINTS = 3000
 NO_WEIGHT = True
 QUERY_NAME = None
 GROUND_TRUTH = None
@@ -44,6 +45,7 @@ def load_surroundings(city):
     #                 for kind in ['venue', 'checkin', 'photo']]
     venues_pos = np.vstack(surroundings[0].loc)
     city_extent = list(np.min(venues_pos, 0)) + list(np.max(venues_pos, 0))
+    print(city, city_extent)
     return surroundings, city_extent
 
 
@@ -140,6 +142,7 @@ def weighting_venues(values):
 def gather_entities(surrounding, center, radius, belongs_to, threshold=0):
     """Filter points in `surrounding` that belong to the given region."""
     ids, info, locs = surrounding.around(center, radius)
+    print('venues found surrounding: {}'.format(len(ids)))
     info = len(ids)*[0, ] if len(info) == 0 else list(info[0])
     if len(ids) < threshold:
         return None, None
@@ -285,11 +288,18 @@ def interpret_query(from_city, to_city, region, metric, explicit_venues=None):
 
     # Compute info about the query region
     center, radius, _, contains = polygon_to_local(from_city, region)
+    print(center, radius)
     query = describe_region(center, radius, contains, left_infos[0], left)
     features, times, weights, vids = query
-    if explicit_venues:
-        vid = explicit_venues
-    # print('{} venues in query region.'.format(len(vids)))
+    if explicit_venues is not None:
+        vids = explicit_venues
+        print('you provided {} venues'.format(len(vids)))
+    if len(vids) > MAX_EMD_POINTS and 'emd' in metric:
+        chosen = np.random.permutation(len(vids))[:MAX_EMD_POINTS]
+        features = features[chosen, :]
+        weights = weights[chosen]
+        vids = list(np.array(vids)[chosen])
+    print('{} venues in query region.'.format(len(vids)))
     venue_proportion = 1.0*len(vids) / left['features'].shape[0]
 
     # And use them to define the metric that will be used

@@ -56,7 +56,8 @@ def load_matrix(city, hide_category=False):
         if filename.endswith('_fv.mat'):
             non_categorical = list(range(len(FEATURES)))
             del non_categorical[non_categorical.index(5)]
-            # because these two are now uniform
+            # because these 3 are now uniform
+            del non_categorical[non_categorical.index(0)]
             del non_categorical[non_categorical.index(15)]
             del non_categorical[non_categorical.index(16)]
             del non_categorical[non_categorical.index(17)]

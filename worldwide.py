@@ -15,7 +15,7 @@ from operator import itemgetter
 
 # load venues location for all cities
 print('start loading city info')
-cities = {'paris', 'newyork', 'sanfrancisco'}
+cities = c.WWW_CITIES
 cities_venues_raw = {name: p.load_var(name+'_svenues.my')
                      for name in cities}
 cities_desc = {name: nb.cn.gather_info(name, raw_features=True,
@@ -58,12 +58,15 @@ def query_in_one_city(source, target, region, explicit_venues=None):
     `region` according to approximate EMD metrics."""
     raw_result = []
     infos = nb.interpret_query(source, target, region, 'emd', explicit_venues)
+    print(source, target)
     _, right, _, regions_distance, vids, _ = infos
+    if vids is None:
+        print("bad query: didn't found enough venues inside")
+        return None
     vindex = np.array(right['index'])
     vloc = cities_venues[target]
     infos = retrieve_closest_venues(vids, source, target)
     candidates, _ = infos
-    print(source, target)
 
     eps, mpts = 250, 10 if len(vloc) < 5000 else 40
     clusters = app.good_clustering(vloc, list(sorted(candidates)), eps, mpts)

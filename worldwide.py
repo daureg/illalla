@@ -52,6 +52,35 @@ def retrieve_closest_venues(query_venues, query_city, target_city):
     return candidates, threshold
 
 
+def rigged_query(source, target, region_s, region_t):
+    """Compute the EMD similarity between two GeoJSON regions of two cities"""
+    infos = nb.interpret_query(source, target, region_s, 'emd')
+    _, right, right_desc, regions_distance, _, _ = infos
+    right_infos = right_desc[-1]
+
+    # scrap usuful info from right
+    # right_desc = [right_city_size, right_support, right, right_infos]
+    # return [left, right, right_desc, regions_distance, vids, threshold]
+
+
+    # get venues in regions_t
+    center, radius, _, contains = nb.polygon_to_local(target, region_t)
+    target_region = nb.describe_region(center, radius, contains, right_infos[0],
+                                    right)
+    features, _, weights, vids = target_region
+    if vids is None:
+        print('NO VENUE IN ONE REGION OF {}'.format(target))
+        return np.inf
+
+    # use it for computation
+    # vindex = np.array(right['index'])
+    # vids = vindex[venues]
+    venues_indices = itemgetter(*vids)(cities_index[target])
+    venues = right['features'][venues_indices, :]
+    dst = regions_distance(venues.tolist(), weights)
+    return dst
+
+
 def query_in_one_city(source, target, region, explicit_venues=None):
     """`source` and `target` are two cities name while `region` is a JSON
     polygon. Return the five polygon in `target` that are the closest to

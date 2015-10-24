@@ -28,14 +28,14 @@ if __name__ == '__main__':
     checkins = foursquare.checkin
     venues = foursquare.venue
     photos = client.world.photos
-    newer = dt(2001, 2, 1)
+    newer = dt(2011, 5, 1)
     t = pt.PrettyTable()
     t.junction_char = '|'
-    # checkin = checkins.aggregate([{'$match': {'time': {'$lt': newer}}},
-    #                               {'$project': {'city': 1}},
-    #                               {'$group': {'_id': '$city',
-    #                                           'count': {'$sum': 1}}},
-    #                               {'$sort': {'count': -1}}])
+    checkin = checkins.aggregate([{'$match': {'time': {'$lt': newer}}},
+                                  {'$project': {'city': 1}},
+                                  {'$group': {'_id': '$city',
+                                              'count': {'$sum': 1}}},
+                                  {'$sort': {'count': -1}}])
     located = checkins.aggregate([{'$match': {'lid': {'$ne': None},
                                               'time': {'$lt': newer}}},
                                   {'$project': {'city': 1}},
@@ -59,7 +59,7 @@ if __name__ == '__main__':
                                              'count': {'$sum': 1}}}])
     cities_name = [cm.cities.FULLNAMES[n] for n in order] + ['total']
     t.add_column('city', cities_name, 'l')
-    # t.add_column('ICWSM checkins', ordered(checkin, order), 'r')
+    t.add_column('ICWSM checkins', ordered(checkin, order), 'r')
     # t.add_column('ICWSM checkins', ordered(located, order), 'r')
     t.add_column('checkins', ordered(newest, order, 0), 'r')
     t.add_column('venues', ordered(venue, order), 'r')
@@ -68,5 +68,5 @@ if __name__ == '__main__':
     line_size = len(table)/(len(order)+4)
     start = table.find('\n')+1
     end = table.find('\n', -int(1.5*line_size))
-    with open('status.md', 'w') as status:
+    with open('status_paper.md', 'w') as status:
         status.write(table[start:end])

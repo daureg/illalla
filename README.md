@@ -1,15 +1,17 @@
 Code supporting my Master Thesis about finding similar neighborhood across cities using social media activity.
 
-You can get more information by reading [our blogpost](http://northernbytes.co/2014/11/25/similar-neighborhoods/), [a two pages academic summary](http://geraud.so/neighborhoods.pdf) or if you have more time on your hands, my [complete thesis](https://aaltodoc.aalto.fi/handle/123456789/13900).
+You can get more information by reading [our blogpost](http://northernbytes.co/2014/11/25/similar-neighborhoods/), [a two pages academic summary](http://geraud.so/neighborhoods.pdf), [our ICWSM paper](http://www.aaai.org/ocs/index.php/ICWSM/ICWSM15/paper/view/10514) or if you have more time on your hands, my [complete thesis](https://aaltodoc.aalto.fi/handle/123456789/13900).
 
-Below I provide more technical details. Yet it should be noted that for now, not all data are included with the code (although [the most important can be found on dropbox](https://dl.dropboxusercontent.com/u/23609132/cities_features_matrix.zip)and thus there is no simple demonstration one can quickly test. Hopefully this will soon be remedied :)
+If you're interested in our dataset, you can find it on [Figshare](http://figshare.com/articles/Foursquare_amp_Flickr_activities_in_20_cities/1584973). As Foursquare prohibits distributing out of data venue information, you will have to use `FillDB.py` to collect the latest statistics about them.
+
+Below I provide more technical details. Yet it should be noted that for now, not all data are included with the code (although [the most important can be found on dropbox](https://dl.dropboxusercontent.com/u/23609132/cities_features_matrix.zip) and thus there is no simple demonstration one can quickly test. Hopefully this will soon be remedied :)
 
 How it works
 ====================
 
-All the code is written in Python 2 and dependencies can be install from [requirements.txt](requirements.txt). Map rendering is controlled by a Flask app and involve [Leaflet](http://leafletjs.com/) as well as some javascript in the `static` directory.
+All the code is written in Python 2 (but is known to work with automatic [2to3](https://docs.python.org/3/library/2to3.html) modifications under Python 3.4 as well) and dependencies can be install from [requirements.txt](requirements.txt). Map rendering is controlled by a Flask app and involve [Leaflet](http://leafletjs.com/) as well as some javascript in the `static` directory.
 
-First we collect data from two social media, Foursquare and Flickr. Then we aggregate data at the venue level. Each venue become a feature vector and is stored in a matrix (which are not yet included this repository).
+First we collect data from two social media, Foursquare and Flickr. Then we aggregate data at the venue level. Each venue become a feature vector and is stored in a matrix.
 
 Finally we devise a method that given a polygon in one city, compute the $k$ most similar in another city.
 

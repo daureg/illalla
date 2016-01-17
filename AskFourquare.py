@@ -86,7 +86,7 @@ def venue_profile(venue):
     rating = None if 'rating' not in venue else venue['rating']
     createdAt = datetime.fromtimestamp(venue['createdAt'])
     mayor = None
-    if 'user' in venue['mayor']:
+    if 'mayor' in venue and 'user' in venue['mayor']:
         mayor = int(venue['mayor']['user']['id'])
     tags = list(set([t.strip() for t in venue['tags']]))
     shortUrl = venue['shortUrl']
